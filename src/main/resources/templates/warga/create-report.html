@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="id" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AduAja - Buat Laporan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+    ></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+  </head>
+  <body class="min-h-screen bg-gray-50">
+    <header class="bg-white shadow-sm sticky top-0 z-10">
+      <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center gap-3 h-16">
+          <a
+            th:href="@{/warga/dashboard}"
+            class="p-2 hover:bg-gray-100 rounded-lg"
+          >
+            <i data-lucide="arrow-left" class="w-5 h-5 text-gray-600"></i>
+          </a>
+          <div>
+            <h1 class="font-bold text-gray-900">Buat Laporan Baru</h1>
+            <p class="text-xs text-gray-500">
+              Laporkan kerusakan infrastruktur
+            </p>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <form
+        th:action="@{/warga/report}"
+        method="post"
+        enctype="multipart/form-data"
+        th:object="${reportForm}"
+        class="space-y-6"
+      >
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <label class="block text-sm font-medium text-gray-900 mb-2">
+            Kategori Laporan <span class="text-red-500">*</span>
+          </label>
+          <select
+            th:field="*{category}"
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">Pilih kategori</option>
+            <option
+              th:each="cat : ${categories}"
+              th:value="${cat}"
+              th:text="${cat}"
+            >
+              Kategori
+            </option>
+          </select>
+          <p
+            th:if="${#fields.hasErrors('category')}"
+            th:errors="*{category}"
+            class="mt-2 text-sm text-red-600 flex items-center gap-1"
+          ></p>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <label class="block text-sm font-medium text-gray-900 mb-2">
+            Foto Laporan <span class="text-red-500">*</span>
+          </label>
+          <div
+            class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4"
+          >
+            <p class="text-sm text-yellow-800 flex items-start gap-2">
+              <i
+                data-lucide="alert-circle"
+                class="w-4 h-4 mt-0.5 flex-shrink-0"
+              ></i>
+              <span>
+                <strong>Wajib menggunakan kamera:</strong> Foto harus diambil
+                langsung menggunakan kamera perangkat Anda, bukan dari
+                galeri/file.
+              </span>
+            </p>
+          </div>
+
+          <div th:if="${reportForm.photoUrl != null}" class="relative">
+            <img
+              th:src="${reportForm.photoUrl}"
+              alt="Preview"
+              class="w-full h-64 object-cover rounded-lg"
+            />
+          </div>
+
+          <label
+            class="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-blue-300 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-all bg-gradient-to-br from-blue-50 to-white"
+          >
+            <div
+              class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-4"
+            >
+              <i data-lucide="camera" class="w-10 h-10 text-blue-600"></i>
+            </div>
+            <p class="text-base font-semibold text-blue-900 mb-1">
+              Buka Kamera
+            </p>
+            <p class="text-sm text-blue-600 mb-1">
+              Ambil foto kerusakan secara langsung
+            </p>
+            <p class="text-xs text-gray-500 px-6 text-center">
+              Klik untuk mengakses kamera perangkat Anda
+            </p>
+            <input
+              type="file"
+              name="photo"
+              accept="image/*"
+              capture="environment"
+              class="hidden"
+            />
+          </label>
+          <p
+            th:if="${#fields.hasErrors('photo')}"
+            th:errors="*{photo}"
+            class="mt-2 text-sm text-red-600 flex items-center gap-1"
+          ></p>
+        </div>
+
+        <div
+          class="bg-white p-6 rounded-xl shadow-sm border border-gray-100"
+          x-data="{ count: 0 }"
+          x-init="count = $el.querySelector('textarea').value.length"
+        >
+          <label class="block text-sm font-medium text-gray-900 mb-2">
+            Deskripsi Kerusakan <span class="text-red-500">*</span>
+          </label>
+          <textarea
+            th:field="*{description}"
+            rows="5"
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+            placeholder="Jelaskan detail kerusakan (minimal 20 karakter)"
+            x-on:input="count = $event.target.value.length"
+          ></textarea>
+          <div class="flex justify-between items-center mt-2">
+            <p
+              class="text-xs text-gray-500"
+              x-text="count + '/20 karakter minimum'"
+            ></p>
+            <p
+              th:if="${#fields.hasErrors('description')}"
+              th:errors="*{description}"
+              class="text-sm text-red-600"
+            ></p>
+          </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <label class="block text-sm font-medium text-gray-900 mb-2">
+            Lokasi <span class="text-red-500">*</span>
+          </label>
+
+          <div class="mb-4">
+            <label class="block text-sm text-gray-600 mb-2"
+              >Patokan Lokasi</label
+            >
+            <input
+              type="text"
+              th:field="*{landmark}"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Contoh: Dekat Indomaret"
+            />
+            <p
+              th:if="${#fields.hasErrors('landmark')}"
+              th:errors="*{landmark}"
+              class="mt-2 text-sm text-red-600"
+            ></p>
+          </div>
+
+          <button
+            type="button"
+            class="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+            hx-post="/warga/location"
+            hx-target="#gps-result"
+            hx-swap="outerHTML"
+          >
+            <i data-lucide="map-pin" class="w-5 h-5"></i>
+            Ambil Koordinat GPS
+          </button>
+
+          <div id="gps-result" class="mt-4">
+            <div class="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <p class="text-gray-600">Latitude:</p>
+                <input
+                  type="text"
+                  th:field="*{latitude}"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono"
+                />
+              </div>
+              <div>
+                <p class="text-gray-600">Longitude:</p>
+                <input
+                  type="text"
+                  th:field="*{longitude}"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono"
+                />
+              </div>
+            </div>
+            <p
+              th:if="${#fields.hasErrors('latitude') or #fields.hasErrors('longitude')}"
+              class="mt-2 text-sm text-red-600"
+            >
+              Lokasi GPS harus diisi.
+            </p>
+          </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <button
+            type="submit"
+            class="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-lg font-medium hover:shadow-lg transition-shadow"
+          >
+            Kirim Laporan
+          </button>
+          <p class="text-xs text-gray-500 text-center mt-3">
+            Pastikan semua informasi sudah benar sebelum mengirim
+          </p>
+        </div>
+      </form>
+    </main>
+
+    <script>
+      lucide.createIcons();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="id" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AduAja - Detail Laporan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+    ></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+      [x-cloak] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body
+    class="min-h-screen bg-gray-50"
+    x-data="{ showConfirmDialog: false, showDisputeDialog: false }"
+  >
+    <div
+      th:if="${report == null}"
+      class="min-h-screen bg-gray-50 flex items-center justify-center"
+    >
+      <div class="text-center">
+        <p class="text-gray-500 mb-4">Laporan tidak ditemukan</p>
+        <a th:href="@{/warga/dashboard}" class="text-blue-600 hover:underline"
+          >Kembali ke Dashboard</a
+        >
+      </div>
+    </div>
+
+    <div th:if="${report != null}">
+      <header class="bg-white shadow-sm sticky top-0 z-10">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex items-center gap-3 h-16">
+            <a
+              th:href="@{/warga/report-history}"
+              class="p-2 hover:bg-gray-100 rounded-lg"
+            >
+              <i data-lucide="arrow-left" class="w-5 h-5 text-gray-600"></i>
+            </a>
+            <div class="flex-1">
+              <h1 class="font-bold text-gray-900">Detail Laporan</h1>
+              <p class="text-xs text-gray-500" th:text="${report.id}">ID</p>
+            </div>
+            <span
+              th:class="|px-3 py-1 rounded-full text-xs font-medium ${report.statusColor}|"
+              th:text="${report.status}"
+              >Status</span
+            >
+          </div>
+        </div>
+      </header>
+
+      <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div
+          class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6"
+        >
+          <div
+            class="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center"
+          >
+            <img
+              th:if="${report.photoUrl != null}"
+              th:src="${report.photoUrl}"
+              alt="Foto laporan"
+              class="w-full h-full object-cover"
+            />
+            <span th:if="${report.photoUrl == null}" class="text-6xl">📸</span>
+          </div>
+        </div>
+
+        <div
+          class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6"
+        >
+          <h2
+            class="text-xl font-bold text-gray-900 mb-4"
+            th:text="${report.title}"
+          >
+            Judul
+          </h2>
+          <div class="space-y-4">
+            <div class="flex items-start gap-3">
+              <i
+                data-lucide="tag"
+                class="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0"
+              ></i>
+              <div>
+                <p class="text-sm text-gray-500">Kategori</p>
+                <p
+                  class="font-medium text-gray-900"
+                  th:text="${report.category}"
+                >
+                  Kategori
+                </p>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-3">
+              <i
+                data-lucide="map-pin"
+                class="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0"
+              ></i>
+              <div>
+                <p class="text-sm text-gray-500">Lokasi</p>
+                <p
+                  class="font-medium text-gray-900"
+                  th:text="${report.location}"
+                >
+                  Lokasi
+                </p>
+                <p
+                  class="text-sm text-gray-500 mt-1"
+                  th:text="${report.landmark}"
+                >
+                  Patokan lokasi
+                </p>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-3">
+              <i
+                data-lucide="calendar"
+                class="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0"
+              ></i>
+              <div>
+                <p class="text-sm text-gray-500">Tanggal Laporan</p>
+                <p
+                  class="font-medium text-gray-900"
+                  th:text="${#temporals.format(report.date, 'd MMMM yyyy')}"
+                >
+                  Tanggal
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6"
+        >
+          <h3 class="font-semibold text-gray-900 mb-4">Timeline Status</h3>
+          <div class="space-y-4">
+            <div th:each="item : ${timeline}" class="flex gap-4">
+              <div
+                th:class="|w-10 h-10 rounded-lg flex items-center justify-center ${item.color}|"
+              >
+                <i th:attr="data-lucide=${item.icon}" class="w-5 h-5"></i>
+              </div>
+              <div class="flex-1">
+                <div class="flex items-center justify-between">
+                  <h4
+                    class="font-semibold text-gray-900"
+                    th:text="${item.title}"
+                  >
+                    Judul
+                  </h4>
+                  <span class="text-xs text-gray-500" th:text="${item.date}"
+                    >Tanggal</span
+                  >
+                </div>
+                <p class="text-sm text-gray-600" th:text="${item.description}">
+                  Deskripsi
+                </p>
+                <div
+                  th:if="${item.note != null}"
+                  class="mt-2 text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded p-2"
+                  th:text="${item.note}"
+                ></div>
+                <div
+                  th:if="${item.relatedTicket != null}"
+                  class="mt-2 text-xs text-blue-700"
+                >
+                  Tiket terkait:
+                  <span th:text="${item.relatedTicket}">TKT-000</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <h3 class="font-semibold text-gray-900 mb-4">Tindakan</h3>
+          <div class="flex flex-col sm:flex-row gap-3">
+            <button
+              type="button"
+              x-on:click="showConfirmDialog = true"
+              class="flex-1 bg-green-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors"
+            >
+              Konfirmasi Selesai
+            </button>
+            <button
+              type="button"
+              x-on:click="showDisputeDialog = true"
+              class="flex-1 border border-red-500 text-red-600 px-4 py-3 rounded-lg font-medium hover:bg-red-50 transition-colors"
+            >
+              Ajukan Sengketa
+            </button>
+          </div>
+        </div>
+      </main>
+
+      <div
+        x-show="showConfirmDialog"
+        x-cloak
+        class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+      >
+        <div class="bg-white rounded-lg p-6 max-w-md w-full">
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">
+            Konfirmasi Penyelesaian
+          </h3>
+          <p class="text-sm text-gray-600 mb-4">
+            Apakah Anda yakin laporan ini sudah selesai ditangani?
+          </p>
+          <form th:action="@{/warga/report/confirm}" method="post">
+            <input type="hidden" name="id" th:value="${report.id}" />
+            <div class="flex gap-3">
+              <button
+                type="button"
+                x-on:click="showConfirmDialog = false"
+                class="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              >
+                Konfirmasi
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div
+        x-show="showDisputeDialog"
+        x-cloak
+        class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+      >
+        <div class="bg-white rounded-lg p-6 max-w-md w-full">
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">
+            Ajukan Sengketa
+          </h3>
+          <p class="text-sm text-gray-600 mb-4">
+            Berikan alasan dan unggah bukti untuk pengajuan sengketa.
+          </p>
+          <form
+            th:action="@{/warga/report/dispute}"
+            method="post"
+            enctype="multipart/form-data"
+            class="space-y-3"
+          >
+            <input type="hidden" name="id" th:value="${report.id}" />
+            <textarea
+              name="reason"
+              rows="4"
+              class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Alasan sengketa (minimal 20 karakter)"
+            ></textarea>
+            <input type="file" name="photo" accept="image/*" class="w-full" />
+            <div class="flex gap-3">
+              <button
+                type="button"
+                x-on:click="showDisputeDialog = false"
+                class="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Kirim
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      lucide.createIcons();
+    </script>
+  </body>
+</html>

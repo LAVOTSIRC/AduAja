@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="id" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AduAja - Riwayat Pekerjaan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+    ></script>
+  </head>
+  <body class="min-h-screen bg-gray-50" x-data="{ filterPeriod: 'today' }">
+    <div class="bg-blue-600 text-white p-4 sticky top-0 z-10 shadow-md">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-3">
+          <a
+            th:href="@{/petugas/dashboard}"
+            class="p-2 hover:bg-blue-700 rounded-lg"
+          >
+            <svg
+              class="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+          </a>
+          <h1 class="text-xl font-semibold">Riwayat Pekerjaan</h1>
+        </div>
+      </div>
+
+      <div class="relative">
+        <input
+          type="text"
+          name="search"
+          placeholder="Cari tugas, lokasi..."
+          class="w-full pl-10 pr-4 py-2.5 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300"
+        />
+        <svg
+          class="w-5 h-5 absolute left-3 top-3 text-gray-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          />
+        </svg>
+      </div>
+    </div>
+
+    <div class="bg-white border-b border-gray-200 p-4">
+      <div class="flex gap-2 overflow-x-auto">
+        <button
+          x-on:click="filterPeriod = 'today'"
+          class="px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap"
+          :class="filterPeriod === 'today' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+        >
+          Hari Ini
+        </button>
+        <button
+          x-on:click="filterPeriod = 'week'"
+          class="px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap"
+          :class="filterPeriod === 'week' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+        >
+          7 Hari
+        </button>
+        <button
+          x-on:click="filterPeriod = 'month'"
+          class="px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap"
+          :class="filterPeriod === 'month' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+        >
+          30 Hari
+        </button>
+        <button
+          x-on:click="filterPeriod = 'all'"
+          class="px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap"
+          :class="filterPeriod === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+        >
+          Semua
+        </button>
+      </div>
+    </div>
+
+    <div class="p-4 bg-gradient-to-r from-blue-600 to-blue-700">
+      <h2 class="text-white font-semibold mb-3">Performa Periode Ini</h2>
+      <div class="grid grid-cols-3 gap-3">
+        <div class="bg-white/10 rounded-lg p-3">
+          <p class="text-blue-100 text-sm mb-1">Total Tugas</p>
+          <p
+            class="text-2xl font-bold text-white"
+            th:text="${stats.totalTasks}"
+          >
+            0
+          </p>
+        </div>
+        <div class="bg-white/10 rounded-lg p-3">
+          <p class="text-blue-100 text-sm mb-1">Rata-rata Durasi</p>
+          <p
+            class="text-2xl font-bold text-white"
+            th:text="${stats.avgDuration}"
+          >
+            0
+          </p>
+        </div>
+        <div class="bg-white/10 rounded-lg p-3">
+          <p class="text-blue-100 text-sm mb-1">Total Jam Kerja</p>
+          <p
+            class="text-2xl font-bold text-white"
+            th:text="|${stats.totalHours}j|"
+          >
+            0j
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="p-4 space-y-3">
+      <div th:if="${#lists.isEmpty(tasks)}" class="text-center py-12">
+        <svg
+          class="w-16 h-16 mx-auto text-gray-300 mb-3"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+          />
+        </svg>
+        <p class="text-gray-500">Tidak ada riwayat ditemukan</p>
+      </div>
+
+      <div
+        th:each="task : ${tasks}"
+        th:with="statusLabel=${task.status == 'approved' ? 'Disetujui' : 'Menunggu Review'}, statusClass=${task.status == 'approved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}"
+        class="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
+      >
+        <div class="flex items-start justify-between mb-3">
+          <div class="flex-1">
+            <div class="flex items-center gap-2 mb-1">
+              <span
+                class="text-xs font-semibold text-gray-500"
+                th:text="${task.id}"
+                >TGS000</span
+              >
+              <span
+                class="text-xs px-2 py-1 rounded-full"
+                th:text="${statusLabel}"
+                th:class="|${statusClass}|"
+                >Status</span
+              >
+            </div>
+            <h3
+              class="font-semibold text-gray-800 mb-1"
+              th:text="${task.title}"
+            >
+              Judul
+            </h3>
+          </div>
+          <span
+            class="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded"
+            th:text="${task.category}"
+            >Kategori</span
+          >
+        </div>
+
+        <div class="space-y-2">
+          <div class="flex items-center gap-2 text-sm text-gray-600">
+            <svg
+              class="w-4 h-4 flex-shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+              />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
+            <span th:text="${task.location}">Lokasi</span>
+          </div>
+
+          <div class="flex items-center justify-between text-sm">
+            <div class="flex items-center gap-2 text-gray-600">
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <span th:text="|Durasi: ${task.duration}|">Durasi</span>
+            </div>
+            <div class="text-gray-500" th:text="${task.completedAt}">
+              Tanggal
+            </div>
+          </div>
+
+          <div
+            class="flex items-center gap-4 pt-2 border-t border-gray-100 text-xs text-gray-600"
+          >
+            <div class="flex items-center gap-1">
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+              <span th:text="|${task.photoBefore + task.photoAfter} foto|"
+                >0 foto</span
+              >
+            </div>
+            <div
+              class="flex items-center gap-1"
+              th:if="${task.materialUsed > 0}"
+            >
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                />
+              </svg>
+              <span th:text="|${task.materialUsed} material|">0 material</span>
+            </div>
+            <div
+              class="flex items-center gap-1 ml-auto text-green-600"
+              th:if="${task.status == 'approved'}"
+            >
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <span class="font-medium">Selesai</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

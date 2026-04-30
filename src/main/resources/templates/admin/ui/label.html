@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="id" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Admin UI - Label</title>
+  </head>
+  <body>
+    <label
+      th:fragment="label(extraClass)"
+      data-slot="label"
+      class="flex items-center gap-2 text-sm leading-none font-medium select-none"
+      th:classappend="${extraClass}"
+    >
+      <span th:insert="~{::body}">Label</span>
+    </label>
+  </body>
+</html>

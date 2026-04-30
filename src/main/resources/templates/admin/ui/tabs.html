@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="id" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Admin UI - Tabs</title>
+  </head>
+  <body>
+    <div
+      th:fragment="tabs(extraClass)"
+      data-slot="tabs"
+      class="flex flex-col gap-2"
+      th:classappend="${extraClass}"
+    >
+      <div th:insert="~{::body}"></div>
+    </div>
+
+    <div
+      th:fragment="tabs-list(extraClass)"
+      data-slot="tabs-list"
+      class="bg-gray-100 text-gray-600 inline-flex h-9 w-fit items-center justify-center rounded-xl p-[3px]"
+      th:classappend="${extraClass}"
+    >
+      <div th:insert="~{::body}"></div>
+    </div>
+
+    <button
+      th:fragment="tabs-trigger(extraClass)"
+      data-slot="tabs-trigger"
+      class="inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-xl border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-[color,box-shadow]"
+      th:classappend="${extraClass}"
+    >
+      <span th:insert="~{::body}">Tab</span>
+    </button>
+
+    <div
+      th:fragment="tabs-content(extraClass)"
+      data-slot="tabs-content"
+      class="flex-1 outline-none"
+      th:classappend="${extraClass}"
+    >
+      <div th:insert="~{::body}"></div>
+    </div>
+  </body>
+</html>

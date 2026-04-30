@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="id" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AduAja - Dashboard Warga</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+    ></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+  </head>
+  <body class="min-h-screen bg-gray-50">
+    <header class="bg-white shadow-sm sticky top-0 z-10">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center h-16">
+          <div class="flex items-center gap-3">
+            <div
+              class="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center"
+            >
+              <span class="text-white font-bold text-lg">A</span>
+            </div>
+            <div>
+              <h1 class="text-xl font-bold text-gray-900">AduAja</h1>
+              <p class="text-xs text-gray-500 hidden sm:block">
+                Pengaduan Masyarakat
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 sm:gap-4">
+            <a
+              th:href="@{/warga/notifications}"
+              class="relative p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+              title="Notifikasi"
+            >
+              <i data-lucide="bell" class="w-5 h-5"></i>
+              <span
+                class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"
+              ></span>
+            </a>
+            <div class="h-8 w-px bg-gray-300 hidden sm:block"></div>
+            <a
+              th:href="@{/warga/profile}"
+              class="flex items-center gap-2 hover:bg-gray-100 rounded-lg p-1 transition-colors"
+            >
+              <div
+                class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center"
+              >
+                <i data-lucide="user" class="w-5 h-5 text-blue-600"></i>
+              </div>
+              <div class="hidden sm:block text-left">
+                <p
+                  class="text-sm font-medium text-gray-900"
+                  th:text="${user.name}"
+                >
+                  Nama Warga
+                </p>
+                <p class="text-xs text-gray-500">Warga</p>
+              </div>
+            </a>
+            <form th:action="@{/warga/logout}" method="post">
+              <button
+                type="submit"
+                class="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                title="Keluar"
+              >
+                <i data-lucide="log-out" class="w-5 h-5"></i>
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div class="mb-8">
+        <h2
+          class="text-2xl sm:text-3xl font-bold text-gray-900 mb-2"
+          th:text="|Selamat Datang, ${user.name}|"
+        >
+          Selamat Datang
+        </h2>
+        <p class="text-gray-600">
+          Laporkan kerusakan infrastruktur di sekitar Anda
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+        <a
+          th:href="@{/warga/create-report}"
+          class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow group"
+        >
+          <div class="flex items-center gap-4">
+            <div
+              class="w-14 h-14 bg-white/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform"
+            >
+              <i data-lucide="plus-circle" class="w-8 h-8"></i>
+            </div>
+            <div class="text-left">
+              <h3 class="font-semibold text-lg mb-1">Buat Laporan Baru</h3>
+              <p class="text-blue-100 text-sm">
+                Laporkan kerusakan infrastruktur
+              </p>
+            </div>
+          </div>
+        </a>
+
+        <a
+          th:href="@{/warga/report-history}"
+          class="bg-white border-2 border-gray-200 p-6 rounded-xl shadow hover:shadow-lg transition-shadow group"
+        >
+          <div class="flex items-center gap-4">
+            <div
+              class="w-14 h-14 bg-gray-100 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform"
+            >
+              <i data-lucide="history" class="w-8 h-8 text-gray-700"></i>
+            </div>
+            <div class="text-left">
+              <h3 class="font-semibold text-lg mb-1 text-gray-900">
+                Riwayat Laporan
+              </h3>
+              <p class="text-gray-500 text-sm">Lihat semua laporan Anda</p>
+            </div>
+          </div>
+        </a>
+      </div>
+
+      <div class="mb-8">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">
+          Ringkasan Laporan
+        </h3>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div
+            th:each="stat : ${stats}"
+            class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100"
+          >
+            <div
+              th:class="|w-12 h-12 ${stat.color} rounded-lg flex items-center justify-center mb-3|"
+            >
+              <i th:attr="data-lucide=${stat.icon}" class="w-6 h-6"></i>
+            </div>
+            <p
+              class="text-2xl sm:text-3xl font-bold text-gray-900 mb-1"
+              th:text="${stat.count}"
+            >
+              0
+            </p>
+            <p class="text-xs sm:text-sm text-gray-600" th:text="${stat.label}">
+              Label
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-semibold text-gray-900">Laporan Terbaru</h3>
+          <a
+            th:href="@{/warga/report-history}"
+            class="text-blue-600 text-sm font-medium hover:underline"
+            >Lihat Semua</a
+          >
+        </div>
+
+        <div
+          class="space-y-4"
+          th:if="${recentReports != null and !#lists.isEmpty(recentReports)}"
+        >
+          <div
+            th:each="report : ${recentReports}"
+            class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
+          >
+            <div
+              class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3"
+            >
+              <div class="flex items-start gap-3">
+                <div
+                  class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0"
+                >
+                  <span class="text-lg">📍</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <h4
+                    class="font-semibold text-gray-900 mb-1 truncate"
+                    th:text="${report.title}"
+                  >
+                    Judul
+                  </h4>
+                  <p class="text-sm text-gray-500" th:text="${report.category}">
+                    Kategori
+                  </p>
+                </div>
+              </div>
+              <span
+                th:class="|px-3 py-1 rounded-full text-xs font-medium ${report.statusColor} whitespace-nowrap self-start sm:self-center|"
+                th:text="${report.status}"
+                >Status</span
+              >
+            </div>
+            <div
+              class="flex flex-wrap items-center gap-4 text-sm text-gray-500"
+            >
+              <span class="flex items-center gap-1">
+                <span class="font-medium text-gray-700" th:text="${report.id}"
+                  >ID</span
+                >
+              </span>
+              <span>•</span>
+              <span th:text="${report.location}">Lokasi</span>
+              <span>•</span>
+              <span th:text="${#temporals.format(report.date, 'd MMMM yyyy')}"
+                >Tanggal</span
+              >
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="bg-white p-12 rounded-xl text-center"
+          th:if="${recentReports == null or #lists.isEmpty(recentReports)}"
+        >
+          <div
+            class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4"
+          >
+            <i data-lucide="history" class="w-10 h-10 text-gray-400"></i>
+          </div>
+          <h3 class="font-semibold text-gray-900 mb-2">Belum Ada Laporan</h3>
+          <p class="text-gray-500 mb-6">
+            Mulai laporkan kerusakan infrastruktur di sekitar Anda
+          </p>
+          <a
+            th:href="@{/warga/create-report}"
+            class="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+          >
+            <i data-lucide="plus-circle" class="w-5 h-5"></i>
+            Buat Laporan Pertama
+          </a>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      lucide.createIcons();
+    </script>
+  </body>
+</html>

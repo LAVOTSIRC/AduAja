@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="id" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Admin UI - Badge</title>
+  </head>
+  <body>
+    <span
+      th:fragment="badge(variant, extraClass)"
+      data-slot="badge"
+      th:with="variant=${variant} ?: 'default'"
+      class="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 gap-1"
+      th:classappend="${variant == 'default'} ? 'border-transparent bg-blue-600 text-white' : ''"
+      th:classappend="${variant == 'secondary'} ? 'border-transparent bg-gray-100 text-gray-800' : ''"
+      th:classappend="${variant == 'destructive'} ? 'border-transparent bg-red-600 text-white' : ''"
+      th:classappend="${variant == 'outline'} ? 'text-gray-900 border-gray-300' : ''"
+      th:classappend="${extraClass}"
+    >
+      <span th:insert="~{::body}">Badge</span>
+    </span>
+  </body>
+</html>

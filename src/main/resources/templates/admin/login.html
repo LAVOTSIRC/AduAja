@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="id" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AduAja - Login Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+    ></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+      [x-cloak] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body
+    class="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4"
+    x-data="{ showPassword: false, loading: false }"
+  >
+    <div class="w-full max-w-md">
+      <div class="bg-white rounded-2xl shadow-xl p-8">
+        <div class="text-center mb-6">
+          <div
+            class="mx-auto bg-blue-600 w-16 h-16 rounded-full flex items-center justify-center mb-4"
+          >
+            <i data-lucide="shield" class="w-8 h-8 text-white"></i>
+          </div>
+          <h1 class="text-3xl font-bold text-gray-900">Sistem AduAja</h1>
+          <p class="text-base text-gray-600">
+            Sistem Informasi Pengaduan dan Aspirasi Masyarakat
+          </p>
+        </div>
+
+        <div
+          th:if="${error}"
+          class="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm"
+          th:text="${error}"
+        ></div>
+
+        <form
+          th:action="@{/admin/login}"
+          method="post"
+          class="space-y-4"
+          x-on:submit="loading = true"
+        >
+          <div class="space-y-2">
+            <label for="role" class="block text-sm font-medium text-gray-700"
+              >Role Administrator</label
+            >
+            <select
+              id="role"
+              name="role"
+              class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="admin_pusat">
+                Admin Pusat (Validasi dan Disposisi)
+              </option>
+              <option value="admin_dinas">
+                Admin Dinas PU dan Penataan Ruang
+              </option>
+              <option value="admin_dinas_dlh">
+                Admin Dinas Lingkungan Hidup
+              </option>
+              <option value="admin_dinas_esdm">Admin Dinas ESDM</option>
+              <option value="admin_dinas_perhubungan">
+                Admin Dinas Perhubungan
+              </option>
+            </select>
+          </div>
+
+          <div class="space-y-2">
+            <label for="email" class="block text-sm font-medium text-gray-700"
+              >Email / Nomor HP</label
+            >
+            <input
+              id="email"
+              name="email"
+              type="text"
+              placeholder="admin@aduaja.go.id"
+              class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+
+          <div class="space-y-2">
+            <label
+              for="password"
+              class="block text-sm font-medium text-gray-700"
+              >Password</label
+            >
+            <div class="relative">
+              <input
+                id="password"
+                name="password"
+                x-bind:type="showPassword ? 'text' : 'password'"
+                placeholder="Masukkan password Anda"
+                class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
+                required
+              />
+              <button
+                type="button"
+                x-on:click="showPassword = !showPassword"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                <i x-show="!showPassword" data-lucide="eye" class="w-4 h-4"></i>
+                <i
+                  x-show="showPassword"
+                  data-lucide="eye-off"
+                  class="w-4 h-4"
+                ></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between text-sm">
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input type="checkbox" class="rounded" />
+              <span class="text-gray-600">Ingat saya</span>
+            </label>
+            <a href="#" class="text-blue-600 hover:underline">Lupa password?</a>
+          </div>
+
+          <button
+            type="submit"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md font-medium"
+            x-text="loading ? 'Memproses...' : 'Login'"
+          ></button>
+        </form>
+
+        <p class="text-xs text-center text-gray-500 mt-4">
+          Sistem terlindungi dengan enkripsi SSL/TLS
+        </p>
+      </div>
+    </div>
+
+    <script>
+      lucide.createIcons();
+    </script>
+  </body>
+</html>

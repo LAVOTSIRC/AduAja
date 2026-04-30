@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="id" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AduAja - Portal Petugas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="min-h-screen bg-gray-50">
+    <main class="max-w-4xl mx-auto p-6 space-y-6">
+      <div class="bg-white rounded-xl border p-6">
+        <h1 class="text-2xl font-bold text-gray-900">
+          Portal Petugas Lapangan
+        </h1>
+        <p class="text-sm text-gray-600">
+          Gunakan halaman ini sebagai pintu masuk ke seluruh modul petugas.
+        </p>
+      </div>
+
+      <div
+        th:if="${currentUser == null}"
+        class="bg-blue-50 border border-blue-200 rounded-xl p-6"
+      >
+        <h2 class="text-lg font-semibold text-blue-900 mb-2">Belum Login</h2>
+        <p class="text-sm text-blue-800 mb-4">
+          Silakan login untuk mengakses dashboard dan tugas lapangan.
+        </p>
+        <a
+          th:href="@{/petugas/login}"
+          class="inline-flex items-center gap-2 border border-blue-300 bg-white px-4 py-2 rounded-md text-sm"
+          >Buka Login Petugas</a
+        >
+      </div>
+
+      <div
+        th:if="${currentUser != null}"
+        class="bg-white rounded-xl border p-6 space-y-4"
+      >
+        <div>
+          <p class="text-sm text-gray-600">Petugas aktif:</p>
+          <p
+            class="text-lg font-semibold text-gray-900"
+            th:text="${currentUser.name}"
+          >
+            Nama Petugas
+          </p>
+          <p class="text-sm text-gray-500" th:text="${currentUser.dinas}">
+            Dinas
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <a
+            th:href="@{/petugas/dashboard}"
+            class="border rounded-lg p-4 hover:bg-gray-50"
+          >
+            <p class="font-semibold">Dashboard</p>
+            <p class="text-sm text-gray-600">Ringkasan status dan absensi</p>
+          </a>
+          <a
+            th:href="@{/petugas/tasks}"
+            class="border rounded-lg p-4 hover:bg-gray-50"
+          >
+            <p class="font-semibold">Daftar Tugas</p>
+            <p class="text-sm text-gray-600">
+              Tugas baru, berjalan, dan tertunda
+            </p>
+          </a>
+          <a
+            th:href="@{/petugas/task-detail}"
+            class="border rounded-lg p-4 hover:bg-gray-50"
+          >
+            <p class="font-semibold">Detail Tugas</p>
+            <p class="text-sm text-gray-600">
+              Informasi lengkap tugas terpilih
+            </p>
+          </a>
+          <a
+            th:href="@{/petugas/task-execution}"
+            class="border rounded-lg p-4 hover:bg-gray-50"
+          >
+            <p class="font-semibold">Pengerjaan Tugas</p>
+            <p class="text-sm text-gray-600">Dokumentasi sebelum dan sesudah</p>
+          </a>
+          <a
+            th:href="@{/petugas/history}"
+            class="border rounded-lg p-4 hover:bg-gray-50"
+          >
+            <p class="font-semibold">Riwayat</p>
+            <p class="text-sm text-gray-600">Riwayat pekerjaan petugas</p>
+          </a>
+          <a
+            th:href="@{/petugas/reports}"
+            class="border rounded-lg p-4 hover:bg-gray-50"
+          >
+            <p class="font-semibold">Laporan Performa</p>
+            <p class="text-sm text-gray-600">Statistik tugas dan kinerja</p>
+          </a>
+          <a
+            th:href="@{/petugas/attendance-history}"
+            class="border rounded-lg p-4 hover:bg-gray-50"
+          >
+            <p class="font-semibold">Riwayat Absensi</p>
+            <p class="text-sm text-gray-600">Detail check-in dan check-out</p>
+          </a>
+        </div>
+      </div>
+    </main>
+
+    <div
+      th:if="${currentUser != null}"
+      th:replace="petugas/components/offline-indicator :: indicator"
+    ></div>
+  </body>
+</html>

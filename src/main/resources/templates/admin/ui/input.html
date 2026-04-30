@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="id" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Admin UI - Input</title>
+  </head>
+  <body>
+    <input
+      th:fragment="input(extraClass)"
+      data-slot="input"
+      class="border-input flex h-9 w-full min-w-0 rounded-md border px-3 py-1 text-base bg-white transition-[color,box-shadow] outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm focus-visible:ring-2 focus-visible:ring-blue-500"
+      th:classappend="${extraClass}"
+    />
+  </body>
+</html>

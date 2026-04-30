@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="id" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Admin UI - Card</title>
+  </head>
+  <body>
+    <div
+      th:fragment="card(extraClass)"
+      data-slot="card"
+      class="bg-white text-gray-900 flex flex-col gap-6 rounded-xl border"
+      th:classappend="${extraClass}"
+    >
+      <div th:insert="~{::body}"></div>
+    </div>
+
+    <div
+      th:fragment="card-header(extraClass)"
+      data-slot="card-header"
+      class="grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 pt-6"
+      th:classappend="${extraClass}"
+    >
+      <div th:insert="~{::body}"></div>
+    </div>
+
+    <h4
+      th:fragment="card-title(extraClass)"
+      data-slot="card-title"
+      class="leading-none"
+      th:classappend="${extraClass}"
+    >
+      <span th:insert="~{::body}">Card Title</span>
+    </h4>
+
+    <p
+      th:fragment="card-description(extraClass)"
+      data-slot="card-description"
+      class="text-gray-600"
+      th:classappend="${extraClass}"
+    >
+      <span th:insert="~{::body}">Card description</span>
+    </p>
+
+    <div
+      th:fragment="card-action(extraClass)"
+      data-slot="card-action"
+      class="col-start-2 row-span-2 row-start-1 self-start justify-self-end"
+      th:classappend="${extraClass}"
+    >
+      <div th:insert="~{::body}"></div>
+    </div>
+
+    <div
+      th:fragment="card-content(extraClass)"
+      data-slot="card-content"
+      class="px-6"
+      th:classappend="${extraClass}"
+    >
+      <div th:insert="~{::body}"></div>
+    </div>
+
+    <div
+      th:fragment="card-footer(extraClass)"
+      data-slot="card-footer"
+      class="flex items-center px-6 pb-6"
+      th:classappend="${extraClass}"
+    >
+      <div th:insert="~{::body}"></div>
+    </div>
+  </body>
+</html>

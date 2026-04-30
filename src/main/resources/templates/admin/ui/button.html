@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="id" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Admin UI - Button</title>
+  </head>
+  <body>
+    <button
+      th:fragment="button(variant, size, extraClass)"
+      data-slot="button"
+      th:with="variant=${variant} ?: 'default', size=${size} ?: 'default'"
+      class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50"
+      th:classappend="${variant == 'default'} ? 'bg-blue-600 text-white hover:bg-blue-700' : ''"
+      th:classappend="${variant == 'destructive'} ? 'bg-red-600 text-white hover:bg-red-700' : ''"
+      th:classappend="${variant == 'outline'} ? 'border bg-white text-gray-900 hover:bg-gray-50' : ''"
+      th:classappend="${variant == 'secondary'} ? 'bg-gray-100 text-gray-900 hover:bg-gray-200' : ''"
+      th:classappend="${variant == 'ghost'} ? 'text-gray-900 hover:bg-gray-100' : ''"
+      th:classappend="${variant == 'link'} ? 'text-blue-600 underline-offset-4 hover:underline' : ''"
+      th:classappend="${size == 'default'} ? 'h-9 px-4 py-2' : ''"
+      th:classappend="${size == 'sm'} ? 'h-8 rounded-md px-3' : ''"
+      th:classappend="${size == 'lg'} ? 'h-10 rounded-md px-6' : ''"
+      th:classappend="${size == 'icon'} ? 'size-9 rounded-md p-0' : ''"
+      th:classappend="${extraClass}"
+    >
+      <span th:insert="~{::body}">Button</span>
+    </button>
+  </body>
+</html>
