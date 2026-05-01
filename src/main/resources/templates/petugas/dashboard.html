@@ -9,6 +9,14 @@
       defer
       src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
     ></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/css/app.css" />
+    <style>
+      [x-cloak] {
+        display: none !important;
+      }
+    </style>
   </head>
   <body class="min-h-screen bg-slate-50" x-data="{ showCheckInModal: false }">
     <header class="bg-white shadow-sm border-b border-gray-200">
@@ -547,5 +555,9 @@
         </div>
       </div>
     </div>
+    <script src="/js/app.js"></script>
+    <script>
+      lucide.createIcons();
+    </script>
   </body>
 </html>

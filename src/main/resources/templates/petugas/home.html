@@ -3,10 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AduAja - Portal Petugas</title>
+    <title>AduAja</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+    ></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/css/app.css" />
+    <style>
+      [x-cloak] {
+        display: none !important;
+      }
+    </style>
   </head>
-  <body class="min-h-screen bg-gray-50">
+  <body class="min-h-screen bg-slate-50">
     <main class="max-w-4xl mx-auto p-6 space-y-6">
       <div class="bg-white rounded-xl border p-6">
         <h1 class="text-2xl font-bold text-gray-900">
@@ -107,9 +119,9 @@
       </div>
     </main>
 
-    <div
-      th:if="${currentUser != null}"
-      th:replace="petugas/components/offline-indicator :: indicator"
-    ></div>
+    <script src="/js/app.js"></script>
+    <script>
+      lucide.createIcons();
+    </script>
   </body>
 </html>

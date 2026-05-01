@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="id" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AduAja</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/css/app.css" />
+    <style>
+      [x-cloak] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen bg-slate-50">
+    <main
+      class="min-h-screen bg-gray-50"
+      x-data="{ showStartModal: false, showContactModal: false, showPostponeModal: false, showReportBackModal: false, showEscalationModal: false }"
+    >
+      <div class="bg-blue-600 text-white p-4 sticky top-0 z-10 shadow-md">
+        <div class="flex items-center gap-3">
+          <a th:href="@{/petugas/tasks}" class="p-2 hover:bg-blue-700 rounded-lg">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+          </a>
+          <div>
+            <h1 class="text-xl font-semibold">Detail Tugas</h1>
+            <p class="text-sm text-blue-100" th:text="${task.id}">TGS001</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-4 space-y-4" th:with="priorityLabel=${task.priority == 'critical' ? 'Kritis' : task.priority == 'high' ? 'Tinggi' : task.priority == 'medium' ? 'Sedang' : 'Rendah'}, priorityClass=${task.priority == 'critical' ? 'bg-red-100 text-red-800 border-red-200' : task.priority == 'high' ? 'bg-orange-100 text-orange-800 border-orange-200' : task.priority == 'medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 'bg-green-100 text-green-800 border-green-200'}, statusLabel=${task.status == 'in_progress' ? 'Sedang Dikerjakan' : task.status == 'pending' ? 'Tertunda' : task.status == 'completed' ? 'Selesai' : 'Tugas Baru'}, statusClass=${task.status == 'in_progress' ? 'bg-green-100 text-green-800' : task.status == 'pending' ? 'bg-yellow-100 text-yellow-800' : task.status == 'completed' ? 'bg-gray-100 text-gray-800' : 'bg-blue-100 text-blue-800'}">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div class="flex items-center justify-between mb-3">
+            <span class="px-3 py-1 rounded-full text-sm font-medium" th:classappend="${statusClass}" th:text="${statusLabel}"></span>
+            <span class="px-3 py-1 rounded-full text-sm font-medium border" th:classappend="${priorityClass}" th:text="${priorityLabel}"></span>
+          </div>
+
+          <h2 class="text-xl font-bold text-gray-800 mb-2" th:text="${task.title}">Judul Tugas</h2>
+          <p class="text-gray-600 leading-relaxed" th:text="${task.description}">Deskripsi tugas</p>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <h3 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Service Level Agreement (SLA)
+          </h3>
+          <div class="space-y-2">
+            <div class="flex justify-between items-center">
+              <span class="text-gray-600">Batas Waktu:</span>
+              <span class="font-medium text-gray-800" th:text="${task.slaDeadline}">-</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-gray-600">Sisa Waktu:</span>
+              <span class="font-bold" th:text="${task.slaStatusText}" th:classappend="${task.slaStatusClass}">-</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <h3 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Lokasi
+          </h3>
+          <div class="space-y-3">
+            <p class="text-gray-700" th:text="${task.location.address}">Alamat</p>
+            <div class="flex items-center justify-between text-sm" th:if="${task.location.latitude != null and task.location.longitude != null}">
+              <span class="text-gray-600">Koordinat:</span>
+              <span class="font-mono text-gray-800" th:text="|${task.location.latitude}, ${task.location.longitude}|"></span>
+            </div>
+            <div class="flex items-center justify-between text-sm" th:if="${task.distanceToTask != null}">
+              <span class="text-gray-600">Jarak dari Anda:</span>
+              <span class="font-semibold text-blue-600" th:text="${task.distanceToTask}">0 km</span>
+            </div>
+            <a
+              th:if="${task.location.latitude != null and task.location.longitude != null}"
+              th:href="|https://www.google.com/maps/dir/?api=1&destination=${task.location.latitude},${task.location.longitude}|"
+              target="_blank"
+              class="w-full bg-green-500 text-white py-2.5 rounded-lg font-medium hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
+            >
+              Buka di Google Maps
+            </a>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <h3 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            Informasi Pelapor
+          </h3>
+          <div class="space-y-2">
+            <div class="flex justify-between items-center">
+              <span class="text-gray-600">Nama:</span>
+              <span class="font-medium text-gray-800" th:text="${task.reporterName}">Nama</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-gray-600">Tanggal Laporan:</span>
+              <span class="font-medium text-gray-800" th:text="${task.reportDate}">Tanggal</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-gray-600">Kategori:</span>
+              <span class="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-sm font-medium" th:text="${task.category}">Kategori</span>
+            </div>
+            <button
+              type="button"
+              x-on:click="showContactModal = true"
+              class="w-full mt-2 border border-blue-600 text-blue-600 py-2.5 rounded-lg font-medium hover:bg-blue-50 transition-colors"
+            >
+              Hubungi Pelapor
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4" th:if="${task.status == 'in_progress' or task.status == 'pending'}">
+          <h3 class="font-semibold text-gray-800 mb-3">Riwayat Status</h3>
+          <div class="space-y-3">
+            <div th:if="${task.startedAt != null}" class="flex gap-3">
+              <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <div>
+                <p class="font-medium text-gray-800">Pekerjaan Dimulai</p>
+                <p class="text-sm text-gray-600" th:text="${task.startedAt}"></p>
+              </div>
+            </div>
+            <div th:if="${task.pendingReason != null}" class="flex gap-3">
+              <div class="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                <svg class="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <p class="font-medium text-gray-800">Ditunda</p>
+                <p class="text-sm text-gray-600" th:text="${task.pendingSince}"></p>
+                <p class="text-sm text-gray-700 mt-1 bg-yellow-50 p-2 rounded border border-yellow-200" th:text="${task.pendingReason}"></p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4" th:if="${task.status == 'new' or task.status == 'in_progress'}">
+          <h3 class="font-semibold text-gray-800 mb-3">Tindakan Lainnya</h3>
+          <div class="grid grid-cols-1 gap-2">
+            <button
+              type="button"
+              x-on:click="showPostponeModal = true"
+              class="px-4 py-3 border border-yellow-500 text-yellow-700 rounded-lg font-medium hover:bg-yellow-50"
+            >
+              Ajukan Penundaan
+            </button>
+            <button
+              type="button"
+              x-on:click="showReportBackModal = true"
+              class="px-4 py-3 border border-red-500 text-red-700 rounded-lg font-medium hover:bg-red-50"
+            >
+              Lapor Balik (Invalid)
+            </button>
+            <button
+              type="button"
+              x-on:click="showEscalationModal = true"
+              class="px-4 py-3 border border-orange-500 text-orange-700 rounded-lg font-medium hover:bg-orange-50"
+            >
+              Ajukan Eskalasi
+            </button>
+          </div>
+        </div>
+
+        <div class="sticky bottom-4" th:if="${task.status == 'new'}">
+          <button
+            type="button"
+            x-on:click="showStartModal = true"
+            class="w-full bg-blue-600 text-white py-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-lg"
+          >
+            Mulai Kerjakan Tugas
+          </button>
+        </div>
+
+        <div class="sticky bottom-4" th:if="${task.status == 'in_progress'}">
+          <a
+            th:href="@{/petugas/task-execution(id=${task.id})}"
+            class="w-full bg-green-600 text-white py-4 rounded-lg font-semibold hover:bg-green-700 transition-colors shadow-lg block text-center"
+          >
+            Lanjutkan Pengerjaan
+          </a>
+        </div>
+      </div>
+
+      <div x-show="showStartModal" x-cloak class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full">
+          <div class="text-center mb-4">
+            <h3 class="text-xl font-bold text-gray-800 mb-2">Mulai Tugas?</h3>
+            <p class="text-gray-600 mb-4">Anda akan memulai pengerjaan tugas <span class="font-semibold" th:text="${task.id}"></span></p>
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-left">
+              <p class="text-sm text-blue-800 mb-1"><span class="font-semibold">Lokasi:</span> <span th:text="${task.location.address}"></span></p>
+              <p class="text-sm text-blue-800"><span class="font-semibold">Deadline SLA:</span> <span th:text="${task.slaStatusText}"></span></p>
+            </div>
+          </div>
+          <div class="flex gap-3">
+            <button type="button" x-on:click="showStartModal = false" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50">Batal</button>
+            <form th:action="@{/petugas/task/start}" method="post" class="flex-1">
+              <input type="hidden" name="id" th:value="${task.id}" />
+              <button type="submit" class="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700">Ya, Mulai</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div x-show="showContactModal" x-cloak class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg p-6 max-w-md w-full">
+          <h3 class="text-xl font-bold text-gray-800 mb-4">Hubungi Pelapor</h3>
+          <div class="space-y-3 mb-6">
+            <div class="bg-gray-50 p-4 rounded-lg">
+              <p class="text-sm text-gray-600 mb-1">Nama Pelapor</p>
+              <p class="font-semibold text-gray-800" th:text="${task.reporterName}"></p>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-lg">
+              <p class="text-sm text-gray-600 mb-1">Nomor Telepon</p>
+              <p class="font-semibold text-gray-800" th:text="${task.reporterPhone}">+62</p>
+            </div>
+          </div>
+          <div class="flex gap-3">
+            <button type="button" x-on:click="showContactModal = false" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50">Tutup</button>
+" class="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 text-center">Telepon</a>
+              <a th:href="|tel:${task.reporterPhone}|" class="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 text-center">Telepon</a>
+          </div>
+        </div>
+      </div>
+
+      <div x-show="showPostponeModal" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div class="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
+            <h2 class="font-semibold text-lg">Ajukan Penundaan</h2>
+            <button type="button" x-on:click="showPostponeModal = false" class="p-2 hover:bg-gray-100 rounded-lg">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <form th:action="@{/petugas/task/postpone}" method="post" class="p-4 space-y-4">
+            <input type="hidden" name="id" th:value="${task.id}" />
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Alasan Penundaan <span class="text-red-500">*</span></label>
+              <select name="reason" class="w-full px-3 py-2 border border-gray-300 rounded-lg" required>
+                <option value="">Pilih alasan</option>
+                <option>Menunggu peralatan</option>
+                <option>Cuaca buruk</option>
+                <option>Akses lokasi terbatas</option>
+                <option>Koordinasi dengan pihak terkait</option>
+                <option>Menunggu izin</option>
+                <option>Peralatan rusak</option>
+                <option>Lainnya</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Estimasi Waktu Penyelesaian <span class="text-red-500">*</span></label>
+              <input type="datetime-local" name="estimatedTime" class="w-full px-3 py-2 border border-gray-300 rounded-lg" required />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Catatan Tambahan</label>
+              <textarea name="additionalNotes" rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-lg"></textarea>
+            </div>
+            <div class="flex gap-2">
+              <button type="button" x-on:click="showPostponeModal = false" class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg">Batal</button>
+              <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg">Ajukan Penundaan</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div x-show="showReportBackModal" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div class="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
+            <h2 class="font-semibold text-lg">Lapor Balik (Invalid)</h2>
+            <button type="button" x-on:click="showReportBackModal = false" class="p-2 hover:bg-gray-100 rounded-lg">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <form th:action="@{/petugas/task/report-back}" method="post" enctype="multipart/form-data" class="p-4 space-y-4">
+            <input type="hidden" name="id" th:value="${task.id}" />
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Alasan Laporan Tidak Valid <span class="text-red-500">*</span></label>
+              <select name="invalidReason" class="w-full px-3 py-2 border border-gray-300 rounded-lg" required>
+                <option value="">Pilih alasan</option>
+                <option>Lokasi tidak sesuai</option>
+                <option>Informasi tidak lengkap</option>
+                <option>Duplikasi laporan</option>
+                <option>Bukan kewenangan instansi</option>
+                <option>Laporan tidak jelas</option>
+                <option>Alamat tidak ditemukan</option>
+                <option>Kondisi berbeda dari laporan</option>
+                <option>Lainnya</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Deskripsi Lengkap <span class="text-red-500">*</span></label>
+              <textarea name="description" rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-lg" required></textarea>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Foto Bukti <span class="text-red-500">*</span></label>
+              <input type="file" name="photos" accept="image/*" multiple class="w-full border border-dashed rounded-lg p-3" required />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Dokumen Pendukung (Opsional)</label>
+              <input type="file" name="documents" accept=".pdf,.doc,.docx" multiple class="w-full border border-dashed rounded-lg p-3" />
+            </div>
+            <div class="flex gap-2">
+              <button type="button" x-on:click="showReportBackModal = false" class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg">Batal</button>
+              <button type="submit" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg">Kirim Laporan Balik</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div x-show="showEscalationModal" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div class="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
+            <h2 class="font-semibold text-lg">Ajukan Eskalasi</h2>
+            <button type="button" x-on:click="showEscalationModal = false" class="p-2 hover:bg-gray-100 rounded-lg">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <form th:action="@{/petugas/task/escalate}" method="post" class="p-4 space-y-4">
+            <input type="hidden" name="id" th:value="${task.id}" />
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Jenis Eskalasi <span class="text-red-500">*</span></label>
+              <select name="escalationType" class="w-full px-3 py-2 border border-gray-300 rounded-lg" required>
+                <option value="">Pilih jenis eskalasi</option>
+                <option>Membutuhkan bantuan teknis</option>
+                <option>Membutuhkan peralatan tambahan</option>
+                <option>Membutuhkan personil tambahan</option>
+                <option>Masalah keamanan</option>
+                <option>Koordinasi lintas instansi</option>
+                <option>Kondisi darurat</option>
+                <option>Lainnya</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Tingkat Urgensi <span class="text-red-500">*</span></label>
+              <div class="grid grid-cols-3 gap-2">
+                <label class="flex items-center gap-2 border rounded-lg px-3 py-2">
+                  <input type="radio" name="urgencyLevel" value="low" class="w-4 h-4" />Rendah
+                </label>
+                <label class="flex items-center gap-2 border rounded-lg px-3 py-2">
+                  <input type="radio" name="urgencyLevel" value="medium" class="w-4 h-4" checked />Sedang
+                </label>
+                <label class="flex items-center gap-2 border rounded-lg px-3 py-2">
+                  <input type="radio" name="urgencyLevel" value="high" class="w-4 h-4" />Tinggi
+                </label>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Bantuan yang Diperlukan <span class="text-red-500">*</span></label>
+              <div class="space-y-2">
+                <label class="flex items-center gap-2 p-2 border border-gray-200 rounded-lg">
+                  <input type="checkbox" name="support" value="Tim Teknis" class="w-4 h-4" />Tim Teknis
+                </label>
+                <label class="flex items-center gap-2 p-2 border border-gray-200 rounded-lg">
+                  <input type="checkbox" name="support" value="Peralatan Berat" class="w-4 h-4" />Peralatan Berat
+                </label>
+                <label class="flex items-center gap-2 p-2 border border-gray-200 rounded-lg">
+                  <input type="checkbox" name="support" value="Tim Keamanan" class="w-4 h-4" />Tim Keamanan
+                </label>
+                <label class="flex items-center gap-2 p-2 border border-gray-200 rounded-lg">
+                  <input type="checkbox" name="support" value="Koordinator Lapangan" class="w-4 h-4" />Koordinator Lapangan
+                </label>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Deskripsi Detail <span class="text-red-500">*</span></label>
+              <textarea name="description" rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-lg" required></textarea>
+            </div>
+            <div class="flex gap-2">
+              <button type="button" x-on:click="showEscalationModal = false" class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg">Batal</button>
+              <button type="submit" class="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg">Ajukan Eskalasi</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </main>
+
+    <script src="/js/app.js"></script><script>lucide.createIcons();</script>
+  </body>
+</html>
+

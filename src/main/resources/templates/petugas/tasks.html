@@ -3,14 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AduAja - Daftar Tugas</title>
+    <title>AduAja</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script
       defer
       src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
     ></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/css/app.css" />
+    <style>
+      [x-cloak] {
+        display: none !important;
+      }
+    </style>
   </head>
-  <body class="min-h-screen bg-gray-50" x-data="{ activeTab: 'new' }">
+  <body class="min-h-screen bg-slate-50">
     <div class="bg-blue-600 text-white p-4 sticky top-0 z-10 shadow-md">
       <div class="flex items-center justify-between mb-4">
         <div class="flex items-center gap-3">
@@ -411,5 +419,9 @@
         </div>
       </section>
     </div>
+    <script src="/js/app.js"></script>
+    <script>
+      lucide.createIcons();
+    </script>
   </body>
 </html>
