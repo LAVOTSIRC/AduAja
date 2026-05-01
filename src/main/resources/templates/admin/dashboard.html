@@ -1,26 +1,19 @@
-<!doctype html>
-<html lang="id" xmlns:th="http://www.thymeleaf.org">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<html
+  lang="id"
+  xmlns:th="http://www.thymeleaf.org"
+  xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+  layout:decorate="~{layouts/master}"
+>
+  <th:block layout:fragment="extraHead">
     <title>AduAja - Dashboard Admin</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script
-      defer
-      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
-    ></script>
-    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
       [x-cloak] {
         display: none !important;
       }
     </style>
-  </head>
-  <body
-    class="min-h-screen bg-gray-50"
-    x-data="{ activeTab: 'queue', showFilters: false }"
-  >
+  </th:block>
+
+  <div layout:fragment="content" class="min-h-screen bg-gray-50" x-data="{ activeTab: 'queue', showFilters: false }">
     <header class="bg-white border-b sticky top-0 z-10">
       <div class="px-6 py-4">
         <div class="flex items-center justify-between">
@@ -36,7 +29,7 @@
               >
             </p>
           </div>
-          <form th:action="@{/admin/logout}" method="post">
+          <form th:action="@{/admin/dashboard}" method="get">
             <button
               class="flex items-center gap-2 border border-gray-300 px-3 py-2 rounded-md text-sm hover:bg-gray-50"
             >
@@ -484,8 +477,8 @@
                 </div>
 
                 <form
-                  th:action="@{/admin/validation}"
-                  method="post"
+                  th:action="@{/admin/dashboard}"
+                  method="get"
                   class="space-y-4 border-t pt-6"
                 >
                   <input
@@ -550,11 +543,13 @@
                   waktu serupa (FR-ADM-11, FR-ADM-12)
                 </p>
               </div>
-              <button
-                class="bg-blue-600 text-white px-3 py-2 rounded-md text-sm"
-              >
-                Gabungkan
-              </button>
+              <form th:action="@{/admin/dashboard}" method="get">
+                <button
+                  class="bg-blue-600 text-white px-3 py-2 rounded-md text-sm"
+                >
+                  Gabungkan
+                </button>
+              </form>
             </div>
             <div class="px-6 pb-6">
               <div class="relative mb-4">
@@ -657,8 +652,8 @@
               </div>
               <form
                 th:if="${selectedDisposition != null}"
-                th:action="@{/admin/disposisi}"
-                method="post"
+                th:action="@{/admin/dashboard}"
+                method="get"
                 class="space-y-4"
               >
                 <input
@@ -838,9 +833,5 @@
         </section>
       </div>
     </main>
-
-    <script>
-      lucide.createIcons();
-    </script>
-  </body>
+  </div>
 </html>

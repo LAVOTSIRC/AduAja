@@ -1,26 +1,19 @@
-<!doctype html>
-<html lang="id" xmlns:th="http://www.thymeleaf.org">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<html
+  lang="id"
+  xmlns:th="http://www.thymeleaf.org"
+  xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+  layout:decorate="~{layouts/master}"
+>
+  <th:block layout:fragment="extraHead">
     <title>AduAja - Login Admin</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script
-      defer
-      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
-    ></script>
-    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
       [x-cloak] {
         display: none !important;
       }
     </style>
-  </head>
-  <body
-    class="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4"
-    x-data="{ showPassword: false, loading: false }"
-  >
+  </th:block>
+
+  <div layout:fragment="content" class="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
     <div class="w-full max-w-md">
       <div class="bg-white rounded-2xl shadow-xl p-8">
         <div class="text-center mb-6">
@@ -42,9 +35,10 @@
         ></div>
 
         <form
-          th:action="@{/admin/login}"
-          method="post"
+          th:action="@{/admin/home}"
+          method="get"
           class="space-y-4"
+          x-data="{ showPassword: false, loading: false }"
           x-on:submit="loading = true"
         >
           <div class="space-y-2">
@@ -136,9 +130,5 @@
         </p>
       </div>
     </div>
-
-    <script>
-      lucide.createIcons();
-    </script>
-  </body>
+  </div>
 </html>

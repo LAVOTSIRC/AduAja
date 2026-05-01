@@ -1,26 +1,19 @@
-<!doctype html>
-<html lang="id" xmlns:th="http://www.thymeleaf.org">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<html
+  lang="id"
+  xmlns:th="http://www.thymeleaf.org"
+  xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+  layout:decorate="~{layouts/master}"
+>
+  <th:block layout:fragment="extraHead">
     <title>AduAja - Detail Laporan</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script
-      defer
-      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
-    ></script>
-    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
       [x-cloak] {
         display: none !important;
       }
     </style>
-  </head>
-  <body
-    class="min-h-screen bg-gray-50"
-    x-data="{ showConfirmDialog: false, showDisputeDialog: false }"
-  >
+  </th:block>
+
+  <div layout:fragment="content" class="min-h-screen bg-gray-50" x-data="{ showConfirmDialog: false, showDisputeDialog: false }">
     <div
       th:if="${report == null}"
       class="min-h-screen bg-gray-50 flex items-center justify-center"
@@ -64,12 +57,12 @@
             class="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center"
           >
             <img
-              th:if="${report.photoUrl != null}"
+              th:if="${report['photoUrl'] != null}"
               th:src="${report.photoUrl}"
               alt="Foto laporan"
               class="w-full h-full object-cover"
             />
-            <span th:if="${report.photoUrl == null}" class="text-6xl">📸</span>
+            <span th:if="${report['photoUrl'] == null}" class="text-6xl">&#128248;</span>
           </div>
         </div>
 
@@ -166,16 +159,16 @@
                   Deskripsi
                 </p>
                 <div
-                  th:if="${item.note != null}"
+                  th:if="${item['note'] != null}"
                   class="mt-2 text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded p-2"
-                  th:text="${item.note}"
+                  th:text="${item['note']}"
                 ></div>
                 <div
-                  th:if="${item.relatedTicket != null}"
+                  th:if="${item['relatedTicket'] != null}"
                   class="mt-2 text-xs text-blue-700"
                 >
                   Tiket terkait:
-                  <span th:text="${item.relatedTicket}">TKT-000</span>
+                  <span th:text="${item['relatedTicket']}">TKT-000</span>
                 </div>
               </div>
             </div>
@@ -215,7 +208,7 @@
           <p class="text-sm text-gray-600 mb-4">
             Apakah Anda yakin laporan ini sudah selesai ditangani?
           </p>
-          <form th:action="@{/warga/report/confirm}" method="post">
+          <form th:action="@{/warga/dashboard}" method="get">
             <input type="hidden" name="id" th:value="${report.id}" />
             <div class="flex gap-3">
               <button
@@ -249,9 +242,8 @@
             Berikan alasan dan unggah bukti untuk pengajuan sengketa.
           </p>
           <form
-            th:action="@{/warga/report/dispute}"
-            method="post"
-            enctype="multipart/form-data"
+            th:action="@{/warga/dashboard}"
+            method="get"
             class="space-y-3"
           >
             <input type="hidden" name="id" th:value="${report.id}" />
@@ -281,9 +273,5 @@
         </div>
       </div>
     </div>
-
-    <script>
-      lucide.createIcons();
-    </script>
-  </body>
+  </div>
 </html>

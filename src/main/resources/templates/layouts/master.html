@@ -2,12 +2,12 @@
 <html
   lang="id"
   xmlns:th="http://www.thymeleaf.org"
-  th:fragment="layout(pageTitle, content, extraHead, extraScripts, showOfflineIndicator)"
+  xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
 >
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title th:text="${pageTitle}">AduAja</title>
+    <title th:text="${pageTitle} ?: 'AduAja'">AduAja</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script
       defer
@@ -21,196 +21,46 @@
         display: none !important;
       }
     </style>
-    <th:block th:replace="${extraHead}"></th:block>
+    <th:block layout:fragment="extraHead"></th:block>
   </head>
   <body>
-    <th:block th:replace="${content}"></th:block>
-
-    <div
-      th:with="pendingCount=${queuedActions != null ? #lists.size(queuedActions) : 0}"
-      th:if="${showOfflineIndicator}"
-      th:attr="x-data=|{ isOnline: true, showDetails: false, pendingCount: ${pendingCount} }|"
+    <header
+      th:fragment="navbar"
+      class="bg-white shadow-sm sticky top-0 z-10"
     >
-      <div
-        x-show="!isOnline || pendingCount > 0"
-        x-cloak
-        class="fixed top-4 right-4 z-40 px-3 py-2 rounded-lg shadow-lg cursor-pointer"
-        :class="isOnline ? 'bg-green-600 text-white' : 'bg-red-600 text-white animate-pulse'"
-        x-on:click="showDetails = true"
-      >
-        <div class="flex items-center gap-2">
-          <i x-show="isOnline" data-lucide="wifi" class="w-4 h-4"></i>
-          <i x-show="!isOnline" data-lucide="wifi-off" class="w-4 h-4"></i>
-          <div class="text-sm font-medium">
-            <span
-              x-show="isOnline"
-              x-text="pendingCount > 0 ? 'Menyinkronkan (' + pendingCount + ')' : 'Online'"
-            ></span>
-            <span x-show="!isOnline">Mode Offline</span>
-          </div>
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center h-16">
+          <a th:href="@{/}" class="flex items-center gap-3">
+            <div
+              class="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center"
+            >
+              <span class="text-white font-bold text-lg">A</span>
+            </div>
+            <div>
+              <h1 class="text-xl font-bold text-gray-900">AduAja</h1>
+              <p class="text-xs text-gray-500 hidden sm:block">
+                Pengaduan Masyarakat
+              </p>
+            </div>
+          </a>
+
+          <th:block layout:fragment="navRight">
+            <div class="flex items-center gap-2 sm:gap-4">
+              <span class="text-sm text-gray-500">AduAja</span>
+            </div>
+          </th:block>
         </div>
       </div>
+    </header>
 
-      <div
-        x-show="showDetails"
-        x-cloak
-        class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
-      >
-        <div
-          class="bg-white rounded-lg w-full max-w-md max-h-[80vh] overflow-y-auto"
-        >
-          <div
-            class="flex items-center justify-between p-4 border-b sticky top-0 bg-white"
-          >
-            <div class="flex items-center gap-2">
-              <i
-                x-show="isOnline"
-                data-lucide="wifi"
-                class="w-5 h-5 text-green-600"
-              ></i>
-              <i
-                x-show="!isOnline"
-                data-lucide="wifi-off"
-                class="w-5 h-5 text-red-600"
-              ></i>
-              <h2 class="font-semibold text-lg">Status Koneksi</h2>
-            </div>
-            <button
-              type="button"
-              class="p-2 hover:bg-gray-100 rounded-lg"
-              x-on:click="showDetails = false"
-            >
-              <i data-lucide="x" class="w-5 h-5"></i>
-            </button>
-          </div>
+    <main layout:fragment="content"></main>
 
-          <div class="p-4">
-            <div
-              class="rounded-lg p-4 mb-4"
-              :class="isOnline ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'"
-            >
-              <div class="flex items-start gap-2">
-                <i
-                  x-show="isOnline"
-                  data-lucide="check-circle"
-                  class="w-5 h-5 text-green-600 mt-0.5"
-                ></i>
-                <i
-                  x-show="!isOnline"
-                  data-lucide="alert-circle"
-                  class="w-5 h-5 text-red-600 mt-0.5"
-                ></i>
-                <div>
-                  <div
-                    class="font-medium text-sm"
-                    :class="isOnline ? 'text-green-900' : 'text-red-900'"
-                    x-text="isOnline ? 'Terhubung ke Internet' : 'Tidak Ada Koneksi Internet'"
-                  ></div>
-                  <div
-                    class="text-xs mt-1"
-                    :class="isOnline ? 'text-green-700' : 'text-red-700'"
-                    x-text="isOnline ? 'Semua fitur dapat digunakan dengan normal' : 'Data disimpan lokal dan dikirim saat koneksi kembali'"
-                  ></div>
-                </div>
-              </div>
-            </div>
-
-            <div
-              th:if="${queuedActions != null and !#lists.isEmpty(queuedActions)}"
-            >
-              <h3
-                class="font-medium text-sm text-gray-700 mb-2"
-                th:text="|Antrian Sinkronisasi (${pendingCount})|"
-              ></h3>
-              <div class="space-y-2">
-                <div
-                  th:each="action : ${queuedActions}"
-                  class="bg-gray-50 border border-gray-200 rounded-lg p-3"
-                >
-                  <div class="flex items-start justify-between">
-                    <div class="flex-1">
-                      <div
-                        class="text-sm font-medium text-gray-800"
-                        th:text="${action.description}"
-                      ></div>
-                      <div
-                        class="text-xs text-gray-500 mt-1"
-                        th:text="${action.timestamp}"
-                      ></div>
-                    </div>
-                    <div>
-                      <span
-                        th:if="${action.status == 'pending'}"
-                        class="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded"
-                        >Menunggu</span
-                      >
-                      <span
-                        th:if="${action.status == 'syncing'}"
-                        class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded"
-                        >Mengirim...</span
-                      >
-                      <span
-                        th:if="${action.status == 'synced'}"
-                        class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded inline-flex items-center gap-1"
-                        ><i data-lucide="check-circle" class="w-3 h-3"></i
-                        >Selesai</span
-                      >
-                      <span
-                        th:if="${action.status == 'error'}"
-                        class="text-xs px-2 py-1 bg-red-100 text-red-700 rounded"
-                        >Gagal</span
-                      >
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div
-              th:if="${queuedActions == null or #lists.isEmpty(queuedActions)}"
-              class="text-sm text-gray-500"
-            >
-              Tidak ada antrian sinkronisasi.
-            </div>
-
-            <div
-              x-show="!isOnline"
-              class="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4"
-            >
-              <div class="flex items-start gap-2">
-                <i
-                  data-lucide="alert-circle"
-                  class="w-4 h-4 text-blue-600 mt-0.5"
-                ></i>
-                <div class="text-xs text-blue-800">
-                  <strong>Mode Offline Aktif:</strong>
-                  <ul class="mt-2 space-y-1 list-disc list-inside">
-                    <li>GPS menggunakan lokasi terakhir</li>
-                    <li>Foto disimpan lokal terlebih dahulu</li>
-                    <li>Data disinkronkan saat koneksi kembali</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              class="w-full mt-4 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-              x-on:click="showDetails = false"
-            >
-              Tutup
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <th:block th:replace="${extraScripts}"></th:block>
     <script src="/js/app.js"></script>
     <script>
       if (window.lucide) {
         lucide.createIcons();
       }
     </script>
+    <th:block layout:fragment="extraScripts"></th:block>
   </body>
 </html>

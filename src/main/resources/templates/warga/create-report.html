@@ -1,18 +1,14 @@
-<!doctype html>
-<html lang="id" xmlns:th="http://www.thymeleaf.org">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<html
+  lang="id"
+  xmlns:th="http://www.thymeleaf.org"
+  xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+  layout:decorate="~{layouts/master}"
+>
+  <th:block layout:fragment="extraHead">
     <title>AduAja - Buat Laporan</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script
-      defer
-      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
-    ></script>
-    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-  </head>
-  <body class="min-h-screen bg-gray-50">
+  </th:block>
+
+  <div layout:fragment="content" class="min-h-screen bg-gray-50">
     <header class="bg-white shadow-sm sticky top-0 z-10">
       <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center gap-3 h-16">
@@ -34,8 +30,8 @@
 
     <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <form
-        th:action="@{/warga/create-report}"
-        method="post"
+        th:action="@{/warga/dashboard}"
+        method="get"
         enctype="multipart/form-data"
         class="space-y-6"
       >
@@ -115,7 +111,7 @@
             Deskripsi Kerusakan <span class="text-red-500">*</span>
           </label>
           <textarea
-            th:field="*{description}"
+            name="description"
             rows="5"
             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
             placeholder="Jelaskan detail kerusakan (minimal 20 karakter)"
@@ -125,11 +121,6 @@
             <p
               class="text-xs text-gray-500"
               x-text="count + '/20 karakter minimum'"
-            ></p>
-            <p
-              th:if="${#fields.hasErrors('description')}"
-              th:errors="*{description}"
-              class="text-sm text-red-600"
             ></p>
           </div>
         </div>
@@ -145,35 +136,27 @@
             >
             <input
               type="text"
-              th:field="*{landmark}"
+              name="landmark"
               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Contoh: Dekat Indomaret"
             />
-            <p
-              th:if="${#fields.hasErrors('landmark')}"
-              th:errors="*{landmark}"
-              class="mt-2 text-sm text-red-600"
-            ></p>
           </div>
 
           <button
             type="button"
             class="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-            hx-post="/warga/location"
-            hx-target="#gps-result"
-            hx-swap="outerHTML"
           >
             <i data-lucide="map-pin" class="w-5 h-5"></i>
             Ambil Koordinat GPS
           </button>
 
-          <div id="gps-result" class="mt-4">
+          <div class="mt-4">
             <div class="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <p class="text-gray-600">Latitude:</p>
                 <input
                   type="text"
-                  th:field="*{latitude}"
+                  name="latitude"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono"
                 />
               </div>
@@ -181,17 +164,11 @@
                 <p class="text-gray-600">Longitude:</p>
                 <input
                   type="text"
-                  th:field="*{longitude}"
+                  name="longitude"
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono"
                 />
               </div>
             </div>
-            <p
-              th:if="${#fields.hasErrors('latitude') or #fields.hasErrors('longitude')}"
-              class="mt-2 text-sm text-red-600"
-            >
-              Lokasi GPS harus diisi.
-            </p>
           </div>
         </div>
 
@@ -208,9 +185,5 @@
         </div>
       </form>
     </main>
-
-    <script>
-      lucide.createIcons();
-    </script>
-  </body>
+  </div>
 </html>

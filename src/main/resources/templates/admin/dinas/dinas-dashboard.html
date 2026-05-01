@@ -1,66 +1,29 @@
-<!doctype html>
-<html lang="id" xmlns:th="http://www.thymeleaf.org">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AduAja</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script
-      defer
-      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
-    ></script>
-    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+<html
+  lang="id"
+  xmlns:th="http://www.thymeleaf.org"
+  xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+  layout:decorate="~{layouts/master}"
+>
+  <th:block layout:fragment="extraHead">
+    <title>AduAja - Dashboard Dinas</title>
     <style>
       [x-cloak] {
         display: none !important;
       }
     </style>
-  </head>
-  <body class="min-h-screen bg-gray-50">
-    <header class="bg-white border-b sticky top-0 z-10">
-      <div class="px-6 py-4">
-        <div class="flex items-center justify-between">
-          <div>
-            <h1
-              class="text-2xl font-bold text-gray-900"
-              th:text="|Dashboard ${dinasName}|"
-            >
-              Dashboard Dinas
-            </h1>
-            <div class="flex items-center gap-2 mt-1">
-              <span
-                class="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium bg-green-50"
-              >
-                <i data-lucide="building-2" class="w-3 h-3 mr-1"></i>
-                Administrator Dinas
-              </span>
-            </div>
-          </div>
-          <form th:action="@{/admin/logout}" method="post">
-            <button
-              class="flex items-center gap-2 border border-gray-300 px-3 py-2 rounded-md text-sm hover:bg-gray-50"
-            >
-              <i data-lucide="log-out" class="w-4 h-4"></i>
-              Logout
-            </button>
-          </form>
-        </div>
-      </div>
-    </header>
+  </th:block>
 
-    <main class="p-6 max-w-[1400px] mx-auto">
+  <div layout:fragment="content" class="min-h-screen bg-gray-50">
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div th:each="stat : ${stats}" class="bg-white rounded-xl border p-6">
+        <div th:each="stat : ${stats}" class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
           <div class="flex items-center justify-between">
             <div>
               <p
                 class="text-sm font-medium text-gray-600"
                 th:text="${stat.title}"
-              >
-                Judul
-              </p>
-              <h3 class="text-3xl font-bold mt-2" th:text="${stat.value}">0</h3>
+              >Judul</p>
+              <h3 class="text-3xl font-bold mt-2 text-gray-900" th:text="${stat.value}">0</h3>
             </div>
             <div th:class="|p-3 rounded-lg ${stat.bgColor}|">
               <i
@@ -72,11 +35,11 @@
         </div>
       </div>
 
-      <div class="mb-6 p-4 rounded-lg border border-green-500 bg-green-50">
+      <div class="mb-6 p-4 rounded-lg border border-green-200 bg-green-50">
         <div class="flex items-start gap-2">
           <i data-lucide="building-2" class="h-4 w-4 text-green-600 mt-0.5"></i>
           <div class="text-green-800 text-sm">
-            <strong>Peran Admin Dinas:</strong> Menerima laporan dari disposisi
+            <strong class="text-gray-900">Peran Admin Dinas:</strong> Menerima laporan dari disposisi
             Admin Pusat -> Tugaskan ke Petugas Lapangan (FR-PRS) -> Handle
             sengketa dari warga (FR-RSL)
           </div>
@@ -106,15 +69,15 @@
         </div>
 
         <section x-show="activeTab === 'penugasan'" x-cloak>
-          <div class="bg-white rounded-xl border p-6">
-            <h2 class="text-lg font-semibold mb-2">Penugasan Petugas</h2>
+          <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-2">Penugasan Petugas</h2>
             <p class="text-sm text-gray-600 mb-4">
               Gunakan halaman penugasan untuk memilih petugas lapangan sesuai
               wilayah.
             </p>
             <a
               th:href="@{/admin/dinas/penugasan}"
-              class="inline-flex items-center gap-2 border px-3 py-2 rounded-md text-sm"
+              class="inline-flex items-center gap-2 border border-gray-300 px-3 py-2 rounded-md text-sm hover:bg-gray-50"
             >
               Buka Penugasan Petugas
             </a>
@@ -122,14 +85,14 @@
         </section>
 
         <section x-show="activeTab === 'sengketa'" x-cloak>
-          <div class="bg-white rounded-xl border p-6">
-            <h2 class="text-lg font-semibold mb-2">Sengketa</h2>
+          <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-2">Sengketa</h2>
             <p class="text-sm text-gray-600 mb-4">
               Kelola sengketa yang masuk dan lakukan resolusi.
             </p>
             <a
               th:href="@{/admin/sengketa}"
-              class="inline-flex items-center gap-2 border px-3 py-2 rounded-md text-sm"
+              class="inline-flex items-center gap-2 border border-gray-300 px-3 py-2 rounded-md text-sm hover:bg-gray-50"
             >
               Buka Panel Sengketa
             </a>
@@ -137,9 +100,5 @@
         </section>
       </div>
     </main>
-
-    <script>
-      lucide.createIcons();
-    </script>
-  </body>
+  </div>
 </html>

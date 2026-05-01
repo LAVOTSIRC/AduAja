@@ -1,22 +1,31 @@
-<!DOCTYPE html>
-<html lang="id" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<html
+  lang="id"
+  xmlns:th="http://www.thymeleaf.org"
+  xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+  layout:decorate="~{layouts/master}"
+>
+  <th:block layout:fragment="extraHead">
     <title>AduAja - Sistem Lapor</title>
-    <!-- Ini senjata Tailwind-mu -->
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100 flex items-center justify-center h-screen">
+  </th:block>
 
-<!-- Ini bebas kau ganti pakai kode class Tailwind dari React-mu -->
-<div class="bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center">
-    <h1 class="text-3xl font-bold text-blue-600 mb-4">AduAja</h1>
-    <p class="text-gray-600 mb-6">Sistem Lapor Infrastruktur Publik. Halaman React sudah berhasil pindah ke Thymeleaf!</p>
-    <button class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg">
-        Mulai Lapor
-    </button>
-</div>
-
-</body>
+  <div layout:fragment="content" class="min-h-screen bg-gray-100 flex items-center justify-center">
+    <div class="bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center">
+      <h2 class="text-3xl font-bold text-blue-600 mb-4">AduAja</h2>
+      <p class="text-gray-600 mb-6">Sistem Lapor Infrastruktur Publik. Halaman React sudah berhasil pindah ke Thymeleaf!</p>
+      <div class="space-y-3">
+        <a
+          th:href="@{/warga/login}"
+          class="block w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+        >Masuk sebagai Warga</a>
+        <a
+          th:href="@{/admin/login}"
+          class="block w-full border border-blue-500 text-blue-600 hover:bg-blue-50 font-semibold py-2 px-4 rounded-lg transition-colors"
+        >Masuk sebagai Admin</a>
+        <a
+          th:href="@{/petugas/login}"
+          class="block w-full border border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold py-2 px-4 rounded-lg transition-colors"
+        >Masuk sebagai Petugas</a>
+      </div>
+    </div>
+  </div>
 </html>

@@ -1,34 +1,28 @@
-<!doctype html>
-<html lang="id" xmlns:th="http://www.thymeleaf.org">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AduAja</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script
-      defer
-      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
-    ></script>
-    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+<html
+  lang="id"
+  xmlns:th="http://www.thymeleaf.org"
+  xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+  layout:decorate="~{layouts/master}"
+>
+  <th:block layout:fragment="extraHead">
+    <title>AduAja - Tutup Tiket</title>
     <style>
       [x-cloak] {
         display: none !important;
       }
     </style>
-  </head>
-  <body class="min-h-screen bg-gray-50">
-    <main class="max-w-6xl mx-auto p-6">
+  </th:block>
+
+  <div layout:fragment="content" class="min-h-screen bg-gray-50">
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="bg-white rounded-xl border lg:col-span-1">
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm lg:col-span-1">
           <div class="px-6 pt-6 pb-4">
-            <h2 class="text-lg font-semibold">Siap Ditutup</h2>
+            <h2 class="text-lg font-semibold text-gray-900">Siap Ditutup</h2>
             <p
               class="text-sm text-gray-600"
               th:text="|${#lists.size(ticketsReadyToClose)} tiket siap ditutup setelah pekerjaan selesai|"
-            >
-              0 tiket
-            </p>
+            >0 tiket</p>
           </div>
           <div class="px-6 pb-6">
             <div class="relative mb-4">
@@ -38,20 +32,20 @@
               ></i>
               <input
                 type="text"
-                class="w-full pl-10 px-3 py-2 border rounded-md"
+                class="w-full pl-10 px-3 py-2 border border-gray-300 rounded-md"
                 placeholder="Cari ID atau judul..."
               />
             </div>
             <div class="space-y-3 max-h-[600px] overflow-y-auto">
               <div
                 th:each="ticket : ${ticketsReadyToClose}"
-                class="p-4 border rounded-lg hover:bg-gray-50"
+                class="p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
               >
                 <div class="flex gap-3">
                   <img
                     th:src="${ticket.foto}"
                     alt="Foto laporan"
-                    class="w-16 h-16 object-cover rounded border flex-shrink-0"
+                    class="w-16 h-16 object-cover rounded border border-gray-200 flex-shrink-0"
                   />
                   <div class="flex-1 min-w-0">
                     <div class="flex items-start justify-between mb-1">
@@ -69,15 +63,11 @@
                     <h4
                       class="font-medium text-sm mb-1"
                       th:text="${ticket.judul}"
-                    >
-                      Judul
-                    </h4>
+                    >Judul</h4>
                     <p
                       class="text-xs text-gray-500 mb-2"
                       th:text="${ticket.kategori}"
-                    >
-                      Kategori
-                    </p>
+                    >Kategori</p>
                     <div
                       class="flex items-center gap-1 text-xs text-green-700 font-medium"
                     >
@@ -94,9 +84,9 @@
           </div>
         </div>
 
-        <div class="bg-white rounded-xl border lg:col-span-2">
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm lg:col-span-2">
           <div class="px-6 pt-6 pb-4">
-            <h2 class="text-lg font-semibold">Form Penutupan Tiket</h2>
+            <h2 class="text-lg font-semibold text-gray-900">Form Penutupan Tiket</h2>
             <p class="text-sm text-gray-600">
               Upload foto bukti penyelesaian dan keterangan untuk menutup tiket
             </p>
@@ -121,9 +111,7 @@
                   <p
                     class="font-mono font-semibold"
                     th:text="${selectedTicket.id}"
-                  >
-                    ID
-                  </p>
+                  >ID</p>
                 </div>
                 <div>
                   <p class="text-xs text-gray-600">Prioritas</p>
@@ -135,28 +123,21 @@
                 </div>
                 <div class="col-span-2">
                   <p class="text-xs text-gray-600">Judul Laporan</p>
-                  <p class="font-medium" th:text="${selectedTicket.judul}">
-                    Judul
-                  </p>
+                  <p class="font-medium" th:text="${selectedTicket.judul}">Judul</p>
                 </div>
                 <div>
                   <p class="text-xs text-gray-600">Pelapor</p>
-                  <p class="text-sm" th:text="${selectedTicket.pelapor}">
-                    Pelapor
-                  </p>
+                  <p class="text-sm" th:text="${selectedTicket.pelapor}">Pelapor</p>
                 </div>
                 <div>
                   <p class="text-xs text-gray-600">Wilayah</p>
-                  <p class="text-sm" th:text="${selectedTicket.wilayah}">
-                    Wilayah
-                  </p>
+                  <p class="text-sm" th:text="${selectedTicket.wilayah}">Wilayah</p>
                 </div>
               </div>
 
               <form
-                th:action="@{/admin/dinas/close-ticket}"
-                method="post"
-                enctype="multipart/form-data"
+                th:action="@{/admin/home}"
+                method="get"
                 class="space-y-4"
               >
                 <input
@@ -165,7 +146,7 @@
                   th:value="${selectedTicket.id}"
                 />
                 <div>
-                  <label for="completionNote" class="mb-2 block text-sm"
+                  <label for="completionNote" class="mb-2 block text-sm text-gray-900"
                     >Keterangan Penyelesaian
                     <span class="text-red-500">*</span></label
                   >
@@ -173,19 +154,19 @@
                     id="completionNote"
                     name="completionNote"
                     rows="5"
-                    class="w-full px-3 py-2 border rounded-md"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md"
                     placeholder="Minimal 20 karakter"
                   ></textarea>
                 </div>
 
                 <div>
-                  <label class="mb-2 block text-sm"
+                  <label class="mb-2 block text-sm text-gray-900"
                     >Foto Bukti Penyelesaian
                     <span class="text-red-500">*</span> (Minimal 1, Maksimal
                     5)</label
                   >
                   <label
-                    class="flex items-center gap-2 px-4 py-3 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50"
+                    class="flex items-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50"
                   >
                     <i data-lucide="upload" class="w-5 h-5 text-blue-600"></i>
                     <span class="text-sm font-medium text-blue-600"
@@ -220,11 +201,9 @@
                 <div class="flex gap-3 pt-4">
                   <button
                     type="submit"
-                    class="flex-1 bg-green-600 text-white py-2 rounded-md"
-                  >
-                    Tutup Tiket dan Kirim Verifikasi
-                  </button>
-                  <button type="button" class="flex-1 border py-2 rounded-md">
+                    class="flex-1 bg-green-600 text-white py-2 rounded-md hover:bg-green-700"
+                  >Tutup Tiket dan Kirim Verifikasi</button>
+                  <button type="button" class="flex-1 border border-gray-300 py-2 rounded-md hover:bg-gray-50">
                     Batal
                   </button>
                 </div>
@@ -234,9 +213,5 @@
         </div>
       </div>
     </main>
-
-    <script>
-      lucide.createIcons();
-    </script>
-  </body>
+  </div>
 </html>

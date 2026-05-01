@@ -541,11 +541,13 @@ public class WebController {
         List<Map<String, Object>> activeTasks = new ArrayList<>();
         activeTasks.add(buildTask("TGS-001", "Perbaikan Jalan Berlubang Jl. Sudirman", "Jalan",
                 "in_progress", "high", "Jl. Sudirman No. 10, Medan Kota",
+                "Terdapat beberapa lubang besar di badan jalan dengan kedalaman sekitar 15 cm.",
                 "Budi Santoso", "28 Apr 2025",
                 "30 Apr 2025 17:00", "Sisa 6 jam", "text-orange-600",
                 "1,2 km", null, "28 Apr 2025 09:00"));
         activeTasks.add(buildTask("TGS-002", "Penggantian Lampu Jalan Gang Melati", "Penerangan",
                 "new", "medium", "Gang Melati No. 5, Medan Baru",
+                "Lampu jalan di sepanjang gang mati total sejak 3 hari lalu.",
                 "Sari Dewi", "27 Apr 2025",
                 "02 Mei 2025 17:00", "Sisa 2 hari", "text-yellow-600",
                 "2,5 km", null, null));
@@ -588,11 +590,15 @@ public class WebController {
                 "Terdapat beberapa lubang besar di badan jalan dengan kedalaman sekitar 15 cm " +
                         "dan diameter 40 cm. Kondisi ini membahayakan pengendara terutama pada malam hari.");
 
+        task.put("reporterPhone", "+62 812-3456-7890");
+
         Map<String, Object> locationMap = new HashMap<>();
         locationMap.put("address", task.getOrDefault("location", "Jl. Sudirman No. 10, Medan Kota").toString());
         locationMap.put("latitude",  "3.5952");
         locationMap.put("longitude", "98.6722");
         task.put("location", locationMap);
+
+        task.put("distanceToTask", task.getOrDefault("distanceToTask", "1,2 km"));
 
         List<Map<String, Object>> statusHistory = new ArrayList<>();
         statusHistory.add(Map.of("status", "Tugas Dibuat",    "time", "28 Apr 2025 08:00", "note", "Tugas diterima dari laporan warga"));
@@ -1361,24 +1367,25 @@ public class WebController {
 
     private Map<String, Object> buildTask(
             String id, String title, String category,
-            String status, String priority, String location,
+            String status, String priority, String location, String description,
             String reporterName, String reportDate,
             String slaDeadline, String slaStatusText, String slaStatusClass,
             String distanceToTask, String pendingReason, String startedAt
     ) {
         Map<String, Object> t = new HashMap<>();
-        t.put("id",           id);
-        t.put("title",        title);
-        t.put("category",     category);
-        t.put("status",       status);
-        t.put("priority",     priority);
-        t.put("location",     location);
-        t.put("reporterName", reporterName);
-        t.put("reportDate",   reportDate);
-        t.put("slaDeadline",  slaDeadline);
-        t.put("slaStatusText",slaStatusText);
-        t.put("slaStatusClass",slaStatusClass);
-        t.put("distanceToTask",distanceToTask);
+        t.put("id",            id);
+        t.put("title",         title);
+        t.put("category",      category);
+        t.put("status",        status);
+        t.put("priority",      priority);
+        t.put("location",      location);
+        t.put("description",   description);
+        t.put("reporterName",  reporterName);
+        t.put("reportDate",    reportDate);
+        t.put("slaDeadline",   slaDeadline);
+        t.put("slaStatusText", slaStatusText);
+        t.put("slaStatusClass", slaStatusClass);
+        t.put("distanceToTask", distanceToTask);
         if (pendingReason != null) t.put("pendingReason", pendingReason);
         if (startedAt     != null) t.put("startedAt",     startedAt);
         return t;
@@ -1386,31 +1393,69 @@ public class WebController {
 
     private List<Map<String, Object>> allDummyTasks() {
         List<Map<String, Object>> list = new ArrayList<>();
-        list.add(buildTask("TGS-001","Perbaikan Jalan Berlubang Jl. Sudirman","Jalan",
-                "new","critical","Jl. Sudirman No. 10, Medan Kota",
-                "Budi Santoso","28 Apr 2025",
-                "30 Apr 2025 17:00","Sisa 6 jam","text-red-600",
-                "1,2 km",null,null));
-        list.add(buildTask("TGS-002","Penggantian Lampu Jalan Gang Melati","Penerangan",
-                "in_progress","medium","Gang Melati No. 5, Medan Baru",
-                "Sari Dewi","27 Apr 2025",
-                "02 Mei 2025 17:00","Sisa 2 hari","text-yellow-600",
-                "2,5 km",null,"28 Apr 2025 10:15"));
-        list.add(buildTask("TGS-003","Pembersihan Saluran Drainase Jl. Gatot Subroto","Drainase",
-                "new","high","Jl. Gatot Subroto No. 8, Medan Petisah",
-                "Rina Hartati","26 Apr 2025",
-                "01 Mei 2025 17:00","Sisa 1 hari","text-orange-600",
-                "3,8 km",null,null));
-        list.add(buildTask("TGS-004","Pemasangan Trotoar Rusak Jl. Imam Bonjol","Trotoar",
-                "pending","medium","Jl. Imam Bonjol, Medan Polonia",
-                "Hendra Wijaya","25 Apr 2025",
-                "05 Mei 2025 17:00","Sisa 5 hari","text-green-600",
-                "4,1 km","Menunggu material aspal dari gudang. Estimasi tiba 2 Mei 2025.",null));
-        list.add(buildTask("TGS-005","Perbaikan Taman Bermain Taman Sari","Taman",
-                "new","low","Taman Sari, Medan Maimun",
-                "Dewi Lestari","24 Apr 2025",
-                "07 Mei 2025 17:00","Sisa 7 hari","text-green-600",
-                "5,0 km",null,null));
+        list.add(buildTask("TGS-001",
+                "Perbaikan Jalan Berlubang Jl. Sudirman",
+                "Jalan",
+                "new", "critical",
+                "Jl. Sudirman No. 10, Medan Kota",
+                "Terdapat beberapa lubang besar di badan jalan dengan kedalaman sekitar 15 cm dan diameter 40 cm. Kondisi ini membahayakan pengendara terutama pada malam hari.",
+                "Budi Santoso", "28 Apr 2025",
+                "30 Apr 2025 17:00", "Sisa 6 jam", "text-red-600",
+                "1,2 km", null, null));
+        list.add(buildTask("TGS-002",
+                "Penggantian Lampu Jalan Gang Melati",
+                "Penerangan",
+                "in_progress", "medium",
+                "Gang Melati No. 5, Medan Baru",
+                "Lampu jalan di sepanjang gang mati total sejak 3 hari lalu. Warga meminta segera diganti agar tidak terjadi kecelakaan.",
+                "Sari Dewi", "27 Apr 2025",
+                "02 Mei 2025 17:00", "Sisa 2 hari", "text-yellow-600",
+                "2,5 km", null, "28 Apr 2025 10:15"));
+        list.add(buildTask("TGS-003",
+                "Pembersihan Saluran Drainase Jl. Gatot Subroto",
+                "Drainase",
+                "new", "high",
+                "Jl. Gatot Subroto No. 8, Medan Petisah",
+                "Saluran drainase tersumbat sampah dan lumpur sepanjang 50 meter. Menyebabkan genangan air saat hujan deras.",
+                "Rina Hartati", "26 Apr 2025",
+                "01 Mei 2025 17:00", "Sisa 1 hari", "text-orange-600",
+                "3,8 km", null, null));
+        list.add(buildTask("TGS-004",
+                "Pemasangan Trotoar Rusak Jl. Imam Bonjol",
+                "Trotoar",
+                "pending", "medium",
+                "Jl. Imam Bonjol, Medan Polonia",
+                "Trotoar sepanjang 20 meter mengalami retak dan amblas. Pejalan kaki terpaksa berjalan di badan jalan.",
+                "Hendra Wijaya", "25 Apr 2025",
+                "05 Mei 2025 17:00", "Sisa 5 hari", "text-green-600",
+                "4,1 km", "Menunggu material aspal dari gudang. Estimasi tiba 2 Mei 2025.", null));
+        list.add(buildTask("TGS-005",
+                "Perbaikan Taman Bermain Taman Sari",
+                "Taman",
+                "new", "low",
+                "Taman Sari, Medan Maimun",
+                "Beberapa fasilitas bermain anak rusak berat dan berkarat. Ayunan putus dan perosotan retak.",
+                "Dewi Lestari", "24 Apr 2025",
+                "07 Mei 2025 17:00", "Sisa 7 hari", "text-green-600",
+                "5,0 km", null, null));
+        list.add(buildTask("TGS-006",
+                "Pemasangan Rambu Lalu Lintas Jl. Sisingamangaraja",
+                "Rambu Jalan",
+                "in_progress", "high",
+                "Jl. Sisingamangaraja No. 15, Medan Kota",
+                "Rambu lalu lintas di persimpangan roboh akibat angin kencang. Perlu segera dipasang ulang untuk keamanan.",
+                "Ahmad Fauzi", "28 Apr 2025",
+                "29 Apr 2025 17:00", "Sisa 4 jam", "text-red-600",
+                "0,8 km", null, "28 Apr 2025 11:30"));
+        list.add(buildTask("TGS-007",
+                "Perbaikan Jembatan Kayu Kampung Sei Sikambing",
+                "Jembatan",
+                "pending", "critical",
+                "Kampung Sei Sikambing, Medan Selatan",
+                "Jembatan kayu penghubung antar kampung mulai lapuk dan beberapa papan sudah bolong. Sangat berbahaya bagi warga.",
+                "M. Rizki", "23 Apr 2025",
+                "26 Apr 2025 17:00", "Sisa 1 hari", "text-orange-600",
+                "6,2 km", "Menunggu persetujuan anggaran dari dinas terkait.", null));
         return list;
     }
 

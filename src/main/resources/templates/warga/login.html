@@ -1,23 +1,19 @@
-<!doctype html>
-<html lang="id" xmlns:th="http://www.thymeleaf.org">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<html
+  lang="id"
+  xmlns:th="http://www.thymeleaf.org"
+  xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+  layout:decorate="~{layouts/master}"
+>
+  <th:block layout:fragment="extraHead">
     <title>AduAja - Login Warga</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script
-      defer
-      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
-    ></script>
-    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
       [x-cloak] {
         display: none !important;
       }
     </style>
-  </head>
-  <body class="min-h-screen flex flex-col lg:flex-row">
+  </th:block>
+
+  <div layout:fragment="content" class="min-h-screen flex flex-col lg:flex-row">
     <div
       class="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 to-blue-800 p-12 items-center justify-center"
     >
@@ -31,7 +27,7 @@
             <div
               class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 mt-1"
             >
-              <span class="text-sm">✓</span>
+              <span class="text-sm">&#10003;</span>
             </div>
             <div>
               <h3 class="font-semibold mb-1">Lapor Mudah</h3>
@@ -44,7 +40,7 @@
             <div
               class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 mt-1"
             >
-              <span class="text-sm">✓</span>
+              <span class="text-sm">&#10003;</span>
             </div>
             <div>
               <h3 class="font-semibold mb-1">Pantau Status</h3>
@@ -57,7 +53,7 @@
             <div
               class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 mt-1"
             >
-              <span class="text-sm">✓</span>
+              <span class="text-sm">&#10003;</span>
             </div>
             <div>
               <h3 class="font-semibold mb-1">Transparan</h3>
@@ -91,8 +87,8 @@
           <form
             x-show="!otpStep && !isRegister"
             x-cloak
-            th:action="@{/warga/login}"
-            method="post"
+            th:action="@{/warga/dashboard}"
+            method="get"
             class="space-y-4"
           >
             <div>
@@ -173,8 +169,8 @@
           <form
             x-show="!otpStep && isRegister"
             x-cloak
-            th:action="@{/warga/register}"
-            method="post"
+            th:action="@{/warga/dashboard}"
+            method="get"
             class="space-y-4"
           >
             <div>
@@ -295,8 +291,8 @@
           <form
             x-show="otpStep"
             x-cloak
-            th:action="@{/warga/verify-otp}"
-            method="post"
+            th:action="@{/warga/dashboard}"
+            method="get"
             class="space-y-4"
           >
             <div class="flex gap-2 justify-center mb-6">
@@ -365,9 +361,5 @@
         </div>
       </div>
     </div>
-
-    <script>
-      lucide.createIcons();
-    </script>
-  </body>
+  </div>
 </html>

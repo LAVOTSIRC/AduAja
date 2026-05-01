@@ -1,34 +1,28 @@
-<!doctype html>
-<html lang="id" xmlns:th="http://www.thymeleaf.org">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AduAja</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script
-      defer
-      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
-    ></script>
-    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+<html
+  lang="id"
+  xmlns:th="http://www.thymeleaf.org"
+  xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+  layout:decorate="~{layouts/master}"
+>
+  <th:block layout:fragment="extraHead">
+    <title>AduAja - Penugasan Petugas</title>
     <style>
       [x-cloak] {
         display: none !important;
       }
     </style>
-  </head>
-  <body class="min-h-screen bg-gray-50">
-    <main class="max-w-6xl mx-auto p-6">
+  </th:block>
+
+  <div layout:fragment="content" class="min-h-screen bg-gray-50">
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="bg-white rounded-xl border lg:col-span-1">
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm lg:col-span-1">
           <div class="px-6 pt-6 pb-4">
-            <h2 class="text-lg font-semibold">Laporan Masuk Dinas</h2>
+            <h2 class="text-lg font-semibold text-gray-900">Laporan Masuk Dinas</h2>
             <p
               class="text-sm text-gray-600"
               th:text="|${#lists.size(incomingReports)} laporan dari disposisi Admin Pusat (FR-PRS-01)|"
-            >
-              0 laporan
-            </p>
+            >0 laporan</p>
           </div>
           <div class="px-6 pb-6">
             <div class="relative mb-4">
@@ -38,20 +32,20 @@
               ></i>
               <input
                 type="text"
-                class="w-full pl-10 px-3 py-2 border rounded-md"
+                class="w-full pl-10 px-3 py-2 border border-gray-300 rounded-md"
                 placeholder="Cari ID atau judul..."
               />
             </div>
             <div class="space-y-3 max-h-[600px] overflow-y-auto">
               <div
                 th:each="report : ${incomingReports}"
-                class="p-4 border rounded-lg hover:bg-gray-50"
+                class="p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
               >
                 <div class="flex gap-3">
                   <img
                     th:src="${report.foto}"
                     alt="Foto laporan"
-                    class="w-16 h-16 object-cover rounded border flex-shrink-0"
+                    class="w-16 h-16 object-cover rounded border border-gray-200 flex-shrink-0"
                   />
                   <div class="flex-1 min-w-0">
                     <div class="flex items-start justify-between mb-1">
@@ -69,20 +63,14 @@
                     <h4
                       class="font-medium text-sm mb-1"
                       th:text="${report.judul}"
-                    >
-                      Judul
-                    </h4>
+                    >Judul</h4>
                     <p
                       class="text-xs text-gray-500 mb-2"
                       th:text="${report.kategori}"
-                    >
-                      Kategori
-                    </p>
+                    >Kategori</p>
                     <div class="flex items-center gap-1 text-xs text-gray-600">
                       <i data-lucide="calendar" class="w-3 h-3"></i>
-                      <span th:text="|Disposisi: ${report.tanggalDisposisi}|"
-                        >Disposisi</span
-                      >
+                      <span th:text="|Disposisi: ${report.tanggalDisposisi}|">Disposisi</span>
                     </div>
                   </div>
                 </div>
@@ -91,12 +79,11 @@
           </div>
         </div>
 
-        <div class="bg-white rounded-xl border lg:col-span-2">
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm lg:col-span-2">
           <div class="px-6 pt-6 pb-4">
-            <h2 class="text-lg font-semibold">Penugasan Petugas Lapangan</h2>
+            <h2 class="text-lg font-semibold text-gray-900">Penugasan Petugas Lapangan</h2>
             <p class="text-sm text-gray-600">
-              Tugaskan laporan ke petugas sesuai wilayah kerja (FR-PRS-02,
-              FR-PRS-03, FR-PRS-04)
+              Tugaskan laporan ke petugas sesuai wilayah kerja (FR-PRS-02, FR-PRS-03, FR-PRS-04)
             </p>
           </div>
           <div class="px-6 pb-6">
@@ -110,16 +97,14 @@
               </div>
             </div>
             <div th:if="${selectedReport != null}" class="space-y-6">
-              <div class="p-4 bg-gray-50 rounded-lg border">
+              <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
                 <div class="grid grid-cols-2 gap-4">
                   <div>
                     <p class="text-xs text-gray-600">ID Tiket</p>
                     <p
                       class="font-mono font-semibold"
                       th:text="${selectedReport.id}"
-                    >
-                      ID
-                    </p>
+                    >ID</p>
                   </div>
                   <div>
                     <p class="text-xs text-gray-600">Prioritas</p>
@@ -131,48 +116,35 @@
                   </div>
                   <div class="col-span-2">
                     <p class="text-xs text-gray-600">Judul Laporan</p>
-                    <p class="font-medium" th:text="${selectedReport.judul}">
-                      Judul
-                    </p>
+                    <p class="font-medium" th:text="${selectedReport.judul}">Judul</p>
                   </div>
                   <div>
                     <p class="text-xs text-gray-600">Wilayah</p>
                     <div class="flex items-center gap-1">
-                      <i
-                        data-lucide="map-pin"
-                        class="w-3 h-3 text-gray-400"
-                      ></i>
-                      <p class="text-sm" th:text="${selectedReport.wilayah}">
-                        Wilayah
-                      </p>
+                      <i data-lucide="map-pin" class="w-3 h-3 text-gray-400"></i>
+                      <p class="text-sm" th:text="${selectedReport.wilayah}">Wilayah</p>
                     </div>
                   </div>
                   <div>
                     <p class="text-xs text-gray-600">Deadline SLA</p>
                     <div class="flex items-center gap-1">
                       <i data-lucide="clock" class="w-3 h-3 text-gray-400"></i>
-                      <p class="text-sm" th:text="${selectedReport.deadline}">
-                        Deadline
-                      </p>
+                      <p class="text-sm" th:text="${selectedReport.deadline}">Deadline</p>
                     </div>
                   </div>
                   <div class="col-span-2">
-                    <p class="text-xs text-gray-600">
-                      Instruksi dari Admin Pusat
-                    </p>
+                    <p class="text-xs text-gray-600">Instruksi dari Admin Pusat</p>
                     <p
                       class="text-sm bg-blue-50 p-2 rounded border border-blue-200"
                       th:text="${selectedReport.instruksiAdmin}"
-                    >
-                      Instruksi
-                    </p>
+                    >Instruksi</p>
                   </div>
                 </div>
               </div>
 
               <form
-                th:action="@{/admin/dinas/penugasan}"
-                method="post"
+                th:action="@{/admin/home}"
+                method="get"
                 class="space-y-4"
               >
                 <input
@@ -181,14 +153,14 @@
                   th:value="${selectedReport.id}"
                 />
                 <div>
-                  <label class="mb-3 block font-semibold"
+                  <label class="mb-3 block font-semibold text-gray-900"
                     >Pilih Petugas Lapangan
                     <span class="text-red-500">*</span></label
                   >
                   <div class="space-y-2">
                     <label
                       th:each="petugas : ${petugasList}"
-                      class="flex items-start gap-3 p-3 border rounded-lg cursor-pointer"
+                      class="flex items-start gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50"
                     >
                       <input
                         type="radio"
@@ -202,9 +174,7 @@
                             <p
                               class="font-medium text-sm"
                               th:text="${petugas.nama}"
-                            >
-                              Nama
-                            </p>
+                            >Nama</p>
                             <p
                               class="text-xs text-gray-500"
                               th:text="|NIP: ${petugas.nip}|"
@@ -221,9 +191,7 @@
                         >
                           <div class="flex items-center gap-1">
                             <i data-lucide="building-2" class="w-3 h-3"></i>
-                            <span th:text="${petugas.wilayahTugas}"
-                              >Wilayah</span
-                            >
+                            <span th:text="${petugas.wilayahTugas}">Wilayah</span>
                           </div>
                           <div class="flex items-center gap-1">
                             <i data-lucide="user" class="w-3 h-3"></i>
@@ -235,9 +203,7 @@
                         <p
                           class="text-xs text-gray-500 mt-1"
                           th:text="${petugas.kontak}"
-                        >
-                          Kontak
-                        </p>
+                        >Kontak</p>
                       </div>
                     </label>
                   </div>
@@ -260,11 +226,9 @@
                 <div class="flex gap-3 pt-4">
                   <button
                     type="submit"
-                    class="flex-1 bg-blue-600 text-white py-2 rounded-md"
-                  >
-                    Tugaskan Petugas (FR-PRS-04)
-                  </button>
-                  <button type="button" class="flex-1 border py-2 rounded-md">
+                    class="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700"
+                  >Tugaskan Petugas (FR-PRS-04)</button>
+                  <button type="button" class="flex-1 border border-gray-300 py-2 rounded-md hover:bg-gray-50">
                     Batal
                   </button>
                 </div>
@@ -274,9 +238,5 @@
         </div>
       </div>
     </main>
-
-    <script>
-      lucide.createIcons();
-    </script>
-  </body>
+  </div>
 </html>

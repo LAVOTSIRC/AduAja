@@ -1,18 +1,14 @@
-<!doctype html>
-<html lang="id" xmlns:th="http://www.thymeleaf.org">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<html
+  lang="id"
+  xmlns:th="http://www.thymeleaf.org"
+  xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+  layout:decorate="~{layouts/master}"
+>
+  <th:block layout:fragment="extraHead">
     <title>AduAja - Dashboard Warga</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script
-      defer
-      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
-    ></script>
-    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-  </head>
-  <body class="min-h-screen bg-gray-50">
+  </th:block>
+
+  <div layout:fragment="content" class="min-h-screen bg-gray-50">
     <header class="bg-white shadow-sm sticky top-0 z-10">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
@@ -61,7 +57,7 @@
                 <p class="text-xs text-gray-500">Warga</p>
               </div>
             </a>
-            <form th:action="@{/warga/logout}" method="post">
+            <form th:action="@{/warga/dashboard}" method="get">
               <button
                 type="submit"
                 class="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
@@ -180,7 +176,7 @@
                 <div
                   class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0"
                 >
-                  <span class="text-lg">📍</span>
+                  <span class="text-lg">&#128205;</span>
                 </div>
                 <div class="flex-1 min-w-0">
                   <h4
@@ -208,9 +204,9 @@
                   >ID</span
                 >
               </span>
-              <span>•</span>
+              <span>&bull;</span>
               <span th:text="${report.location}">Lokasi</span>
-              <span>•</span>
+              <span>&bull;</span>
               <span th:text="${#temporals.format(report.date, 'd MMMM yyyy')}"
                 >Tanggal</span
               >
@@ -241,9 +237,5 @@
         </div>
       </div>
     </main>
-
-    <script>
-      lucide.createIcons();
-    </script>
-  </body>
+  </div>
 </html>

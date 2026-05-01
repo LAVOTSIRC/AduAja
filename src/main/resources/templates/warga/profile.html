@@ -1,23 +1,19 @@
-<!doctype html>
-<html lang="id" xmlns:th="http://www.thymeleaf.org">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<html
+  lang="id"
+  xmlns:th="http://www.thymeleaf.org"
+  xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+  layout:decorate="~{layouts/master}"
+>
+  <th:block layout:fragment="extraHead">
     <title>AduAja - Profil Warga</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script
-      defer
-      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
-    ></script>
-    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
       [x-cloak] {
         display: none !important;
       }
     </style>
-  </head>
-  <body class="min-h-screen bg-gray-50" x-data="{ isEditing: false }">
+  </th:block>
+
+  <div layout:fragment="content" class="min-h-screen bg-gray-50" x-data="{ isEditing: false }">
     <header class="bg-white shadow-sm sticky top-0 z-10">
       <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
@@ -74,7 +70,7 @@
               class="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center overflow-hidden"
             >
               <img
-                th:if="${profile.photoUrl != null}"
+                th:if="${profile['photoUrl'] != null}"
                 th:src="${profile.photoUrl}"
                 alt="Profile"
                 class="w-full h-full object-cover"
@@ -119,8 +115,8 @@
 
       <form
         id="profile-form"
-        th:action="@{/warga/profile}"
-        method="post"
+        th:action="@{/warga/dashboard}"
+        method="get"
         enctype="multipart/form-data"
       >
         <div
@@ -312,9 +308,5 @@
         </div>
       </div>
     </main>
-
-    <script>
-      lucide.createIcons();
-    </script>
-  </body>
+  </div>
 </html>
