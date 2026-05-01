@@ -43,15 +43,59 @@ public class WebController {
         return "admin/login";
     }
 
-    /** POST /admin/login — proses login admin */
+    /** POST /admin/login — proses login admin berdasarkan role */
     @PostMapping("/admin/login")
-    public String adminLoginPost() {
-        return "redirect:/admin/home";
+    public String adminLoginPost(@RequestParam(value = "role", required = false, defaultValue = "admin_pusat") String role) {
+        if ("admin_pusat".equalsIgnoreCase(role)) {
+            return "redirect:/admin/dashboard";
+        } else {
+            return "redirect:/admin/dinas/dashboard";
+        }
     }
 
-    /** GET /admin/home — halaman pilih modul admin */
+    /** GET /admin/home — redirect ke dashboard */
     @GetMapping("/admin/home")
-    public String adminHome(Model model) {
+    public String adminHome() {
+        return "redirect:/admin/dashboard";
+    }
+
+    /** GET /admin/dashboard — dashboard utama admin (pusat atau dinas) */
+    @GetMapping("/admin/dashboard")
+    public String adminDashboard(
+            Model model,
+            @RequestParam(value = "role", required = false, defaultValue = "admin_pusat") String role
+    ) {
+        model.addAttribute("userRole", role);
+
+        if ("admin_dinas".equalsIgnoreCase(role)) {
+            model.addAttribute("dinasName", "Dinas Pekerjaan Umum");
+            List<Map<String, Object>> dinasStats = new ArrayList<>();
+            dinasStats.add(Map.of("title", "Laporan Diterima", "value", 12,
+                    "icon", "inbox", "bgColor", "bg-blue-100", "color", "text-blue-600"));
+            dinasStats.add(Map.of("title", "Dalam Penanganan", "value", 5,
+                    "icon", "wrench", "bgColor", "bg-yellow-100", "color", "text-yellow-600"));
+            dinasStats.add(Map.of("title", "Terlambat SLA", "value", 2,
+                    "icon", "alert-circle", "bgColor", "bg-red-100", "color", "text-red-600"));
+            dinasStats.add(Map.of("title", "Selesai", "value", 8,
+                    "icon", "check-circle", "bgColor", "bg-green-100", "color", "text-green-600"));
+            model.addAttribute("stats", dinasStats);
+            model.addAttribute("pendingAssignments", dummyIncomingReportsForDinas());
+            model.addAttribute("availablePetugas", dummyPetugasList());
+        } else {
+            // Stat cards for admin_pusat
+            List<Map<String, Object>> stats = new ArrayList<>();
+            stats.add(Map.of("title", "Laporan Masuk", "value", 24,
+                    "icon", "file-text", "bgColor", "bg-blue-100", "color", "text-blue-600"));
+            stats.add(Map.of("title", "Menunggu Validasi", "value", 8,
+                    "icon", "clock", "bgColor", "bg-yellow-100", "color", "text-yellow-600"));
+            stats.add(Map.of("title", "Terlambat SLA", "value", 3,
+                    "icon", "alert-triangle", "bgColor", "bg-red-100", "color", "text-red-600"));
+            stats.add(Map.of("title", "Selesai Hari Ini", "value", 5,
+                    "icon", "check-circle", "bgColor", "bg-green-100", "color", "text-green-600"));
+            model.addAttribute("stats", stats);
+        }
+
+        // Module panels
         List<Map<String, Object>> panels = new ArrayList<>();
         panels.add(Map.of(
                 "title", "Antrean Laporan",
@@ -89,25 +133,6 @@ public class WebController {
                 "href", "/admin/sengketa"
         ));
         model.addAttribute("panels", panels);
-        return "admin/home";
-    }
-
-    /** GET /admin/dashboard — dashboard utama admin pusat */
-    @GetMapping("/admin/dashboard")
-    public String adminDashboard(Model model) {
-        model.addAttribute("userRole", "admin_pusat");
-
-        // Stat cards
-        List<Map<String, Object>> stats = new ArrayList<>();
-        stats.add(Map.of("title", "Laporan Masuk", "value", 24,
-                "icon", "file-text", "bgColor", "bg-blue-100", "color", "text-blue-600"));
-        stats.add(Map.of("title", "Menunggu Validasi", "value", 8,
-                "icon", "clock", "bgColor", "bg-yellow-100", "color", "text-yellow-600"));
-        stats.add(Map.of("title", "Terlambat SLA", "value", 3,
-                "icon", "alert-triangle", "bgColor", "bg-red-100", "color", "text-red-600"));
-        stats.add(Map.of("title", "Selesai Hari Ini", "value", 5,
-                "icon", "check-circle", "bgColor", "bg-green-100", "color", "text-green-600"));
-        model.addAttribute("stats", stats);
 
         // Queue reports (for "Antrean Laporan" tab)
         model.addAttribute("queueReports", dummyQueueReports());
@@ -314,6 +339,10 @@ public class WebController {
                 "icon", "check-circle", "bgColor", "bg-green-100", "color", "text-green-600"));
         model.addAttribute("stats", stats);
 
+        // Penugasan data
+        model.addAttribute("pendingAssignments", dummyIncomingReportsForDinas());
+        model.addAttribute("availablePetugas", dummyPetugasList());
+
         return "admin/dinas/dinas-dashboard";
     }
 
@@ -499,16 +528,13 @@ public class WebController {
     /** POST /petugas/login — proses login petugas */
     @PostMapping("/petugas/login")
     public String petugasLoginPost() {
-        return "redirect:/petugas/home";
+        return "redirect:/petugas/dashboard";
     }
 
+    /** GET /petugas/home — redirect ke dashboard */
     @GetMapping("/petugas/home")
-    public String petugasHome(Model model) {
-        Map<String, Object> currentUser = new HashMap<>();
-        currentUser.put("name", "Ahmad Fauzi");
-        currentUser.put("dinas", "Dinas Pekerjaan Umum");
-        model.addAttribute("currentUser", currentUser);
-        return "petugas/home";
+    public String petugasHome() {
+        return "redirect:/petugas/dashboard";
     }
 
     @GetMapping("/petugas/dashboard")

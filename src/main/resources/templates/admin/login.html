@@ -35,8 +35,8 @@
         ></div>
 
         <form
-          th:action="@{/admin/home}"
-          method="get"
+          th:action="@{/admin/login}"
+          method="post"
           class="space-y-4"
           x-data="{ showPassword: false, loading: false }"
           x-on:submit="loading = true"
