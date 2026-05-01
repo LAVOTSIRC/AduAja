@@ -10,38 +10,17 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    /**
-     * Temporary/dev security configuration:
-     * - Permit all requests so the Thymeleaf UI routes can be tested.
-     * - Disable CSRF so POST forms work without CSRF tokens.
-     *
-     * NOTE: Replace with proper authentication/authorization later.
-     */
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                // Nonaktifkan perlindungan CSRF sementara agar tidak ada error 403 saat submit form
                 .csrf(csrf -> csrf.disable())
+
+                // Izinkan semua akses (Bypass Security)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/",
-                                "/css/**",
-                                "/js/**",
-                                "/images/**",
-                                "/favicon.ico",
-                                "/warga/**",
-                                "/admin/**",
-                                "/petugas/**",
-                                "/h2-console/**")
-                        .permitAll()
-                        .anyRequest().permitAll())
-                .httpBasic(httpBasic -> httpBasic.disable())
-                .formLogin(form -> form.disable())
-                // We handle logout via controller POST endpoints in this demo
-                .logout(logout -> logout.disable())
-                // Needed for H2 console
-                .headers(headers -> headers.frameOptions(frame -> frame.disable()));
+                        .anyRequest().permitAll()
+                );
 
         return http.build();
     }
 }
-
