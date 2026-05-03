@@ -10,7 +10,14 @@
 
   <div layout:fragment="content" class="min-h-screen bg-gray-100 flex items-center justify-center">
     <div class="bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center">
-      <h2 class="text-3xl font-bold text-blue-600 mb-4">AduAja</h2>
+      <div class="flex items-center justify-center gap-2 mb-4">
+        <img
+          th:src="@{/img/Adu Aja Logo.png}"
+          alt="Logo AduAja"
+          class="w-24 h-24 object-contain"
+        />
+        <h1 class="text-4xl font-extrabold text-blue-600 tracking-tight">AduAja</h1>
+      </div>
       <p class="text-gray-600 mb-6">Sistem Lapor Infrastruktur Publik. Halaman React sudah berhasil pindah ke Thymeleaf!</p>
       <div class="space-y-3">
         <a
