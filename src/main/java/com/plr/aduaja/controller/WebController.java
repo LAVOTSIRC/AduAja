@@ -520,6 +520,8 @@ public class WebController {
     // PETUGAS ROUTES
     // ==========================================
 
+    private List<Map<String, Object>> currentTasks = new ArrayList<>();
+
     @GetMapping("/petugas/login")
     public String petugasLogin() {
         return "petugas/login";
@@ -528,6 +530,7 @@ public class WebController {
     /** POST /petugas/login — proses login petugas */
     @PostMapping("/petugas/login")
     public String petugasLoginPost() {
+        currentTasks = allDummyTasks();
         return "redirect:/petugas/dashboard";
     }
 
@@ -537,26 +540,71 @@ public class WebController {
         return "redirect:/petugas/dashboard";
     }
 
+    /** POST /petugas/task-action — proses aksi pada tugas (Start, Postpone, dll) */
+    @PostMapping("/petugas/task-action")
+    public String petugasTaskAction(
+            @RequestParam(value = "id", required = false) String id,
+            @RequestParam(value = "action", required = false, defaultValue = "start") String action,
+            @RequestParam(value = "description", required = false) String description
+    ) {
+        if (id != null && currentTasks != null) {
+            for (Map<String, Object> t : currentTasks) {
+                if (t.get("id").equals(id)) {
+                    if ("start".equals(action)) {
+                        t.put("status", "in_progress");
+                        t.put("startedAt", "04 Mei 2026 10:00");
+                    } else if ("pending".equals(action)) {
+                        t.put("status", "pending");
+                        t.put("pendingReason", description != null ? description : "Ditunda oleh petugas");
+                    } else if ("reportback".equals(action)) {
+                        t.put("status", "invalid");
+                    } else if ("escalation".equals(action)) {
+                        // Dummy escalation
+                    }
+                    break;
+                }
+            }
+        }
+        return "redirect:/petugas/task-detail?id=" + id;
+    }
+
     @GetMapping("/petugas/dashboard")
-    public String petugasDashboard(Model model) {
+    public String petugasDashboard(
+            Model model,
+            @RequestParam(value = "checkIn", required = false) Boolean checkIn
+    ) {
+        if (currentTasks == null || currentTasks.isEmpty()) {
+            currentTasks = allDummyTasks();
+        }
+        
+        boolean isCheckedIn = true; 
+        if (checkIn != null && !checkIn) {
+            isCheckedIn = false;
+        }
+
         Map<String, Object> user = new HashMap<>();
         user.put("name", "Ahmad Fauzi");
         user.put("dinas", "Dinas Pekerjaan Umum");
         model.addAttribute("user", user);
 
         Map<String, Object> attendance = new HashMap<>();
-        attendance.put("checkedIn", true);
-        attendance.put("currentStatus", "Siap Bertugas");
-        attendance.put("checkInTime", "08:05");
-        attendance.put("workDuration", "04:32:10");
-        attendance.put("location", "Kantor Dinas PU Medan");
+        attendance.put("checkedIn", isCheckedIn);
+        attendance.put("currentStatus", isCheckedIn ? "Siap Bertugas" : "Belum Check-In");
+        attendance.put("checkInTime", isCheckedIn ? "08:05" : "-");
+        attendance.put("workDuration", isCheckedIn ? "04:32:10" : "00:00:00");
+        attendance.put("location", isCheckedIn ? "Kantor Dinas PU Medan" : "-");
         model.addAttribute("attendance", attendance);
 
         Map<String, Object> stats = new HashMap<>();
-        stats.put("selesaiHariIni", 2);
-        stats.put("sedangDikerjakan", 1);
-        stats.put("tugasBaru", 3);
-        stats.put("tertunda", 0);
+        long selesai = currentTasks.stream().filter(t -> "completed".equals(t.get("status"))).count();
+        long inProgress = currentTasks.stream().filter(t -> "in_progress".equals(t.get("status"))).count();
+        long newTasks = currentTasks.stream().filter(t -> "new".equals(t.get("status"))).count();
+        long pending = currentTasks.stream().filter(t -> "pending".equals(t.get("status"))).count();
+
+        stats.put("selesaiHariIni", selesai);
+        stats.put("sedangDikerjakan", inProgress);
+        stats.put("tugasBaru", newTasks);
+        stats.put("tertunda", pending);
         model.addAttribute("stats", stats);
 
         Map<String, Object> deviceInfo = new HashMap<>();
@@ -584,11 +632,15 @@ public class WebController {
 
     @GetMapping("/petugas/tasks")
     public String petugasTasks(Model model) {
+        if (currentTasks == null || currentTasks.isEmpty()) {
+            currentTasks = allDummyTasks();
+        }
+
         List<Map<String, Object>> tasksNew        = new ArrayList<>();
         List<Map<String, Object>> tasksInProgress = new ArrayList<>();
         List<Map<String, Object>> tasksPending    = new ArrayList<>();
 
-        for (Map<String, Object> t : allDummyTasks()) {
+        for (Map<String, Object> t : currentTasks) {
             switch (t.get("status").toString()) {
                 case "new"         -> tasksNew.add(t);
                 case "in_progress" -> tasksInProgress.add(t);
@@ -607,10 +659,14 @@ public class WebController {
             Model model,
             @RequestParam(value = "id", required = false, defaultValue = "TGS-001") String id
     ) {
-        Map<String, Object> task = allDummyTasks().stream()
+        if (currentTasks == null || currentTasks.isEmpty()) {
+            currentTasks = allDummyTasks();
+        }
+
+        Map<String, Object> task = currentTasks.stream()
                 .filter(t -> t.get("id").equals(id))
                 .findFirst()
-                .orElse(allDummyTasks().get(0));
+                .orElse(currentTasks.get(0));
 
         task.put("description",
                 "Terdapat beberapa lubang besar di badan jalan dengan kedalaman sekitar 15 cm " +
@@ -632,6 +688,8 @@ public class WebController {
         task.put("statusHistory", statusHistory);
 
         model.addAttribute("task", task);
+        model.addAttribute("user", Map.of("name", "Ahmad Fauzi"));
+        model.addAttribute("attendance", Map.of("checkedIn", true));
         return "petugas/task-detail";
     }
 
@@ -640,12 +698,27 @@ public class WebController {
             Model model,
             @RequestParam(value = "id", required = false, defaultValue = "TGS-001") String id
     ) {
-        Map<String, Object> task = new HashMap<>();
-        task.put("id", id);
-        task.put("title", "Perbaikan Jalan Berlubang Jl. Sudirman");
-        task.put("workDuration", "01:24:38");
+        if (currentTasks == null || currentTasks.isEmpty()) {
+            currentTasks = allDummyTasks();
+        }
+        
+        Map<String, Object> task = currentTasks.stream()
+                .filter(t -> t.get("id").equals(id))
+                .findFirst()
+                .orElse(currentTasks.get(0));
+
+        Map<String, Object> locationMap = new HashMap<>();
+        locationMap.put("address", task.getOrDefault("location", "Jl. Sudirman No. 10, Medan Kota").toString());
+        locationMap.put("latitude", "3.5952");
+        locationMap.put("longitude", "98.6722");
+        task.put("location", locationMap);
+        task.put("distanceToTask", task.getOrDefault("distanceToTask", "1,2 km"));
+
         model.addAttribute("task", task);
-        model.addAttribute("materials", new ArrayList<>());
+        
+        // Dummy materials for simulation
+        List<Map<String, Object>> materials = new ArrayList<>();
+        model.addAttribute("materials", materials);
         return "petugas/task-execution";
     }
 
@@ -653,8 +726,22 @@ public class WebController {
     @PostMapping("/petugas/task-execution")
     public String petugasTaskExecutionPost(
             @RequestParam(value = "id", required = false, defaultValue = "TGS-001") String id,
-            @RequestParam(value = "keterangan", required = false) String keterangan
+            @RequestParam(value = "action", required = false, defaultValue = "save") String action,
+            @RequestParam(value = "materialName", required = false) String materialName,
+            @RequestParam(value = "quantity", required = false) Integer quantity,
+            @RequestParam(value = "unit", required = false) String unit
     ) {
+        if ("complete".equals(action)) {
+            if (currentTasks != null) {
+                for (Map<String, Object> t : currentTasks) {
+                    if (t.get("id").equals(id)) {
+                        t.put("status", "completed");
+                        break;
+                    }
+                }
+            }
+            return "redirect:/petugas/dashboard";
+        }
         return "redirect:/petugas/task-execution?id=" + id;
     }
 
