@@ -21,7 +21,7 @@ public class WebController {
     // ==========================================
     @GetMapping("/")
     public String rootRedirect() {
-        return "redirect:/warga/login";
+        return "index";
     }
 
     // ==========================================
