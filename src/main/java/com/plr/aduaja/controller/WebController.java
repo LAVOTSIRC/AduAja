@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -890,27 +892,50 @@ public class WebController {
             if (r.get("id").equals(id)) { report = r; break; }
         }
         if (report != null) {
-            report.put("photoUrl", null);
-            report.put("landmark", "Dekat Indomaret Sudirman");
-
+            String status = (String) report.get("status");
             List<Map<String, Object>> timeline = new ArrayList<>();
             timeline.add(new HashMap<>(Map.of(
                     "icon","file-text","color","bg-blue-100 text-blue-600",
                     "title","Laporan Diterima","date","20 Apr 2025",
                     "description","Laporan Anda telah berhasil dikirim dan sedang menunggu validasi."
             )));
-            timeline.add(new HashMap<>(Map.of(
-                    "icon","search","color","bg-yellow-100 text-yellow-600",
-                    "title","Validasi Laporan","date","21 Apr 2025",
-                    "description","Admin sedang memvalidasi kelengkapan laporan.",
-                    "note","Estimasi penyelesaian: 3 hari kerja"
-            )));
-            timeline.add(new HashMap<>(Map.of(
-                    "icon","tool","color","bg-orange-100 text-orange-600",
-                    "title","Diproses Dinas","date","22 Apr 2025",
-                    "description","Laporan diteruskan ke Dinas Pekerjaan Umum untuk ditangani.",
-                    "relatedTicket","TKT-2025-042"
-            )));
+            if (!"Menunggu".equals(status) && !"Ditolak".equals(status)) {
+                timeline.add(new HashMap<>(Map.of(
+                        "icon","search","color","bg-yellow-100 text-yellow-600",
+                        "title","Validasi Laporan","date","21 Apr 2025",
+                        "description","Admin telah memvalidasi dan meneruskan laporan ke dinas terkait.",
+                        "note","Estimasi penyelesaian: 3 hari kerja"
+                )));
+            }
+            if ("Diproses".equals(status) || "Sedang Diproses".equals(status)) {
+                timeline.add(new HashMap<>(Map.of(
+                        "icon","tool","color","bg-orange-100 text-orange-600",
+                        "title","Diproses Dinas","date","22 Apr 2025",
+                        "description","Laporan sedang dikerjakan oleh petugas lapangan Dinas Pekerjaan Umum.",
+                        "relatedTicket","TKT-2025-042"
+                )));
+            }
+            if ("Selesai".equals(status)) {
+                timeline.add(new HashMap<>(Map.of(
+                        "icon","tool","color","bg-orange-100 text-orange-600",
+                        "title","Diproses Dinas","date","22 Apr 2025",
+                        "description","Laporan telah dikerjakan oleh petugas lapangan.",
+                        "relatedTicket","TKT-2025-042"
+                )));
+                timeline.add(new HashMap<>(Map.of(
+                        "icon","check-circle","color","bg-green-100 text-green-600",
+                        "title","Penyelesaian","date","25 Apr 2025",
+                        "description","Petugas telah menyelesaikan perbaikan di lokasi. Menunggu konfirmasi Anda."
+                )));
+            }
+            if ("Ditolak".equals(status)) {
+                timeline.add(new HashMap<>(Map.of(
+                        "icon","x-circle","color","bg-red-100 text-red-600",
+                        "title","Laporan Ditolak","date","21 Apr 2025",
+                        "description","Laporan ditolak oleh admin. Silakan revisi sesuai catatan admin.",
+                        "note",(String) report.get("rejectionReason")
+                )));
+            }
             model.addAttribute("timeline", timeline);
         }
         model.addAttribute("report", report);
@@ -1509,42 +1534,93 @@ public class WebController {
 
     private List<Map<String, Object>> allDummyWargaReports() {
         List<Map<String, Object>> list = new ArrayList<>();
-        list.add(new HashMap<>(Map.of(
-                "id","RPT-001","title","Jalan Berlubang di Jl. Sudirman",
-                "category","Infrastruktur Jalan","status","Diproses",
-                "statusColor","bg-yellow-100 text-yellow-700",
-                "location","Jl. Sudirman, Medan Kota","date",LocalDate.of(2025,4,20),
-                "icon","alert-triangle","iconColor","text-yellow-600"
-        )));
-        list.add(new HashMap<>(Map.of(
-                "id","RPT-002","title","Lampu Jalan Mati di Gang Melati",
-                "category","Listrik Publik","status","Selesai",
-                "statusColor","bg-green-100 text-green-700",
-                "location","Gang Melati, Medan Baru","date",LocalDate.of(2025,4,15),
-                "icon","zap","iconColor","text-green-600"
-        )));
-        list.add(new HashMap<>(Map.of(
-                "id","RPT-003","title","Saluran Drainase Tersumbat",
-                "category","Sistem Drainase","status","Menunggu",
-                "statusColor","bg-gray-100 text-gray-700",
-                "location","Jl. Gatot Subroto, Medan Petisah","date",LocalDate.of(2025,4,28),
-                "icon","droplets","iconColor","text-blue-600"
-        )));
-        list.add(new HashMap<>(Map.of(
-                "id","RPT-004","title","Taman Bermain Rusak di Taman Sari",
-                "category","Taman dan Ruang Publik","status","Ditolak",
-                "statusColor","bg-red-100 text-red-700",
-                "location","Taman Sari, Medan Maimun","date",LocalDate.of(2025,3,10),
-                "icon","tree-pine","iconColor","text-red-600"
-        )));
-        list.add(new HashMap<>(Map.of(
-                "id","RPT-005","title","Trotoar Retak Jl. Imam Bonjol",
-                "category","Infrastruktur Jalan","status","Selesai",
-                "statusColor","bg-green-100 text-green-700",
-                "location","Jl. Imam Bonjol, Medan Polonia","date",LocalDate.of(2025,3,5),
-                "icon","alert-triangle","iconColor","text-green-600"
-        )));
+        LocalDateTime now = LocalDateTime.now();
+
+        list.add(buildReport("RPT-001","Jalan Berlubang di Jl. Sudirman","Infrastruktur Jalan","Diproses",
+                "bg-yellow-100 text-yellow-700","Jl. Sudirman, Medan Kota",LocalDate.of(2025,4,20),
+                "alert-triangle","text-yellow-600",
+                "Jalan berlubang besar diameter ±50cm, kedalaman ±15cm. Sudah terjadi sejak 2 minggu lalu dan semakin membesar.",
+                "Dekat Indomaret Sudirman","3.5891","98.6738",
+                now.minusDays(14), now.plusDays(3), null,
+                "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=800&h=600&fit=crop"));
+
+        list.add(buildReport("RPT-002","Lampu Jalan Mati di Gang Melati","Listrik Publik","Selesai",
+                "bg-green-100 text-green-700","Gang Melati, Medan Baru",LocalDate.of(2025,4,15),
+                "zap","text-green-600",
+                "Tiang lampu nomor 3 dari ujung jalan tidak menyala sejak 1 bulan terakhir.",
+                "Seberang Musholla Al-Ikhlas","3.5823","98.6701",
+                now.minusDays(30), now.minusDays(5), null));
+
+        list.add(buildReport("RPT-003","Saluran Drainase Tersumbat","Sistem Drainase","Menunggu",
+                "bg-gray-100 text-gray-700","Jl. Gatot Subroto, Medan Petisah",LocalDate.of(2025,4,28),
+                "droplets","text-blue-600",
+                "Drainase tersumbat sampah dan lumpur, menyebabkan genangan air saat hujan deras.",
+                "Depan Kantor Pos","3.5912","98.6645",
+                now.minusDays(2), now.plusDays(12), null));
+
+        list.add(buildReport("RPT-004","Taman Bermain Rusak di Taman Sari","Taman dan Ruang Publik","Ditolak",
+                "bg-red-100 text-red-700","Taman Sari, Medan Maimun",LocalDate.of(2025,3,10),
+                "tree-pine","text-red-600",
+                "Perosotan dan ayunan di taman bermain sudah berkarat dan rusak. Berbahaya untuk anak-anak.",
+                "Dalam area Taman Sari","3.5789","98.6812",
+                now.minusDays(25), now.minusDays(10),
+                "Kategori salah. Taman bermain bukan wewenang Dinas PU. Harap laporkan ke Dinas Pariwisata dan Kebudayaan.",
+                "https://images.unsplash.com/photo-1564429238961-bf8b83c3c690?w=800&h=600&fit=crop"));
+
+        list.add(buildReport("RPT-005","Trotoar Retak Jl. Imam Bonjol","Infrastruktur Jalan","Selesai",
+                "bg-green-100 text-green-700","Jl. Imam Bonjol, Medan Polonia",LocalDate.of(2025,3,5),
+                "alert-triangle","text-green-600",
+                "Trotoar sepanjang ±10 meter retak dan naik, menyebabkan pejalan kaki tersandung.",
+                "Dekat RS Columbia Asia","3.5756","98.6889",
+                now.minusDays(40), now.minusDays(15), null));
+
+        list.add(buildReport("RPT-006","Jalan Berlubang di Jl. Sisingamangaraja","Infrastruktur Jalan","Sedang Diproses",
+                "bg-orange-100 text-orange-700","Jl. Sisingamangaraja, Medan Kota",LocalDate.of(2025,5,1),
+                "alert-triangle","text-orange-600",
+                "Lubang jalan besar di tengah ruas jalan utama, sudah menyebabkan beberapa kecelakaan ringan.",
+                "Dekat Bank Sumut","3.5905","98.6755",
+                now.minusDays(3), now.plusDays(4), null));
+
         return list;
+    }
+
+    private Map<String, Object> buildReport(
+            String id, String title, String category, String status, String statusColor,
+            String location, LocalDate date, String icon, String iconColor,
+            String description, String landmark, String latitude, String longitude,
+            LocalDateTime createdDate, LocalDateTime slaDeadline, String rejectionReason
+    ) {
+        return buildReport(id, title, category, status, statusColor, location, date,
+                icon, iconColor, description, landmark, latitude, longitude,
+                createdDate, slaDeadline, rejectionReason, null);
+    }
+
+    private Map<String, Object> buildReport(
+            String id, String title, String category, String status, String statusColor,
+            String location, LocalDate date, String icon, String iconColor,
+            String description, String landmark, String latitude, String longitude,
+            LocalDateTime createdDate, LocalDateTime slaDeadline, String rejectionReason, String photoUrl
+    ) {
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm");
+        Map<String, Object> r = new HashMap<>();
+        r.put("id", id);
+        r.put("title", title);
+        r.put("category", category);
+        r.put("status", status);
+        r.put("statusColor", statusColor);
+        r.put("location", location);
+        r.put("date", date);
+        r.put("icon", icon);
+        r.put("iconColor", iconColor);
+        r.put("description", description);
+        r.put("landmark", landmark);
+        r.put("latitude", latitude);
+        r.put("longitude", longitude);
+        r.put("createdDate", createdDate.format(fmt));
+        r.put("slaDeadline", slaDeadline.format(fmt));
+        r.put("rejectionReason", rejectionReason);
+        r.put("photoUrl", photoUrl);
+        return r;
     }
 
     // ==========================================

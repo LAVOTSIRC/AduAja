@@ -6,14 +6,25 @@
 >
   <th:block layout:fragment="extraHead">
     <title>AduAja - Detail Laporan</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-      [x-cloak] {
-        display: none !important;
+      #detail-map { height: 200px; z-index: 1; }
+      #revision-map { height: 300px; z-index: 1; }
+      [x-cloak] { display: none !important; }
+      .countdown-card {
+        background: linear-gradient(135deg, #1e40af, #3b82f6);
+        color: white;
+      }
+      .countdown-card.warning {
+        background: linear-gradient(135deg, #b45309, #f59e0b);
+      }
+      .countdown-card.danger {
+        background: linear-gradient(135deg, #dc2626, #ef4444);
       }
     </style>
   </th:block>
 
-  <div layout:fragment="content" class="min-h-screen bg-gray-50" x-data="{ showConfirmDialog: false, showDisputeDialog: false }">
+  <div layout:fragment="content" class="min-h-screen bg-gray-50" x-data="detailPage()">
     <div
       th:if="${report == null}"
       class="min-h-screen bg-gray-50 flex items-center justify-center"
@@ -38,11 +49,11 @@
             </a>
             <div class="flex-1">
               <h1 class="font-bold text-gray-900">Detail Laporan</h1>
-              <p class="text-xs text-gray-500" th:text="${report.id}">ID</p>
+              <p class="text-xs text-gray-500" th:text="${report['id']}">ID</p>
             </div>
             <span
-              th:class="|px-3 py-1 rounded-full text-xs font-medium ${report.statusColor}|"
-              th:text="${report.status}"
+              th:class="|px-3 py-1 rounded-full text-xs font-medium ${report['statusColor']}|"
+              th:text="${report['status']}"
               >Status</span
             >
           </div>
@@ -50,6 +61,45 @@
       </header>
 
       <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <!-- SLA Countdown -->
+        <div x-show="showSLA()" class="countdown-card rounded-xl p-5 mb-6 shadow-lg"
+             :class="slaClass()">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <i data-lucide="clock" class="w-5 h-5"></i>
+                <h3 class="font-bold text-lg">Batas Waktu Penanganan (SLA)</h3>
+              </div>
+              <p class="text-sm opacity-90" x-text="slaMessage()"></p>
+            </div>
+            <div class="text-right">
+              <div class="text-3xl font-extrabold" x-text="countdownDisplay()"></div>
+              <p class="text-xs opacity-80 mt-1">tersisa</p>
+            </div>
+          </div>
+          <div class="mt-4 bg-white/20 rounded-full h-2 overflow-hidden">
+            <div class="h-full rounded-full transition-all duration-1000"
+                 :class="slaBarClass()"
+                 :style="'width: ' + slaProgress() + '%'"></div>
+          </div>
+          <div class="flex justify-between mt-2 text-xs opacity-75">
+            <span th:text="${report['createdDate']}">Tanggal lapor</span>
+            <span th:text="${report['slaDeadline']}">Deadline SLA</span>
+          </div>
+        </div>
+
+        <!-- Peta Lokasi -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+          <div class="p-4 border-b border-gray-100">
+            <h3 class="font-semibold text-gray-900 flex items-center gap-2">
+              <i data-lucide="map-pin" class="w-4 h-4 text-blue-600"></i>
+              Lokasi Laporan
+            </h3>
+          </div>
+          <div id="detail-map"></div>
+        </div>
+
+        <!-- Foto Laporan -->
         <div
           class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6"
         >
@@ -58,7 +108,7 @@
           >
             <img
               th:if="${report['photoUrl'] != null}"
-              th:src="${report.photoUrl}"
+              th:src="${report['photoUrl']}"
               alt="Foto laporan"
               class="w-full h-full object-cover"
             />
@@ -66,12 +116,13 @@
           </div>
         </div>
 
+        <!-- Info Laporan -->
         <div
           class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6"
         >
           <h2
             class="text-xl font-bold text-gray-900 mb-4"
-            th:text="${report.title}"
+            th:text="${report['title']}"
           >
             Judul
           </h2>
@@ -85,9 +136,25 @@
                 <p class="text-sm text-gray-500">Kategori</p>
                 <p
                   class="font-medium text-gray-900"
-                  th:text="${report.category}"
+                  th:text="${report['category']}"
                 >
                   Kategori
+                </p>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-3">
+              <i
+                data-lucide="align-left"
+                class="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0"
+              ></i>
+              <div>
+                <p class="text-sm text-gray-500">Deskripsi</p>
+                <p
+                  class="font-medium text-gray-900"
+                  th:text="${report['description']}"
+                >
+                  Deskripsi
                 </p>
               </div>
             </div>
@@ -101,15 +168,21 @@
                 <p class="text-sm text-gray-500">Lokasi</p>
                 <p
                   class="font-medium text-gray-900"
-                  th:text="${report.location}"
+                  th:text="${report['location']}"
                 >
                   Lokasi
                 </p>
                 <p
                   class="text-sm text-gray-500 mt-1"
-                  th:text="${report.landmark}"
+                  th:text="${report['landmark']}"
                 >
                   Patokan lokasi
+                </p>
+                <p
+                  class="text-xs text-gray-400 mt-1 font-mono"
+                  th:text="${report['latitude']} + ', ' + ${report['longitude']}"
+                >
+                  Koordinat
                 </p>
               </div>
             </div>
@@ -123,7 +196,7 @@
                 <p class="text-sm text-gray-500">Tanggal Laporan</p>
                 <p
                   class="font-medium text-gray-900"
-                  th:text="${#temporals.format(report.date, 'd MMMM yyyy')}"
+                  th:text="${#temporals.format(report['date'], 'd MMMM yyyy')}"
                 >
                   Tanggal
                 </p>
@@ -132,6 +205,7 @@
           </div>
         </div>
 
+        <!-- Timeline Status -->
         <div
           class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6"
         >
@@ -139,23 +213,23 @@
           <div class="space-y-4">
             <div th:each="item : ${timeline}" class="flex gap-4">
               <div
-                th:class="|w-10 h-10 rounded-lg flex items-center justify-center ${item.color}|"
+                th:class="|w-10 h-10 rounded-lg flex items-center justify-center ${item['color']}|"
               >
-                <i th:attr="data-lucide=${item.icon}" class="w-5 h-5"></i>
+                <i th:attr="data-lucide=${item['icon']}" class="w-5 h-5"></i>
               </div>
               <div class="flex-1">
                 <div class="flex items-center justify-between">
                   <h4
                     class="font-semibold text-gray-900"
-                    th:text="${item.title}"
+                    th:text="${item['title']}"
                   >
                     Judul
                   </h4>
-                  <span class="text-xs text-gray-500" th:text="${item.date}"
+                  <span class="text-xs text-gray-500" th:text="${item['date']}"
                     >Tanggal</span
                   >
                 </div>
-                <p class="text-sm text-gray-600" th:text="${item.description}">
+                <p class="text-sm text-gray-600" th:text="${item['description']}">
                   Deskripsi
                 </p>
                 <div
@@ -175,27 +249,57 @@
           </div>
         </div>
 
+        <!-- Notifikasi Ditolak / Revisi -->
+        <div
+          th:if="${report['status'] == 'Ditolak'}"
+          class="bg-red-50 border border-red-200 rounded-xl p-5 mb-6"
+        >
+          <div class="flex items-start gap-3">
+            <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <i data-lucide="alert-triangle" class="w-5 h-5 text-red-600"></i>
+            </div>
+            <div class="flex-1">
+              <h3 class="font-semibold text-red-900 mb-1">Laporan Ditolak</h3>
+              <p class="text-sm text-red-700 mb-3" th:text="${report['rejectionReason']}">
+                Alasan penolakan dari admin akan ditampilkan di sini.
+              </p>
+              <button
+                type="button"
+                x-on:click="showRevisionDialog = true"
+                class="bg-red-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-700 transition-colors flex items-center gap-2"
+              >
+                <i data-lucide="edit-3" class="w-4 h-4"></i>
+                Revisi Laporan
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tindakan -->
         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 class="font-semibold text-gray-900 mb-4">Tindakan</h3>
           <div class="flex flex-col sm:flex-row gap-3">
             <button
               type="button"
               x-on:click="showConfirmDialog = true"
-              class="flex-1 bg-green-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors"
+              class="flex-1 bg-green-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
             >
+              <i data-lucide="check-circle" class="w-5 h-5"></i>
               Konfirmasi Selesai
             </button>
             <button
               type="button"
               x-on:click="showDisputeDialog = true"
-              class="flex-1 border border-red-500 text-red-600 px-4 py-3 rounded-lg font-medium hover:bg-red-50 transition-colors"
+              class="flex-1 border border-red-500 text-red-600 px-4 py-3 rounded-lg font-medium hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
             >
+              <i data-lucide="alert-circle" class="w-5 h-5"></i>
               Ajukan Sengketa
             </button>
           </div>
         </div>
       </main>
 
+      <!-- Dialog Konfirmasi Selesai -->
       <div
         x-show="showConfirmDialog"
         x-cloak
@@ -208,8 +312,8 @@
           <p class="text-sm text-gray-600 mb-4">
             Apakah Anda yakin laporan ini sudah selesai ditangani?
           </p>
-          <form th:action="@{/warga/dashboard}" method="get">
-            <input type="hidden" name="id" th:value="${report.id}" />
+          <form th:action="@{/warga/dashboard}" method="post">
+            <input type="hidden" name="id" th:value="${report['id']}" />
             <div class="flex gap-3">
               <button
                 type="button"
@@ -229,6 +333,7 @@
         </div>
       </div>
 
+      <!-- Dialog Sengketa -->
       <div
         x-show="showDisputeDialog"
         x-cloak
@@ -243,15 +348,16 @@
           </p>
           <form
             th:action="@{/warga/dashboard}"
-            method="get"
+            method="post"
             class="space-y-3"
           >
-            <input type="hidden" name="id" th:value="${report.id}" />
+            <input type="hidden" name="id" th:value="${report['id']}" />
             <textarea
               name="reason"
               rows="4"
               class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Alasan sengketa (minimal 20 karakter)"
+              required
             ></textarea>
             <input type="file" name="photo" accept="image/*" class="w-full" />
             <div class="flex gap-3">
@@ -272,6 +378,467 @@
           </form>
         </div>
       </div>
+
+      <!-- Dialog Revisi (Full-screen Form dengan Maps) -->
+      <div
+        x-show="showRevisionDialog"
+        x-cloak
+        class="fixed inset-0 bg-gray-50 z-50 overflow-y-auto"
+      >
+        <header class="bg-white shadow-sm sticky top-0 z-10">
+          <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center gap-3 h-16">
+              <button
+                type="button"
+                x-on:click="closeRevisionForm()"
+                class="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <i data-lucide="arrow-left" class="w-5 h-5 text-gray-600"></i>
+              </button>
+              <div class="flex-1">
+                <h1 class="font-bold text-gray-900">Revisi Laporan</h1>
+                <p class="text-xs text-gray-500">Perbaiki sesuai catatan admin</p>
+              </div>
+              <button
+                type="button"
+                x-on:click="closeRevisionForm()"
+                class="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <i data-lucide="x" class="w-5 h-5 text-gray-600"></i>
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <div
+          th:if="${report['rejectionReason'] != null}"
+          class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-4"
+        >
+          <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <div class="flex items-start gap-3">
+              <div class="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-600"></i>
+              </div>
+              <div>
+                <p class="text-sm text-amber-800 font-semibold mb-1">Catatan Admin:</p>
+                <p class="text-sm text-amber-700" th:text="${report['rejectionReason']}">-</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6"
+              x-data="revisionForm(
+                [[${report != null ? report['category'] : ''}]],
+                [[${report != null ? report['description'] : ''}]],
+                [[${report != null ? report['landmark'] : ''}]],
+                [[${report != null ? report['latitude'] : '3.5952'}]],
+                [[${report != null ? report['longitude'] : '98.6722'}]],
+                [[${report != null && report['photoUrl'] != null}]]
+              )"
+              x-init="initRevisionMap()">
+          <form
+            th:action="@{/warga/dashboard}"
+            method="post"
+            enctype="multipart/form-data"
+            class="space-y-6"
+          >
+            <input type="hidden" name="id" th:value="${report['id']}" />
+
+            <!-- Kategori (pre-filled) -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <label class="block text-sm font-medium text-gray-900 mb-2">
+                Kategori Laporan <span class="text-red-500">*</span>
+              </label>
+              <select
+                name="category"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
+                x-model="category"
+              >
+                <option value="">Pilih kategori</option>
+                <option value="Infrastruktur Jalan">Infrastruktur Jalan</option>
+                <option value="Listrik Publik">Listrik Publik</option>
+                <option value="Sistem Drainase">Sistem Drainase</option>
+                <option value="Taman dan Ruang Publik">Taman dan Ruang Publik</option>
+                <option value="Lainnya">Lainnya</option>
+              </select>
+            </div>
+
+            <!-- Foto (show current + edit/delete/replace) -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <label class="block text-sm font-medium text-gray-900 mb-2">
+                Foto Laporan <span class="text-red-500">*</span>
+              </label>
+
+              <!-- Foto saat ini (bisa edit/hapus/ganti) -->
+              <div x-show="!newPhotoSelected && currentPhoto" class="mb-4">
+                <div class="relative">
+                  <img
+                    th:if="${report['photoUrl'] != null}"
+                    th:src="${report['photoUrl']}"
+                    class="w-full h-64 object-cover rounded-lg border border-gray-200"
+                    alt="Foto laporan saat ini"
+                  />
+                  <div
+                    th:if="${report['photoUrl'] == null}"
+                    class="w-full h-64 bg-gray-200 rounded-lg flex items-center justify-center border border-gray-200"
+                  >
+                    <div class="text-center text-gray-500">
+                      <i data-lucide="image-off" class="w-12 h-12 mx-auto mb-2"></i>
+                      <p class="text-sm">Belum ada foto</p>
+                    </div>
+                  </div>
+                  <!-- Tombol edit di atas foto -->
+                  <div class="absolute top-2 right-2 flex gap-2">
+                    <label class="bg-blue-500 text-white rounded-full p-1.5 cursor-pointer hover:bg-blue-600 transition-colors" title="Ganti foto">
+                      <i data-lucide="camera" class="w-4 h-4"></i>
+                      <input
+                        type="file"
+                        name="photo"
+                        accept="image/*"
+                        capture="environment"
+                        class="hidden"
+                        @change="handlePhoto($event)"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      @click="deletePhoto()"
+                      class="bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 transition-colors"
+                      title="Hapus foto"
+                    >
+                      <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                  </div>
+                </div>
+                <p class="text-xs text-gray-500 mt-2">
+                  <i data-lucide="info" class="w-3 h-3 inline mr-1"></i>
+                  Klik tombol kamera untuk ganti foto, atau tombol sampah untuk hapus
+                </p>
+              </div>
+
+              <!-- Preview foto baru (setelah ganti) -->
+              <div x-show="newPhotoSelected" x-cloak class="mb-4">
+                <div class="relative">
+                  <img :src="newPhotoUrl" class="w-full h-64 object-cover rounded-lg border-2 border-blue-300" alt="Preview foto baru" />
+                  <div class="absolute top-2 right-2 flex gap-2">
+                    <label class="bg-blue-500 text-white rounded-full p-1.5 cursor-pointer hover:bg-blue-600 transition-colors" title="Ganti lagi">
+                      <i data-lucide="camera" class="w-4 h-4"></i>
+                      <input
+                        type="file"
+                        name="photo"
+                        accept="image/*"
+                        capture="environment"
+                        class="hidden"
+                        @change="handlePhoto($event)"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      @click="revertToCurrentPhoto()"
+                      class="bg-gray-500 text-white rounded-full p-1.5 hover:bg-gray-600 transition-colors"
+                      title="Batal ganti"
+                    >
+                      <i data-lucide="undo-2" class="w-4 h-4"></i>
+                    </button>
+                  </div>
+                </div>
+                <p class="text-xs text-blue-600 mt-2">
+                  <i data-lucide="check-circle" class="w-3 h-3 inline mr-1"></i>
+                  Foto baru dipilih. Klik tombol undo untuk kembali ke foto semula.
+                </p>
+              </div>
+
+              <!-- Placeholder jika belum ada foto sama sekali -->
+              <div x-show="!currentPhoto && !newPhotoSelected">
+                <label class="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-blue-300 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-all bg-gradient-to-br from-blue-50 to-white">
+                  <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                    <i data-lucide="camera" class="w-10 h-10 text-blue-600"></i>
+                  </div>
+                  <p class="text-base font-semibold text-blue-900 mb-1">Tambah Foto</p>
+                  <p class="text-sm text-blue-600 mb-1">Ambil foto kerusakan secara langsung</p>
+                  <input
+                    type="file"
+                    name="photo"
+                    accept="image/*"
+                    capture="environment"
+                    class="hidden"
+                    @change="handlePhoto($event)"
+                  />
+                </label>
+              </div>
+            </div>
+
+            <!-- Deskripsi (pre-filled, bisa edit) -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <label class="block text-sm font-medium text-gray-900 mb-2">
+                Deskripsi Kerusakan <span class="text-red-500">*</span>
+              </label>
+              <textarea
+                name="description"
+                rows="5"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                placeholder="Jelaskan detail kerusakan (minimal 20 karakter)"
+                x-model="description"
+                x-on:input="charCount = $event.target.value.length"
+                required
+              ></textarea>
+              <div class="flex justify-between items-center mt-2">
+                <p class="text-xs" :class="charCount >= 20 ? 'text-green-600' : 'text-red-500'"
+                   x-text="charCount + '/20 karakter minimum'"></p>
+              </div>
+            </div>
+
+            <!-- Lokasi (pre-filled + maps) -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <label class="block text-sm font-medium text-gray-900 mb-2">
+                Lokasi <span class="text-red-500">*</span>
+              </label>
+
+              <div class="mb-4">
+                <label class="block text-sm text-gray-600 mb-2">Patokan Lokasi</label>
+                <input
+                  type="text"
+                  name="landmark"
+                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Contoh: Dekat Indomaret"
+                  x-model="landmark"
+                />
+              </div>
+
+              <div id="revision-map" class="rounded-lg border border-gray-200 mb-4"></div>
+
+              <button
+                type="button"
+                @click="getLocation()"
+                class="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 mb-4"
+              >
+                <i data-lucide="map-pin" class="w-5 h-5"></i>
+                <span x-text="loadingGps ? 'Mengambil lokasi...' : 'Ambil Koordinat GPS'"></span>
+              </button>
+
+              <div class="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p class="text-gray-600">Latitude:</p>
+                  <input
+                    type="text"
+                    name="latitude"
+                    x-model="lat"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono"
+                    readonly
+                  />
+                </div>
+                <div>
+                  <p class="text-gray-600">Longitude:</p>
+                  <input
+                    type="text"
+                    name="longitude"
+                    x-model="lng"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono"
+                    readonly
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <button
+                type="submit"
+                class="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-lg font-medium hover:shadow-lg transition-shadow"
+              >
+                Kirim Revisi
+              </button>
+              <p class="text-xs text-gray-500 text-center mt-3">
+                Pastikan semua informasi sudah benar sebelum mengirim
+              </p>
+            </div>
+          </form>
+        </main>
+      </div>
     </div>
   </div>
+
+  <th:block layout:fragment="extraScripts">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script th:inline="javascript">
+      function detailPage() {
+        return {
+          showConfirmDialog: false,
+          showDisputeDialog: false,
+          showRevisionDialog: false,
+          reportStatus: [[${report != null ? report['status'] : ''}]],
+          slaDeadline: [[${report != null ? report['slaDeadline'] : null}]],
+          createdDate: [[${report != null ? report['createdDate'] : null}]],
+          latitude: [[${report != null ? report['latitude'] : '3.5952'}]],
+          longitude: [[${report != null ? report['longitude'] : '98.6722'}]],
+          countdown: { days: 0, hours: 0, minutes: 0, seconds: 0 },
+          timer: null,
+          init() {
+            this.$nextTick(() => {
+              if (typeof L !== 'undefined') {
+                const map = L.map('detail-map').setView([parseFloat(this.latitude), parseFloat(this.longitude)], 15);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                  attribution: '&copy; OpenStreetMap contributors'
+                }).addTo(map);
+                L.marker([parseFloat(this.latitude), parseFloat(this.longitude)]).addTo(map)
+                  .bindPopup('Lokasi Laporan').openPopup();
+              }
+            });
+            if (this.slaDeadline) {
+              this.startCountdown();
+              this.timer = setInterval(() => this.startCountdown(), 1000);
+            }
+          },
+          startCountdown() {
+            const deadline = new Date(this.slaDeadline).getTime();
+            const now = new Date().getTime();
+            const diff = deadline - now;
+            if (diff <= 0) {
+              this.countdown = { days: 0, hours: 0, minutes: 0, seconds: 0 };
+              return;
+            }
+            this.countdown.days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            this.countdown.hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            this.countdown.minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            this.countdown.seconds = Math.floor((diff % (1000 * 60)) / 1000);
+          },
+          countdownDisplay() {
+            const d = this.countdown.days;
+            const h = this.countdown.hours;
+            const m = this.countdown.minutes;
+            const s = this.countdown.seconds;
+            if (d > 0) return d + 'h ' + h + 'j ' + m + 'm';
+            return h + 'j ' + m + 'm ' + s + 'd';
+          },
+          slaMessage() {
+            const totalHours = this.countdown.days * 24 + this.countdown.hours;
+            if (totalHours > 48) return 'Laporan Anda sedang diproses. Batas waktu masih panjang.';
+            if (totalHours > 24) return 'Laporan segera ditangani. Batas waktu mulai mendekat.';
+            if (totalHours > 0) return 'Perhatian! Batas waktu penanganan hampir habis.';
+            return 'Batas waktu penanganan telah lewat. Segera ajukan sengketa jika perlu.';
+          },
+          slaClass() {
+            const totalHours = this.countdown.days * 24 + this.countdown.hours;
+            if (totalHours <= 0) return 'danger';
+            if (totalHours <= 24) return 'warning';
+            return '';
+          },
+          slaBarClass() {
+            const totalHours = this.countdown.days * 24 + this.countdown.hours;
+            if (totalHours <= 0) return 'bg-white';
+            if (totalHours <= 24) return 'bg-yellow-200';
+            return 'bg-green-200';
+          },
+          slaProgress() {
+            if (!this.createdDate || !this.slaDeadline) return 100;
+            const start = new Date(this.createdDate).getTime();
+            const end = new Date(this.slaDeadline).getTime();
+            const now = new Date().getTime();
+            const total = end - start;
+            const elapsed = now - start;
+            const pct = Math.min(100, Math.max(0, (elapsed / total) * 100));
+            return pct.toFixed(1);
+          },
+          showSLA() {
+            return ['Diterima', 'Sedang Diproses', 'Dalam Perjalanan', 'Selesai'].includes(this.reportStatus);
+          }
+        };
+      }
+
+      function revisionForm(currentCategory, currentDescription, currentLandmark, currentLat, currentLng, hasPhoto) {
+        return {
+          category: currentCategory || '',
+          description: currentDescription || '',
+          landmark: currentLandmark || '',
+          lat: currentLat || '3.5952',
+          lng: currentLng || '98.6722',
+          currentPhoto: hasPhoto === true || hasPhoto === 'true',
+          newPhotoSelected: false,
+          newPhotoUrl: '',
+          map: null,
+          marker: null,
+          loadingGps: false,
+          charCount: 0,
+          initRevisionMap() {
+            this.$nextTick(() => {
+              if (typeof L !== 'undefined') {
+                const initLat = parseFloat(this.lat) || 3.5952;
+                const initLng = parseFloat(this.lng) || 98.6722;
+                this.map = L.map('revision-map').setView([initLat, initLng], 15);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                  attribution: '&copy; OpenStreetMap contributors'
+                }).addTo(this.map);
+                this.marker = L.marker([initLat, initLng], { draggable: true }).addTo(this.map)
+                  .bindPopup('Lokasi Laporan').openPopup();
+                this.marker.on('dragend', (e) => {
+                  const pos = e.target.getLatLng();
+                  this.lat = pos.lat.toFixed(6);
+                  this.lng = pos.lng.toFixed(6);
+                });
+                this.map.on('click', (e) => {
+                  this.marker.setLatLng([e.latlng.lat, e.latlng.lng]);
+                  this.lat = e.latlng.lat.toFixed(6);
+                  this.lng = e.latlng.lng.toFixed(6);
+                  this.map.setView([e.latlng.lat, e.latlng.lng], 15);
+                });
+                setTimeout(() => { this.map.invalidateSize(); }, 200);
+              }
+              this.charCount = this.description.length;
+            });
+          },
+          getLocation() {
+            this.loadingGps = true;
+            if (navigator.geolocation) {
+              navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                  this.lat = pos.coords.latitude.toFixed(6);
+                  this.lng = pos.coords.longitude.toFixed(6);
+                  if (this.marker) {
+                    this.marker.setLatLng([pos.coords.latitude, pos.coords.longitude]);
+                  }
+                  if (this.map) {
+                    this.map.setView([pos.coords.latitude, pos.coords.longitude], 15);
+                  }
+                  this.loadingGps = false;
+                },
+                (err) => {
+                  alert('Gagal mengambil lokasi. Pastikan GPS aktif.');
+                  this.loadingGps = false;
+                },
+                { enableHighAccuracy: true }
+              );
+            } else {
+              alert('Browser tidak mendukung Geolocation.');
+              this.loadingGps = false;
+            }
+          },
+          handlePhoto(event) {
+            const file = event.target.files[0];
+            if (file) {
+              this.newPhotoUrl = URL.createObjectURL(file);
+              this.newPhotoSelected = true;
+            }
+          },
+          deletePhoto() {
+            this.currentPhoto = false;
+            this.newPhotoSelected = false;
+            this.newPhotoUrl = '';
+          },
+          revertToCurrentPhoto() {
+            this.newPhotoSelected = false;
+            this.newPhotoUrl = '';
+          }
+        };
+      }
+
+      function closeRevisionForm() {
+        const alpineData = document.querySelector('[x-data="detailPage()"]');
+        if (alpineData && alpineData.__x) {
+          alpineData.__x.getUnobservedData().showRevisionDialog = false;
+        }
+        window.location.reload();
+      }
+    </script>
+  </th:block>
 </html>
