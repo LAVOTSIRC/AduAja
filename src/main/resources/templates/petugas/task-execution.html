@@ -8,18 +8,16 @@
     <title>AduAja - Pengerjaan Tugas</title>
     <link rel="stylesheet" th:href="@{/css/app.css}" />
     <style>
-      [x-cloak] {
-        display: none !important
-      }
-      #cameraModal { display: none !important }
-      #cameraModal.camera-active { display: flex !important }
+      [x-cloak] { display: none !important; }
+      #cameraModal { display: none !important; }
+      #cameraModal.camera-active { display: flex !important; }
       .cam-grid-overlay {
         background-image: linear-gradient(to right, rgba(255,255,255,0.3) 1px, transparent 1px),
-                          linear-gradient(to bottom, rgba(255,255,255,0.3) 1px, transparent 1px)
-        background-size: 33.33% 33.33%
+                          linear-gradient(to bottom, rgba(255,255,255,0.3) 1px, transparent 1px);
+        background-size: 33.33% 33.33%;
       }
-      .zoom-slider { -webkit-appearance: none appearance: none height: 4px background: rgba(255,255,255,0.3) border-radius: 2px outline: none }
-      .zoom-slider::-webkit-slider-thumb { -webkit-appearance: none appearance: none width: 20px height: 20px border-radius: 50% background: white cursor: pointer border: 2px solid rgba(0,0,0,0.3) }
+      .zoom-slider { -webkit-appearance: none; appearance: none; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; outline: none; }
+      .zoom-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: white; cursor: pointer; border: 2px solid rgba(0,0,0,0.3); }
     </style>
   </th:block>
 
@@ -122,7 +120,7 @@
               <button type="button" @click="openCamera('before')" class="bg-blue-500 text-white rounded-full p-1.5 hover:bg-blue-600">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
               </button>
-              <button type="button" @click="beforePhotoTaken = false beforePhotoUrl = '' beforePhotoBase64 = ''" class="bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600">
+              <button type="button" @click="beforePhotoTaken = false; beforePhotoUrl = ''; beforePhotoBase64 = ''" class="bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
               </button>
             </div>
@@ -187,7 +185,7 @@
               <button type="button" @click="openCamera('after')" class="bg-blue-500 text-white rounded-full p-1.5 hover:bg-blue-600">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
               </button>
-              <button type="button" @click="afterPhotoTaken = false afterPhotoUrl = '' afterPhotoBase64 = ''" class="bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600">
+              <button type="button" @click="afterPhotoTaken = false; afterPhotoUrl = ''; afterPhotoBase64 = ''" class="bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
               </button>
             </div>
@@ -250,7 +248,7 @@
       <div class="flex-1 relative overflow-hidden bg-black">
         <video id="cameraVideo" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
         <div id="camGridOverlay" class="absolute inset-0 pointer-events-none hidden cam-grid-overlay"></div>
-        <div id="camFlashOverlay" class="absolute inset-0 bg-white pointer-events-none" style="opacity: 0 transition: opacity 0.3s"></div>
+        <div id="camFlashOverlay" class="absolute inset-0 bg-white pointer-events-none" style="opacity: 0; transition: opacity 0.3s;"></div>
         <div id="camZoomLabel" class="absolute top-4 left-1/2 -translate-x-1/2 bg-black/50 text-white text-xs px-3 py-1 rounded-full hidden">1.0x</div>
       </div>
 
@@ -272,15 +270,15 @@
         </button>
 
         <!-- Capture Button -->
-        <button type="button" id="camCaptureBtn" class="bg-white rounded-full flex items-center justify-center active:scale-90 transition-transform border-4 border-gray-300 shadow-xl" style="width: 72px height: 72px">
-          <div class="bg-red-500 rounded-full active:bg-red-600 transition-colors" style="width: 56px height: 56px"></div>
+        <button type="button" id="camCaptureBtn" class="bg-white rounded-full flex items-center justify-center active:scale-90 transition-transform border-4 border-gray-300 shadow-xl" style="width: 72px; height: 72px;">
+          <div class="bg-red-500 rounded-full active:bg-red-600 transition-colors" style="width: 56px; height: 56px;"></div>
         </button>
 
         <div class="w-12 h-12"></div>
       </div>
 
       <!-- Preview Overlay -->
-      <div id="camPreviewOverlay" class="absolute inset-0 bg-black flex flex-col items-center justify-center p-4 hidden" style="z-index: 99998">
+      <div id="camPreviewOverlay" class="absolute inset-0 bg-black flex flex-col items-center justify-center p-4 hidden" style="z-index: 99998;">
         <img id="camPreviewImg" src="" class="w-full max-w-md rounded-lg mb-6 shadow-2xl" alt="Preview" />
         <div class="flex gap-4">
           <button type="button" id="camRetakeBtn" class="px-6 py-3 bg-gray-600 text-white rounded-xl font-medium hover:bg-gray-700 flex items-center gap-2">
