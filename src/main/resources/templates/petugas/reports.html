@@ -257,6 +257,35 @@
         </div>
       </div>
 
+      <!-- FR-PTG-26: Ringkasan material terpakai per periode -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-semibold text-gray-900">Ringkasan Material (FR-PTG-26)</h3>
+          <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">Periode: <span th:text="${selectedPeriod == 'week' ? '7 Hari' : selectedPeriod == 'month' ? '30 Hari' : '1 Tahun'}"></span></span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead>
+              <tr class="border-b border-gray-200">
+                <th class="text-left py-2 font-medium text-gray-600">Material</th>
+                <th class="text-right py-2 font-medium text-gray-600">Total</th>
+                <th class="text-right py-2 font-medium text-gray-600">Est. Biaya</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr th:each="mat : ${materialStats}" class="border-b border-gray-100">
+                <td class="py-2 font-medium text-gray-900" th:text="${mat.name}">Semen</td>
+                <td class="py-2 text-right text-gray-600" th:text="|${mat.total} ${mat.unit}|">50 Sak</td>
+                <td class="py-2 text-right text-gray-600" th:text="|Rp ${#numbers.formatDecimal(mat.cost, 0, 'COMMA', 0, 'POINT')}|">Rp 3.750.000</td>
+              </tr>
+              <tr th:if="${materialStats == null or #lists.isEmpty(materialStats)}">
+                <td colspan="3" class="py-4 text-center text-gray-500">Belum ada data material untuk periode ini.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <div
         class="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow-md p-4 text-white"
       >
