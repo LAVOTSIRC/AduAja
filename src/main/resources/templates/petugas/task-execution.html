@@ -7,21 +7,6 @@
   <th:block layout:fragment="extraHead">
     <title>AduAja - Pengerjaan Tugas</title>
     <link rel="stylesheet" th:href="@{/css/app.css}" />
-    <script>
-      function taskExecutionData() {
-        return {
-          step: 'before',
-          showCompleteModal: false,
-          beforePhotoTaken: false,
-          beforePhotoUrl: '',
-          beforePhotoBase64: '',
-          afterPhotoTaken: false,
-          afterPhotoUrl: '',
-          afterPhotoBase64: '',
-          openCamera(step) { startCamera(this, step); }
-        }
-      }
-    </script>
     <style>
       [x-cloak] {
         display: none !important
@@ -41,7 +26,17 @@
   <div
     layout:fragment="content"
     class="min-h-screen bg-gray-50"
-    x-data="taskExecutionData()"
+    x-data="{
+      step: 'before',
+      showCompleteModal: false,
+      beforePhotoTaken: false,
+      beforePhotoUrl: '',
+      beforePhotoBase64: '',
+      afterPhotoTaken: false,
+      afterPhotoUrl: '',
+      afterPhotoBase64: '',
+      openCamera: function(step) { startCamera(this, step); }
+    }"
   >
     <!-- Header -->
     <div class="max-w-4xl mx-auto px-4 sm:px-6 pt-4">
