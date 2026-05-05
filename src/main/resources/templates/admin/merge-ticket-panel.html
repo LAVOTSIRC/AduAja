@@ -7,13 +7,21 @@
   <th:block layout:fragment="extraHead">
     <title>AduAja - Merge Tiket</title>
     <style>
-      [x-cloak] {
-        display: none !important;
-      }
+      [x-cloak] { display: none !important; }
+
+      .badge-similarity-high { background: linear-gradient(135deg, #fef2f2, #fee2e2); color: #dc2626; border: 1px solid #fecaca; }
+      .badge-similarity-medium { background: linear-gradient(135deg, #fff7ed, #ffedd5); color: #ea580c; border: 1px solid #fed7aa; }
+      .badge-similarity-low { background: linear-gradient(135deg, #fefce8, #fef9c3); color: #ca8a04; border: 1px solid #fef08a; }
+      .badge-kategori-jalan { background: linear-gradient(135deg, #eff6ff, #dbeafe); color: #2563eb; border: 1px solid #bfdbfe; }
+      .badge-kategori-penerangan { background: linear-gradient(135deg, #fefce8, #fef9c3); color: #ca8a04; border: 1px solid #fef08a; }
+      .badge-kategori-drainase { background: linear-gradient(135deg, #ecfeff, #cffafe); color: #0891b2; border: 1px solid #a5f3fc; }
+      .badge-kategori-taman { background: linear-gradient(135deg, #f0fdf4, #dcfce7); color: #16a34a; border: 1px solid #bbf7d0; }
+      .badge-kategori-lingkungan { background: linear-gradient(135deg, #f0fdfa, #ccfbf1); color: #0d9488; border: 1px solid #99f6e4; }
+      .badge-kategori-default { background: linear-gradient(135deg, #f9fafb, #f3f4f6); color: #6b7280; border: 1px solid #e5e7eb; }
     </style>
   </th:block>
 
-  <div layout:fragment="content" class="min-h-screen bg-gray-50">
+  <div layout:fragment="content" class="min-h-screen bg-gray-50" x-data="{ showMergeConfirm: false, searchMergeQuery: '', selectedTickets: [] }">
     <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm lg:col-span-2">
@@ -21,14 +29,13 @@
             <div>
               <h2 class="text-lg font-semibold text-gray-900">Deteksi Tiket Duplikat</h2>
               <p class="text-sm text-gray-600">
-                Sistem otomatis mendeteksi tiket dengan lokasi, kategori, dan waktu serupa (FR-ADM-11, FR-ADM-12)
+                Sistem otomatis mendeteksi tiket dengan lokasi, kategori, dan waktu serupa
               </p>
             </div>
             <button
-              type="button"
-              x-on:click="showMergeConfirm = true"
-              class="bg-blue-600 text-white px-3 py-2 rounded-md text-sm hover:bg-blue-700"
-            >Gabungkan</button>
+              x-on:click="selectedTickets = Array.from(document.querySelectorAll('input[name=selectedTickets]:checked')).map(cb => cb.value); showMergeConfirm = selectedTickets.length > 0"
+              class="bg-blue-600 text-white px-3 py-2 rounded-md text-sm hover:bg-blue-700 font-medium"
+            >Gabungkan Terpilih</button>
           </div>
           <div class="px-6 pb-6">
             <div class="relative mb-4">
@@ -38,6 +45,7 @@
               ></i>
               <input
                 type="text"
+                x-model="searchMergeQuery"
                 class="w-full pl-10 px-3 py-2 border border-gray-300 rounded-md"
                 placeholder="Cari berdasarkan ID, judul, atau lokasi..."
               />
@@ -46,11 +54,13 @@
             <div class="space-y-3 max-h-[700px] overflow-y-auto">
               <div
                 th:each="ticket : ${mergeTickets}"
+                th:attr="data-id=${ticket.id}, data-judul=${ticket.judul}, data-lokasi=${ticket.wilayah}"
+                x-show="searchMergeQuery === '' || $el.dataset.id.toLowerCase().includes(searchMergeQuery.toLowerCase()) || $el.dataset.judul.toLowerCase().includes(searchMergeQuery.toLowerCase()) || $el.dataset.lokasi.toLowerCase().includes(searchMergeQuery.toLowerCase())"
                 class="p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
               >
                 <div class="flex gap-4">
                   <div class="flex items-start">
-                    <input type="checkbox" class="mt-1 w-4 h-4" />
+                    <input type="checkbox" name="selectedTickets" th:value="${ticket.id}" class="mt-1 w-4 h-4" />
                   </div>
                   <div class="flex-shrink-0">
                     <img
@@ -72,14 +82,14 @@
                           th:text="${ticket.judul}"
                         >Judul</h4>
                       </div>
-                      <span
-                        class="text-xs px-2 py-1 rounded bg-yellow-500 text-white"
+                      <span class="text-xs px-2.5 py-1 rounded-full font-semibold"
+                        th:class="${ticket.similarityScore >= 90 ? 'badge-similarity-high' : (ticket.similarityScore >= 80 ? 'badge-similarity-medium' : 'badge-similarity-low')}"
                         th:text="|Mirip ${ticket.similarityScore}%|"
                         >Mirip</span
                       >
                     </div>
                     <p
-                      class="text-xs text-gray-600 mb-2"
+                      class="text-xs text-gray-600 mb-2 line-clamp-2"
                       th:text="${ticket.deskripsi}"
                     >Deskripsi</p>
                     <div class="grid grid-cols-2 gap-2 text-xs text-gray-500">
@@ -96,13 +106,17 @@
                         <span th:text="${ticket.wilayah}">Wilayah</span>
                       </div>
                       <div class="text-xs">
-                        <span
-                          class="border border-gray-300 rounded px-2 py-0.5"
+                        <span class="text-xs px-2.5 py-1 rounded-full font-semibold"
+                          th:class="${ticket.kategori == 'Infrastruktur Jalan' ? 'badge-kategori-jalan' : (ticket.kategori == 'Penerangan Jalan' ? 'badge-kategori-penerangan' : (ticket.kategori == 'Drainase' ? 'badge-kategori-drainase' : (ticket.kategori == 'Taman dan Ruang Publik' ? 'badge-kategori-taman' : (ticket.kategori == 'Lingkungan Hidup' ? 'badge-kategori-lingkungan' : 'badge-kategori-default'))))}"
                           th:text="${ticket.kategori}"
                           >Kategori</span
                         >
                       </div>
                     </div>
+                    <a th:href="@{/admin/validation(id=${ticket.id})}" class="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 mt-3 font-medium">
+                      <i data-lucide="external-link" class="w-3 h-3"></i>
+                      Lihat Detail Laporan
+                    </a>
                   </div>
                 </div>
               </div>
@@ -116,7 +130,7 @@
               <i data-lucide="link-2" class="w-5 h-5"></i>Cluster Terdeteksi
             </h2>
             <p class="text-sm text-gray-600">
-              Kelompok tiket dengan kesamaan tinggi (FR-ADM-13)
+              Kelompok tiket dengan kesamaan tinggi
             </p>
           </div>
           <div class="px-6 pb-6">
@@ -153,17 +167,28 @@
                   class="text-xs text-gray-600 mb-2"
                   th:text="${cluster[0].wilayah}"
                 >Wilayah</p>
-                <div class="space-y-1">
+                <div class="space-y-2">
                   <div
                     th:each="ticket : ${cluster}"
-                    class="text-xs font-mono bg-white px-2 py-1 rounded border border-gray-200"
-                    th:text="${ticket.id}"
-                  >ID</div>
+                    class="text-xs bg-white p-2 rounded border border-gray-200"
+                  >
+                    <div class="flex items-center justify-between">
+                      <div class="font-mono font-bold text-blue-600" th:text="${ticket.id}">ID</div>
+                      <a th:href="@{/admin/validation(id=${ticket.id})}" class="text-blue-600 hover:text-blue-800 inline-flex items-center gap-0.5">
+                        <i data-lucide="external-link" class="w-3 h-3"></i> Detail
+                      </a>
+                    </div>
+                    <div class="font-medium mt-1" th:text="${ticket.judul}">Judul</div>
+                    <div class="text-gray-500 mt-1" th:text="${ticket.pelapor}">Pelapor</div>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  class="w-full mt-3 text-xs border border-gray-300 px-2 py-1 rounded hover:bg-gray-50"
-                >Gabungkan Cluster</button>
+                <form th:action="@{/admin/merge}" method="post">
+                  <input type="hidden" name="clusterIndex" th:value="${iter.index}" />
+                  <button
+                    type="submit"
+                    class="w-full mt-3 text-xs border border-gray-300 px-2 py-1 rounded hover:bg-red-50 text-red-600 font-medium"
+                  >Pisahkan Cluster</button>
+                </form>
               </div>
             </div>
           </div>
@@ -180,19 +205,24 @@
             <i data-lucide="git-merge" class="w-5 h-5"></i>Konfirmasi Penggabungan Tiket
           </h3>
           <p class="text-sm text-gray-600">
-            Gabungkan tiket menjadi satu tiket utama (FR-ADM-14, FR-ADM-15)
+            Gabungkan tiket menjadi satu tiket utama
           </p>
         </div>
         <div class="px-6 pb-6 pt-4">
-          <form th:action="@{/admin/home}" method="get" class="space-y-4">
+            <form th:action="@{/admin/merge}" method="post" class="space-y-4">
+            <template x-for="ticketId in selectedTickets" :key="ticketId">
+              <input type="hidden" name="selectedTickets" :value="ticketId" />
+            </template>
             <div>
               <label class="mb-2 block text-sm text-gray-900"
                 >Pilih Tiket Utama <span class="text-red-500">*</span></label
               >
               <div class="space-y-2">
                 <label
-                  th:each="ticket : ${selectedTickets}"
+                  th:each="ticket : ${mergeTickets}"
                   class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50"
+                  x-show="selectedTickets.includes($el.dataset.ticketId)"
+                  th:attr="data-ticket-id=${ticket.id}"
                 >
                   <input
                     type="radio"

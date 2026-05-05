@@ -7,64 +7,62 @@
   <th:block layout:fragment="extraHead">
     <title>AduAja - Validasi Laporan</title>
     <style>
-      [x-cloak] {
-        display: none !important;
-      }
+      [x-cloak] { display: none !important; }
+
+      .badge-priority-kritis { background: linear-gradient(135deg, #fef2f2, #fee2e2); color: #dc2626; border: 1px solid #fecaca; }
+      .badge-priority-tinggi { background: linear-gradient(135deg, #fff7ed, #ffedd5); color: #ea580c; border: 1px solid #fed7aa; }
+      .badge-priority-sedang { background: linear-gradient(135deg, #fefce8, #fef9c3); color: #ca8a04; border: 1px solid #fef08a; }
+      .badge-priority-rendah { background: linear-gradient(135deg, #f0fdf4, #dcfce7); color: #16a34a; border: 1px solid #bbf7d0; }
+
+      .badge-status-diterima { background: linear-gradient(135deg, #f0fdf4, #dcfce7); color: #15803d; border: 1px solid #bbf7d0; }
+      .badge-status-ditolak { background: linear-gradient(135deg, #fef2f2, #fee2e2); color: #dc2626; border: 1px solid #fecaca; }
+      .badge-status-revisi { background: linear-gradient(135deg, #fefce8, #fef9c3); color: #ca8a04; border: 1px solid #fef08a; }
+      .badge-status-peninjauan { background: linear-gradient(135deg, #eff6ff, #dbeafe); color: #2563eb; border: 1px solid #bfdbfe; }
+      .badge-status-default { background: linear-gradient(135deg, #f9fafb, #f3f4f6); color: #6b7280; border: 1px solid #e5e7eb; }
+
+      .badge-similarity-high { background: linear-gradient(135deg, #fef2f2, #fee2e2); color: #dc2626; border: 1px solid #fecaca; }
+      .badge-similarity-medium { background: linear-gradient(135deg, #fff7ed, #ffedd5); color: #ea580c; border: 1px solid #fed7aa; }
+      .badge-similarity-low { background: linear-gradient(135deg, #fefce8, #fef9c3); color: #ca8a04; border: 1px solid #fef08a; }
+
+      .badge-kategori-jalan { background: linear-gradient(135deg, #eff6ff, #dbeafe); color: #2563eb; border: 1px solid #bfdbfe; }
+      .badge-kategori-penerangan { background: linear-gradient(135deg, #fefce8, #fef9c3); color: #ca8a04; border: 1px solid #fef08a; }
+      .badge-kategori-drainase { background: linear-gradient(135deg, #ecfeff, #cffafe); color: #0891b2; border: 1px solid #a5f3fc; }
+      .badge-kategori-taman { background: linear-gradient(135deg, #f0fdf4, #dcfce7); color: #16a34a; border: 1px solid #bbf7d0; }
+      .badge-kategori-lingkungan { background: linear-gradient(135deg, #f0fdfa, #ccfbf1); color: #0d9488; border: 1px solid #99f6e4; }
+      .badge-kategori-default { background: linear-gradient(135deg, #f9fafb, #f3f4f6); color: #6b7280; border: 1px solid #e5e7eb; }
     </style>
   </th:block>
 
   <div layout:fragment="content" class="min-h-screen bg-gray-50">
     <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Sidebar: Daftar Laporan -->
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm">
           <div class="px-6 pt-6 pb-4">
             <h2 class="text-lg font-semibold text-gray-900">Menunggu Validasi</h2>
-            <p
-              class="text-sm text-gray-600"
-              th:text="|${pendingCount} laporan perlu divalidasi (FR-ADM-05)|"
-            >0 laporan</p>
+            <p class="text-sm text-gray-600" th:text="|${pendingCount} laporan perlu divalidasi|">0 laporan</p>
           </div>
           <div class="px-6 pb-6">
             <div class="relative mb-4">
-              <i
-                data-lucide="search"
-                class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
-              ></i>
-              <input
-                type="text"
-                class="w-full pl-10 px-3 py-2 border border-gray-300 rounded-md"
-                placeholder="Cari ID atau judul..."
-              />
+              <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+              <input type="text" class="w-full pl-10 px-3 py-2 border border-gray-300 rounded-md" placeholder="Cari ID atau judul..." />
             </div>
             <div class="space-y-3 max-h-[600px] overflow-y-auto">
-              <div
-                th:each="report : ${reports}"
-                class="p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
-              >
+              <div th:each="report : ${reports}" class="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
+                   th:attr="onclick=|window.location.href='/admin/validation?id=' + '${report.id}'|">
                 <div class="flex items-start justify-between mb-2">
-                  <span
-                    class="font-mono text-sm font-semibold text-blue-600"
-                    th:text="${report.id}"
-                    >ID</span
-                  >
-                  <span
-                    class="text-xs px-2 py-0.5 rounded bg-gray-100"
-                    th:text="${report.prioritas}"
-                    >Prioritas</span
-                  >
+                  <span class="font-mono text-sm font-semibold text-blue-600" th:text="${report.id}">ID</span>
+                  <span class="text-xs px-2.5 py-1 rounded-full font-semibold"
+                        th:class="${report.prioritas == 'Kritis' ? 'badge-priority-kritis' : (report.prioritas == 'Tinggi' ? 'badge-priority-tinggi' : (report.prioritas == 'Sedang' ? 'badge-priority-sedang' : 'badge-priority-rendah'))}"
+                        th:text="${report.prioritas}">Prioritas</span>
                 </div>
                 <div class="mb-2">
-                  <span
-                    class="text-xs px-2 py-1 rounded bg-gray-100"
-                    th:text="${report.status}"
-                    >Status</span
-                  >
+                  <span class="text-xs px-2.5 py-1 rounded-full font-semibold"
+                        th:class="${report.status == 'Diterima' ? 'badge-status-diterima' : (report.status == 'Ditolak' ? 'badge-status-ditolak' : (report.status == 'Revisi' ? 'badge-status-revisi' : (report.status == 'Dalam Peninjauan' ? 'badge-status-peninjauan' : 'badge-status-default')))}"
+                        th:text="${report.status}">Status</span>
                 </div>
                 <h4 class="font-medium text-sm mb-1" th:text="${report.judul}">Judul</h4>
-                <p
-                  class="text-xs text-gray-500 mb-2"
-                  th:text="${report.kategori}"
-                >Kategori</p>
+                <p class="text-xs text-gray-500 mb-2" th:text="${report.kategori}">Kategori</p>
                 <div class="flex items-center gap-1 text-xs text-gray-600">
                   <i data-lucide="clock" class="w-3 h-3"></i>
                   <span th:text="${report.tanggalMasuk}">Tanggal</span>
@@ -74,164 +72,128 @@
           </div>
         </div>
 
+        <!-- Main: Detail & Validasi -->
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm lg:col-span-2">
-          <div class="px-6 pt-6 pb-4">
+          <div class="px-6 pt-6 pb-4 border-b border-gray-100">
             <h2 class="text-lg font-semibold text-gray-900">Detail Laporan dan Validasi</h2>
-            <p class="text-sm text-gray-600">
-              Periksa foto, GPS, dan deskripsi sebelum memvalidasi (FR-ADM-06, FR-ADM-07)
-            </p>
+            <p class="text-sm text-gray-600">Periksa foto, GPS, dan deskripsi sebelum memvalidasi</p>
           </div>
-          <div class="px-6 pb-6">
-            <div
-              th:if="${selectedReport == null}"
-              class="flex items-center justify-center h-96 text-gray-400"
-            >
-              <div class="text-center">
-                <i data-lucide="file-text" class="w-12 h-12 mx-auto mb-3"></i>
-                <p>Pilih laporan dari daftar untuk memulai validasi</p>
-              </div>
+
+          <div th:if="${selectedReport == null}" class="flex items-center justify-center h-96 text-gray-400">
+            <div class="text-center">
+              <i data-lucide="file-text" class="w-12 h-12 mx-auto mb-3"></i>
+              <p>Pilih laporan dari daftar untuk memulai validasi</p>
             </div>
-            <div th:if="${selectedReport != null}" class="space-y-6">
-              <div class="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+          </div>
+
+          <div th:if="${selectedReport != null}" class="px-6 pb-6">
+            <div class="space-y-6 pt-6">
+              <!-- Info Grid -->
+              <div class="grid grid-cols-2 gap-4 p-4 bg-gray-50/70 rounded-xl border border-gray-100">
                 <div>
-                  <p class="text-xs text-gray-600">ID Tiket</p>
-                  <p
-                    class="font-mono font-semibold"
-                    th:text="${selectedReport.id}"
-                  >ID</p>
+                  <p class="text-xs text-gray-500 font-medium">ID Tiket</p>
+                  <p class="font-mono font-semibold text-sm mt-0.5" th:text="${selectedReport.id}">ID</p>
                 </div>
                 <div>
-                  <p class="text-xs text-gray-600">Prioritas</p>
-                  <span
-                    class="text-xs px-2 py-1 rounded bg-gray-100"
-                    th:text="${selectedReport.prioritas}"
-                    >Prioritas</span
-                  >
+                  <p class="text-xs text-gray-500 font-medium">Prioritas</p>
+                  <span class="text-xs px-2.5 py-1 rounded-full font-semibold inline-block mt-1"
+                        th:class="${selectedReport.prioritas == 'Kritis' ? 'badge-priority-kritis' : (selectedReport.prioritas == 'Tinggi' ? 'badge-priority-tinggi' : (selectedReport.prioritas == 'Sedang' ? 'badge-priority-sedang' : 'badge-priority-rendah'))}"
+                        th:text="${selectedReport.prioritas}">Prioritas</span>
                 </div>
                 <div>
-                  <p class="text-xs text-gray-600">Status</p>
-                  <span
-                    class="text-xs px-2 py-1 rounded bg-gray-100"
-                    th:text="${selectedReport.status}"
-                    >Status</span
-                  >
+                  <p class="text-xs text-gray-500 font-medium">Status</p>
+                  <span class="text-xs px-2.5 py-1 rounded-full font-semibold inline-block mt-1"
+                        th:class="${selectedReport.status == 'Diterima' ? 'badge-status-diterima' : (selectedReport.status == 'Ditolak' ? 'badge-status-ditolak' : (selectedReport.status == 'Revisi' ? 'badge-status-revisi' : (selectedReport.status == 'Dalam Peninjauan' ? 'badge-status-peninjauan' : 'badge-status-default')))}"
+                        th:text="${selectedReport.status}">Status</span>
                 </div>
                 <div>
-                  <p class="text-xs text-gray-600">Nama Pelapor</p>
-                  <p class="font-medium" th:text="${selectedReport.pelapor}">Pelapor</p>
+                  <p class="text-xs text-gray-500 font-medium">Nama Pelapor</p>
+                  <p class="font-medium text-sm mt-0.5" th:text="${selectedReport.pelapor}">Pelapor</p>
                 </div>
                 <div>
-                  <p class="text-xs text-gray-600">Kontak Pelapor</p>
-                  <p
-                    class="font-medium"
-                    th:text="${selectedReport.kontakPelapor}"
-                  >Kontak</p>
+                  <p class="text-xs text-gray-500 font-medium">Kontak Pelapor</p>
+                  <p class="font-medium text-sm mt-0.5" th:text="${selectedReport.kontakPelapor}">Kontak</p>
                 </div>
                 <div>
-                  <p class="text-xs text-gray-600">Tanggal Masuk</p>
-                  <p class="text-sm" th:text="${selectedReport.tanggalMasuk}">Tanggal</p>
+                  <p class="text-xs text-gray-500 font-medium">Tanggal Masuk</p>
+                  <p class="text-sm mt-0.5" th:text="${selectedReport.tanggalMasuk}">Tanggal</p>
                 </div>
                 <div>
-                  <p class="text-xs text-gray-600">Kategori</p>
-                  <p class="font-medium" th:text="${selectedReport.kategori}">Kategori</p>
+                  <p class="text-xs text-gray-500 font-medium">Kategori</p>
+                  <p class="font-medium text-sm mt-0.5" th:text="${selectedReport.kategori}">Kategori</p>
                 </div>
                 <div class="col-span-2">
-                  <p class="text-xs text-gray-600">Wilayah</p>
-                  <p
-                    class="font-medium text-sm"
-                    th:text="${selectedReport.wilayah}"
-                  >Wilayah</p>
+                  <p class="text-xs text-gray-500 font-medium">Wilayah</p>
+                  <p class="font-medium text-sm mt-0.5" th:text="${selectedReport.wilayah}">Wilayah</p>
                 </div>
               </div>
 
+              <!-- Foto Bukti -->
               <div>
-                <p class="text-sm font-medium mb-2 text-gray-900">Foto Bukti</p>
-                <div class="border border-gray-200 rounded-lg overflow-hidden">
-                  <img
-                    th:src="${selectedReport.foto}"
-                    alt="Foto bukti"
-                    class="w-full h-64 object-cover"
-                  />
+                <p class="text-sm font-semibold mb-2 text-gray-900 flex items-center gap-2">
+                  <i data-lucide="image" class="w-4 h-4 text-gray-400"></i>Foto Bukti
+                </p>
+                <div class="border border-gray-200 rounded-xl overflow-hidden bg-gray-50">
+                  <img th:src="${selectedReport.foto}" alt="Foto bukti" class="w-full h-64 object-cover" />
                 </div>
               </div>
 
+              <!-- Lokasi -->
               <div>
-                <p class="text-sm font-medium mb-2 text-gray-900">Lokasi dan Koordinat GPS</p>
+                <p class="text-sm font-semibold mb-2 text-gray-900 flex items-center gap-2">
+                  <i data-lucide="map-pin" class="w-4 h-4 text-gray-400"></i>Lokasi dan Koordinat GPS
+                </p>
                 <div class="space-y-2">
-                  <input
-                    type="text"
-                    readonly
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
-                    th:value="${selectedReport.koordinatStr}"
-                  />
-                  <div
-                    th:if="${selectedReport.patokan}"
-                    class="p-2 bg-blue-50 border border-blue-200 rounded text-sm"
-                  >
-                    <p class="text-xs text-gray-600">Patokan Lokasi:</p>
-                    <p class="text-sm" th:text="${selectedReport.patokan}">Patokan</p>
+                  <input type="text" readonly class="w-full px-3 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-sm font-mono" th:value="${selectedReport.koordinatStr}" />
+                  <div th:if="${selectedReport.patokan}" class="p-3 bg-blue-50/60 border border-blue-100 rounded-lg text-sm">
+                    <p class="text-xs text-blue-600 font-medium">Patokan Lokasi:</p>
+                    <p class="text-sm text-blue-800 mt-0.5" th:text="${selectedReport.patokan}">Patokan</p>
                   </div>
-                  <p class="text-xs text-gray-500">
-                    Waktu Kejadian:
-                    <span th:text="${selectedReport.waktuKejadian}">Waktu</span>
-                  </p>
+                  <p class="text-xs text-gray-500">Waktu Kejadian: <span class="font-medium" th:text="${selectedReport.waktuKejadian}">Waktu</span></p>
                 </div>
               </div>
 
+              <!-- Deskripsi - PALING ATAS SEBELUM FORM -->
               <div>
-                <p class="text-sm font-medium mb-2 text-gray-900">Deskripsi Laporan</p>
-                <div class="p-4 border border-gray-200 rounded-lg bg-white">
-                  <p
-                    class="text-sm text-gray-700"
-                    th:text="${selectedReport.deskripsi}"
-                  >Deskripsi</p>
+                <p class="text-sm font-semibold mb-2 text-gray-900 flex items-center gap-2">
+                  <i data-lucide="file-text" class="w-4 h-4 text-gray-400"></i>Deskripsi Laporan
+                </p>
+                <div class="p-4 border border-gray-200 rounded-xl bg-gray-50/50">
+                  <p class="text-sm text-gray-700 leading-relaxed" th:text="${selectedReport.deskripsi}">Deskripsi</p>
                 </div>
               </div>
 
-              <form
-                th:action="@{/admin/home}"
-                method="get"
-                class="space-y-4 border-t border-gray-200 pt-6"
-              >
-                <input
-                  type="hidden"
-                  name="id"
-                  th:value="${selectedReport.id}"
-                />
-                <div>
-                  <p class="mb-3 font-semibold text-gray-900">Keputusan Validasi</p>
-                  <div class="grid grid-cols-3 gap-3">
-                    <button
-                      name="action"
-                      value="approved"
-                      type="submit"
-                      class="flex items-center justify-center gap-2 bg-green-600 text-white rounded-md py-2 hover:bg-green-700"
-                    >Terima</button>
-                    <button
-                      name="action"
-                      value="rejected"
-                      type="submit"
-                      class="flex items-center justify-center gap-2 bg-red-600 text-white rounded-md py-2 hover:bg-red-700"
-                    >Tolak</button>
-                    <button
-                      name="action"
-                      value="revision"
-                      type="submit"
-                      class="flex items-center justify-center gap-2 bg-yellow-600 text-white rounded-md py-2 hover:bg-yellow-700"
-                    >Revisi</button>
-                  </div>
+              <!-- Form Validasi - DI BAWAH DESKRIPSI -->
+              <form th:action="@{/admin/validation}" method="post" class="border-t border-gray-200 pt-6" x-data="{ actionType: '' }">
+                <input type="hidden" name="id" th:value="${selectedReport['id']}" />
+                <div class="mb-4">
+                  <label for="reason" class="mb-2 block text-sm font-semibold text-gray-900">
+                    Alasan / Keterangan <span class="text-red-500">*</span>
+                  </label>
+                  <textarea id="reason" name="reason" rows="4"
+                    class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                    placeholder="Jelaskan alasan keputusan validasi (minimal 10 karakter)" required></textarea>
+                  <p class="mt-1.5 text-xs text-gray-500">Catatan ini akan dikirimkan kepada pelapor sebagai penjelasan keputusan.</p>
                 </div>
-                <div>
-                  <label for="reason" class="mb-2 block text-sm text-gray-900"
-                    >Alasan / Keterangan</label
-                  >
-                  <textarea
-                    id="reason"
-                    name="reason"
-                    rows="4"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    placeholder="Jelaskan alasan keputusan validasi (minimal 10 karakter)"
-                  ></textarea>
+                <div class="border-t border-gray-200 pt-4">
+                  <p class="mb-3 text-sm font-semibold text-gray-900">Keputusan Validasi</p>
+                  <div class="grid grid-cols-3 gap-3">
+                    <button name="action" value="approved" type="submit"
+                      class="flex items-center justify-center gap-2 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-lg py-3 font-semibold text-sm hover:from-green-600 hover:to-green-700 transition-all shadow-sm hover:shadow">
+                      <i data-lucide="check-circle" class="w-4 h-4"></i>
+                      Terima
+                    </button>
+                    <button name="action" value="rejected" type="submit"
+                      class="flex items-center justify-center gap-2 bg-gradient-to-br from-red-500 to-red-600 text-white rounded-lg py-3 font-semibold text-sm hover:from-red-600 hover:to-red-700 transition-all shadow-sm hover:shadow">
+                      <i data-lucide="x-circle" class="w-4 h-4"></i>
+                      Tolak
+                    </button>
+                    <button name="action" value="revision" type="submit"
+                      class="flex items-center justify-center gap-2 bg-gradient-to-br from-amber-500 to-amber-600 text-white rounded-lg py-3 font-semibold text-sm hover:from-amber-600 hover:to-amber-700 transition-all shadow-sm hover:shadow">
+                      <i data-lucide="edit-3" class="w-4 h-4"></i>
+                      Revisi
+                    </button>
+                  </div>
                 </div>
               </form>
             </div>

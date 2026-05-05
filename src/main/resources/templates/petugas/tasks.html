@@ -14,439 +14,257 @@
     </style>
   </th:block>
 
-  <div layout:fragment="content" class="min-h-screen bg-gray-50" x-data="{ 
-    activeTab: 'new', 
-    sortBy: 'sla', 
-    lastRefresh: new Date().toLocaleTimeString(), 
-    isOnline: navigator.onLine, 
-    offlineQueue: 0, 
-    nextRefresh: 900 
-  }" x-init="
-    setInterval(() => { 
-      lastRefresh = new Date().toLocaleTimeString(); 
-      nextRefresh = 900;
-    }, 900000);
-    setInterval(() => { if (nextRefresh > 0) nextRefresh--; }, 1000);
-    window.addEventListener('online', () => isOnline = true);
-    window.addEventListener('offline', () => isOnline = false);
-  ">
-    <div class="bg-blue-600 text-white px-4 sm:px-6 py-4 sticky top-0 z-10 shadow-md">
-      <div class="max-w-4xl mx-auto">
-        <div class="flex items-center justify-between mb-4">
+  <div layout:fragment="content" class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <!-- Header -->
+    <header class="aduaja-header sticky top-0 z-20 border-b">
+      <div class="px-6 py-5">
+        <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
-            <a
-              th:href="@{/petugas/dashboard}"
-              class="p-2 hover:bg-blue-700 rounded-lg"
-            >
-              <svg
-                class="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
+            <a th:href="@{/petugas/dashboard}" class="aduaja-btn-secondary inline-flex items-center gap-2 text-sm">
+              <i data-lucide="arrow-left" class="w-4 h-4"></i>
+              Kembali ke Dashboard
             </a>
-            <h2 class="text-xl font-semibold">Daftar Tugas</h2>
-          </div>
-          <!-- FR-PTG-31: Indikator status koneksi -->
-          <div class="flex items-center gap-2 text-xs" :class="isOnline ? 'text-blue-100' : 'text-red-200'">
-            <div class="w-2 h-2 rounded-full" :class="isOnline ? 'bg-green-400' : 'bg-red-400 animate-pulse'"></div>
-            <span x-text="isOnline ? 'Online' : 'Offline'"></span>
-            <span x-show="offlineQueue > 0" class="ml-1 px-1.5 py-0.5 bg-yellow-500 text-yellow-900 rounded font-bold" x-text="offlineQueue + ' antrian'"></span>
-          </div>
-        </div>
-        
-        <!-- FR-PTG-13: Indikator auto-refresh -->
-        <div class="flex items-center justify-between text-xs text-blue-200 mb-3">
-          <span x-text="'Terakhir diperbarui: ' + lastRefresh"></span>
-          <span x-show="isOnline">Auto-refresh: <span x-text="Math.floor(nextRefresh / 60) + ':' + String(nextRefresh % 60).padStart(2, '0')"></span></span>
-        </div>
-
-        <div class="relative">
-          <input
-            type="text"
-            name="search"
-            placeholder="Cari tugas, lokasi, atau pelapor..."
-            class="w-full pl-10 pr-4 py-2.5 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300"
-          />
-          <svg
-            class="w-5 h-5 absolute left-3 top-3 text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
-        </div>
-      </div>
-    </div>
-
-    <!-- FR-PTG-10: Sorting UI & FR-PTG-31: Offline Banner -->
-    <div class="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
-      <div class="max-w-4xl mx-auto">
-        <!-- FR-PTG-31: Banner Offline & Antrian Sinkronisasi -->
-        <div x-show="!isOnline" x-cloak class="mb-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-start gap-3">
-          <svg class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-          <div class="flex-1">
-            <p class="text-sm font-medium text-yellow-800">Mode Offline Aktif (FR-PTG-31)</p>
-            <p class="text-xs text-yellow-700 mt-1">Perubahan yang Anda lakukan akan disimpan secara lokal. Data akan disinkronkan saat koneksi kembali tersedia.</p>
-            <template x-if="offlineQueue > 0">
-              <div class="mt-2 flex items-center gap-2">
-                <span class="text-xs px-2 py-1 bg-yellow-200 text-yellow-900 rounded-full font-semibold">Antrian: <span x-text="offlineQueue"></span></span>
-                <span class="text-xs text-yellow-600">menunggu upload</span>
-              </div>
-            </template>
-          </div>
-        </div>
-
-        <div class="flex gap-2 overflow-x-auto">
-          <select
-            x-model="sortBy"
-            class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            name="filterCategory"
-          >
-            <option value="all">Semua Kategori</option>
-            <option value="Jalan">Jalan</option>
-            <option value="Penerangan">Penerangan</option>
-            <option value="Drainase">Drainase</option>
-            <option value="Trotoar">Trotoar</option>
-            <option value="Taman">Taman</option>
-            <option value="Lainnya">Lainnya</option>
-          </select>
-          <!-- FR-PTG-10: Sorting Prioritas SLA & Jarak -->
-          <select
-            x-model="sortBy"
-            class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            name="sortBy"
-          >
-            <option value="sla">Prioritas SLA (Terdekat)</option>
-            <option value="distance">Jarak Terdekat</option>
-            <option value="date">Tanggal Laporan</option>
-          </select>
-        </div>
-      </div>
-    </div>
-
-    <div class="bg-white border-b border-gray-200">
-      <div class="max-w-4xl mx-auto flex">
-        <button
-          x-on:click="activeTab = 'new'"
-          class="flex-1 py-3 px-4 font-medium text-sm relative"
-          :class="activeTab === 'new' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600'"
-        >
-          Tugas Baru
-          <span
-            class="ml-2 px-2 py-0.5 rounded-full text-xs"
-            :class="activeTab === 'new' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'"
-            th:text="${#lists.size(tasksNew)}"
-            >0</span
-          >
-        </button>
-        <button
-          x-on:click="activeTab = 'in_progress'"
-          class="flex-1 py-3 px-4 font-medium text-sm relative"
-          :class="activeTab === 'in_progress' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600'"
-        >
-          Sedang Dikerjakan
-          <span
-            class="ml-2 px-2 py-0.5 rounded-full text-xs"
-            :class="activeTab === 'in_progress' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'"
-            th:text="${#lists.size(tasksInProgress)}"
-            >0</span
-          >
-        </button>
-        <button
-          x-on:click="activeTab = 'pending'"
-          class="flex-1 py-3 px-4 font-medium text-sm relative"
-          :class="activeTab === 'pending' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600'"
-        >
-          Tertunda
-          <span
-            class="ml-2 px-2 py-0.5 rounded-full text-xs"
-            :class="activeTab === 'pending' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'"
-            th:text="${#lists.size(tasksPending)}"
-            >0</span
-          >
-        </button>
-      </div>
-    </div>
-
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-4 space-y-3">
-      <section x-show="activeTab === 'new'" x-cloak>
-        <div th:if="${#lists.isEmpty(tasksNew)}" class="text-center py-12">
-          <svg
-            class="w-16 h-16 mx-auto text-gray-300 mb-3"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
-          </svg>
-          <p class="text-gray-500">Tidak ada tugas ditemukan</p>
-        </div>
-        <div
-          th:each="task : ${tasksNew}"
-          th:with="priorityLabel=${task['priority'] == 'critical' ? 'Kritis' : task['priority'] == 'high' ? 'Tinggi' : task['priority'] == 'medium' ? 'Sedang' : 'Rendah'}, priorityClass=${task['priority'] == 'critical' ? 'bg-red-100 text-red-800 border-red-200' : task['priority'] == 'high' ? 'bg-orange-100 text-orange-800 border-orange-200' : task['priority'] == 'medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 'bg-green-100 text-green-800 border-green-200'}"
-          class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow"
-        >
-          <a th:href="@{/petugas/task-detail(id=${task['id']})}" class="block">
-            <div class="flex items-start justify-between mb-2">
-              <div class="flex-1">
-                <div class="flex items-center gap-2 mb-1">
-                  <span
-                    class="text-xs font-semibold text-gray-500"
-                    th:text="${task['id']}"
-                    >TGS001</span
-                  >
-                  <span
-                    class="text-xs px-2 py-0.5 rounded-full border"
-                    th:text="${priorityLabel}"
-                    th:class="|${priorityClass}|"
-                    >Kritis</span
-                  >
-                </div>
-                <h3
-                  class="font-semibold text-gray-800 mb-1"
-                  th:text="${task['title']}"
-                >Judul</h3>
-                <p
-                  class="text-sm text-gray-600 line-clamp-2"
-                  th:text="${task['description']}"
-                >Deskripsi</p>
-              </div>
+            <div class="ml-4 pl-4 border-l">
+              <h1 class="text-2xl font-bold text-gray-900">Daftar Tugas</h1>
+              <p class="text-sm text-gray-600 mt-1">Kelola tugas lapangan Anda berdasarkan status</p>
             </div>
-            <div class="space-y-2 mt-3">
-              <div class="flex items-start gap-2">
-                <svg
-                  class="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                  />
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
-                <div class="flex-1">
-                  <p
-                    class="text-xs text-gray-600"
-                    th:text="${task['location']}"
-                  >Alamat</p>
-                  <p
-                    class="text-xs text-blue-600 font-medium mt-0.5"
-                    th:if="${task['distanceToTask'] != null}"
-                    th:text="|${task['distanceToTask']} dari lokasi Anda|"
-                  >0 km</p>
-                </div>
-              </div>
-              <div
-                class="flex items-center justify-between text-xs text-gray-500"
-              >
-                <div class="flex items-center gap-1">
-                  <svg
-                    class="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                    />
-                  </svg>
-                  <span th:text="${task['reporterName']}">Pelapor</span>
-                </div>
-                <div class="flex items-center gap-1">
-                  <svg
-                    class="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <span th:text="${task['reportDate']}">Tanggal</span>
-                </div>
-              </div>
-              <div
-                class="flex items-center justify-between pt-2 border-t border-gray-100"
-              >
-                <div class="flex items-center gap-1">
-                  <span class="text-xs text-gray-500">Deadline SLA:</span>
-                  <span
-                    class="text-xs font-semibold"
-                    th:text="${task['slaStatusText']}"
-                    th:classappend="${task['slaStatusClass']}"
-                    >SLA</span
-                  >
-                </div>
-                <span
-                  class="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded"
-                  th:text="${task['category']}"
-                  >Kategori</span
-                >
-              </div>
-            </div>
-          </a>
+          </div>
         </div>
-      </section>
+      </div>
+    </header>
 
-      <section x-show="activeTab === 'in_progress'" x-cloak>
-        <div
-          th:if="${#lists.isEmpty(tasksInProgress)}"
-          class="text-center py-12"
-        >
-          <p class="text-gray-500">Tidak ada tugas sedang dikerjakan</p>
+    <main class="p-6 max-w-4xl mx-auto">
+      <!-- Search & Filter Bar -->
+      <div class="bg-white rounded-xl border border-gray-200 p-4 mb-6 shadow-sm">
+        <div class="flex flex-col gap-3 sm:flex-row">
+          <div class="relative flex-1">
+            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+            <input
+              type="text"
+              x-model="searchQuery"
+              class="aduaja-input pl-10"
+              placeholder="Cari tugas, lokasi, atau pelapor..."
+            />
+          </div>
+          <div class="flex gap-2">
+            <select class="aduaja-input sm:w-40">
+              <option value="all">Semua Kategori</option>
+              <option value="Jalan">Jalan</option>
+              <option value="Penerangan">Penerangan</option>
+              <option value="Drainase">Drainase</option>
+              <option value="Trotoar">Trotoar</option>
+              <option value="Taman">Taman</option>
+            </select>
+            <select class="aduaja-input sm:w-40">
+              <option value="sla">Prioritas SLA</option>
+              <option value="distance">Jarak Terdekat</option>
+              <option value="date">Tanggal Laporan</option>
+            </select>
+          </div>
         </div>
-        <div
-          th:each="task : ${tasksInProgress}"
-          th:with="priorityLabel=${task['priority'] == 'critical' ? 'Kritis' : task['priority'] == 'high' ? 'Tinggi' : task['priority'] == 'medium' ? 'Sedang' : 'Rendah'}, priorityClass=${task['priority'] == 'critical' ? 'bg-red-100 text-red-800 border-red-200' : task['priority'] == 'high' ? 'bg-orange-100 text-orange-800 border-orange-200' : task['priority'] == 'medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 'bg-green-100 text-green-800 border-green-200'}"
-          class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow"
-        >
-          <a th:href="@{/petugas/task-detail(id=${task['id']})}" class="block">
-            <div class="flex items-start justify-between mb-2">
-              <div class="flex-1">
-                <div class="flex items-center gap-2 mb-1">
-                  <span
-                    class="text-xs font-semibold text-gray-500"
-                    th:text="${task['id']}"
-                    >TGS001</span
-                  >
-                  <span
-                    class="text-xs px-2 py-0.5 rounded-full border"
-                    th:text="${priorityLabel}"
-                    th:class="|${priorityClass}|"
-                    >Prioritas</span
-                  >
-                </div>
-                <h3
-                  class="font-semibold text-gray-800 mb-1"
-                  th:text="${task['title']}"
-                >Judul</h3>
-                <p
-                  class="text-sm text-gray-600 line-clamp-2"
-                  th:text="${task['description']}"
-                >Deskripsi</p>
-              </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="bg-white rounded-xl border border-gray-200 mb-6 shadow-sm" x-data="{ activeTab: 'new' }">
+        <div class="border-b border-gray-200">
+          <div class="flex">
+            <button
+              x-on:click="activeTab = 'new'"
+              :class="activeTab === 'new' ? 'border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-900'"
+              class="flex-1 py-3 px-4 font-medium text-sm relative border-b-2 border-transparent transition-colors"
+            >
+              Tugas Baru
+              <span
+                class="ml-2 px-2 py-0.5 rounded-full text-xs"
+                :class="activeTab === 'new' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'"
+                th:text="${#lists.size(tasksNew)}"
+                >0</span>
+            </button>
+            <button
+              x-on:click="activeTab = 'in_progress'"
+              :class="activeTab === 'in_progress' ? 'border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-900'"
+              class="flex-1 py-3 px-4 font-medium text-sm relative border-b-2 border-transparent transition-colors"
+            >
+              Sedang Dikerjakan
+              <span
+                class="ml-2 px-2 py-0.5 rounded-full text-xs"
+                :class="activeTab === 'in_progress' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'"
+                th:text="${#lists.size(tasksInProgress)}"
+                >0</span>
+            </button>
+            <button
+              x-on:click="activeTab = 'pending'"
+              :class="activeTab === 'pending' ? 'border-blue-600 text-blue-600' : 'text-gray-600 hover:text-gray-900'"
+              class="flex-1 py-3 px-4 font-medium text-sm relative border-b-2 border-transparent transition-colors"
+            >
+              Tertunda
+              <span
+                class="ml-2 px-2 py-0.5 rounded-full text-xs"
+                :class="activeTab === 'pending' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'"
+                th:text="${#lists.size(tasksPending)}"
+                >0</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="p-4 space-y-3">
+          <!-- Tugas Baru -->
+          <section x-show="activeTab === 'new'" x-cloak>
+            <div th:if="${#lists.isEmpty(tasksNew)}" class="text-center py-12 text-gray-400">
+              <i data-lucide="clipboard-list" class="w-12 h-12 mx-auto mb-3"></i>
+              <p class="text-sm">Tidak ada tugas baru</p>
             </div>
             <div
-              class="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded p-2 mt-2"
+              th:each="task : ${tasksNew}"
+              th:with="priorityLabel=${task['priority'] == 'critical' ? 'Kritis' : task['priority'] == 'high' ? 'Tinggi' : task['priority'] == 'medium' ? 'Sedang' : 'Rendah'}, 
+                       priorityBg=${task['priority'] == 'critical' ? 'bg-red-600' : task['priority'] == 'high' ? 'bg-orange-500' : task['priority'] == 'medium' ? 'bg-yellow-500' : 'bg-green-500'},
+                       slaColor=${task['slaStatusClass'].contains('red') ? 'text-red-600' : task['slaStatusClass'].contains('orange') ? 'text-orange-600' : 'text-green-600'}"
+              class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all"
             >
-              <svg
-                class="w-4 h-4 text-blue-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M13 10V3L4 14h7v7l9-11h-7z"
-                />
-              </svg>
-              <p
-                class="text-xs text-blue-800"
-                th:text="|Dimulai: ${task['startedAt']}|"
-              >Dimulai</p>
-            </div>
-          </a>
-        </div>
-      </section>
+              <a th:href="@{/petugas/task-execution(id=${task['id']})}" class="block">
+                <!-- Priority Bar -->
+                <div class="h-1" th:class="${priorityBg}"></div>
+                
+                <div class="p-5">
+                  <div class="flex items-start justify-between mb-3">
+                    <div class="flex-1">
+                      <div class="flex items-center gap-2 mb-2">
+                        <span class="font-mono text-xs font-semibold text-gray-500" th:text="${task['id']}"></span>
+                        <span
+                          class="text-xs px-2 py-1 rounded-full font-semibold text-white"
+                          th:class="${priorityBg}"
+                          th:text="${priorityLabel}"
+                        ></span>
+                        <span class="aduaja-badge aduaja-badge-primary text-xs" th:text="${task['category']}"></span>
+                      </div>
+                      <h3 class="font-semibold text-gray-900 mb-1" th:text="${task['title']}"></h3>
+                      <p class="text-sm text-gray-600 line-clamp-2" th:text="${task['description']}"></p>
+                    </div>
+                  </div>
 
-      <section x-show="activeTab === 'pending'" x-cloak>
-        <div th:if="${#lists.isEmpty(tasksPending)}" class="text-center py-12">
-          <p class="text-gray-500">Tidak ada tugas tertunda</p>
-        </div>
-        <div
-          th:each="task : ${tasksPending}"
-          th:with="priorityLabel=${task['priority'] == 'critical' ? 'Kritis' : task['priority'] == 'high' ? 'Tinggi' : task['priority'] == 'medium' ? 'Sedang' : 'Rendah'}, priorityClass=${task['priority'] == 'critical' ? 'bg-red-100 text-red-800 border-red-200' : task['priority'] == 'high' ? 'bg-orange-100 text-orange-800 border-orange-200' : task['priority'] == 'medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 'bg-green-100 text-green-800 border-green-200'}"
-          class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow"
-        >
-          <a th:href="@{/petugas/task-detail(id=${task['id']})}" class="block">
-            <div class="flex items-start justify-between mb-2">
-              <div class="flex-1">
-                <div class="flex items-center gap-2 mb-1">
-                  <span
-                    class="text-xs font-semibold text-gray-500"
-                    th:text="${task['id']}"
-                    >TGS001</span
-                  >
-                  <span
-                    class="text-xs px-2 py-0.5 rounded-full border"
-                    th:text="${priorityLabel}"
-                    th:class="|${priorityClass}|"
-                    >Prioritas</span
-                  >
+                  <div class="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-100">
+                    <div class="flex items-start gap-2">
+                      <i data-lucide="map-pin" class="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0"></i>
+                      <div>
+                        <p class="text-xs text-gray-600" th:text="${task['location']}"></p>
+                        <p class="text-xs text-blue-600 font-semibold mt-0.5" th:if="${task['distanceToTask'] != null}" th:text="|${task['distanceToTask']} dari Anda|"></p>
+                      </div>
+                    </div>
+                    <div class="space-y-1">
+                      <div class="flex items-center justify-between text-xs">
+                        <span class="text-gray-500">Pelapor</span>
+                        <span class="font-medium" th:text="${task['reporterName']}"></span>
+                      </div>
+                      <div class="flex items-center justify-between text-xs">
+                        <span class="text-gray-500">Tanggal</span>
+                        <span class="font-medium" th:text="${task['reportDate']}"></span>
+                      </div>
+                      <div class="flex items-center justify-between text-xs pt-1 border-t">
+                        <span class="text-gray-500">SLA:</span>
+                        <span class="font-bold" th:class="${slaColor}" th:text="${task['slaStatusText']}"></span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Action Button -->
+                  <div class="mt-4 pt-4 border-t border-gray-100">
+                    <div class="flex items-center justify-between">
+                      <span class="text-xs text-gray-500">Ketuk untuk mulai mengerjakan</span>
+                      <span class="text-xs text-blue-600 font-semibold flex items-center gap-1">
+                        Mulai
+                        <i data-lucide="arrow-right" class="w-3 h-3"></i>
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <h3
-                  class="font-semibold text-gray-800 mb-1"
-                  th:text="${task['title']}"
-                >Judul</h3>
-                <p
-                  class="text-sm text-gray-600 line-clamp-2"
-                  th:text="${task['description']}"
-                >Deskripsi</p>
-              </div>
+              </a>
+            </div>
+          </section>
+
+          <!-- Sedang Dikerjakan -->
+          <section x-show="activeTab === 'in_progress'" x-cloak>
+            <div th:if="${#lists.isEmpty(tasksInProgress)}" class="text-center py-12 text-gray-400">
+              <i data-lucide="wrench" class="w-12 h-12 mx-auto mb-3"></i>
+              <p class="text-sm">Tidak ada tugas sedang dikerjakan</p>
             </div>
             <div
-              class="flex items-start gap-2 bg-yellow-50 border border-yellow-200 rounded p-2 mt-2"
+              th:each="task : ${tasksInProgress}"
+              th:with="priorityLabel=${task['priority'] == 'critical' ? 'Kritis' : task['priority'] == 'high' ? 'Tinggi' : task['priority'] == 'medium' ? 'Sedang' : 'Rendah'}, 
+                       priorityBg=${task['priority'] == 'critical' ? 'bg-red-600' : task['priority'] == 'high' ? 'bg-orange-500' : task['priority'] == 'medium' ? 'bg-yellow-500' : 'bg-green-500'}"
+              class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all"
             >
-              <svg
-                class="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <p
-                class="text-xs text-yellow-800"
-                th:text="${task['pendingReason']}"
-              >Alasan</p>
+              <a th:href="@{/petugas/task-execution(id=${task['id']})}" class="block">
+                <div class="h-1" th:class="${priorityBg}"></div>
+                <div class="p-5">
+                  <div class="flex items-center gap-2 mb-2">
+                    <span class="font-mono text-xs font-semibold text-gray-500" th:text="${task['id']}"></span>
+                    <span class="text-xs px-2 py-1 rounded-full font-semibold text-white" th:class="${priorityBg}" th:text="${priorityLabel}"></span>
+                    <span class="aduaja-badge aduaja-badge-warning text-xs">Sedang Dikerjakan</span>
+                  </div>
+                  <h3 class="font-semibold text-gray-900 mb-2" th:text="${task['title']}"></h3>
+                  
+                  <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+                    <div class="flex items-center gap-2">
+                      <i data-lucide="clock" class="w-4 h-4 text-blue-600"></i>
+                      <p class="text-sm text-blue-800 font-medium" th:text="|Dimulai: ${task['startedAt']}|"></p>
+                    </div>
+                  </div>
+
+                  <div class="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+                    <span class="text-xs text-gray-500">Lanjutkan pengerjaan</span>
+                    <span class="text-xs text-blue-600 font-semibold flex items-center gap-1">
+                      Lanjutkan
+                      <i data-lucide="arrow-right" class="w-3 h-3"></i>
+                    </span>
+                  </div>
+                </div>
+              </a>
             </div>
-          </a>
+          </section>
+
+          <!-- Tertunda -->
+          <section x-show="activeTab === 'pending'" x-cloak>
+            <div th:if="${#lists.isEmpty(tasksPending)}" class="text-center py-12 text-gray-400">
+              <i data-lucide="pause-circle" class="w-12 h-12 mx-auto mb-3"></i>
+              <p class="text-sm">Tidak ada tugas tertunda</p>
+            </div>
+            <div
+              th:each="task : ${tasksPending}"
+              th:with="priorityLabel=${task['priority'] == 'critical' ? 'Kritis' : task['priority'] == 'high' ? 'Tinggi' : task['priority'] == 'medium' ? 'Sedang' : 'Rendah'}, 
+                       priorityBg=${task['priority'] == 'critical' ? 'bg-red-600' : task['priority'] == 'high' ? 'bg-orange-500' : task['priority'] == 'medium' ? 'bg-yellow-500' : 'bg-green-500'}"
+              class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all"
+            >
+              <a th:href="@{/petugas/task-detail(id=${task['id']})}" class="block">
+                <div class="h-1" th:class="${priorityBg}"></div>
+                <div class="p-5">
+                  <div class="flex items-center gap-2 mb-2">
+                    <span class="font-mono text-xs font-semibold text-gray-500" th:text="${task['id']}"></span>
+                    <span class="text-xs px-2 py-1 rounded-full font-semibold text-white" th:class="${priorityBg}" th:text="${priorityLabel}"></span>
+                    <span class="aduaja-badge bg-yellow-100 text-yellow-700 text-xs">Tertunda</span>
+                  </div>
+                  <h3 class="font-semibold text-gray-900 mb-2" th:text="${task['title']}"></h3>
+                  
+                  <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-3">
+                    <div class="flex items-start gap-2">
+                      <i data-lucide="alert-circle" class="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0"></i>
+                      <p class="text-sm text-yellow-800" th:text="${task['pendingReason']}"></p>
+                    </div>
+                  </div>
+
+                  <div class="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+                    <span class="text-xs text-gray-500">Lihat detail tugas</span>
+                    <span class="text-xs text-blue-600 font-semibold flex items-center gap-1">
+                      Detail
+                      <i data-lucide="arrow-right" class="w-3 h-3"></i>
+                    </span>
+                  </div>
+                </div>
+              </a>
+            </div>
+          </section>
         </div>
-      </section>
-    </div>
+      </div>
+    </main>
   </div>
 </html>

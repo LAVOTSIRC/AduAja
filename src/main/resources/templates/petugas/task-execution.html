@@ -5,473 +5,306 @@
   layout:decorate="~{layouts/master}"
 >
   <th:block layout:fragment="extraHead">
-    <title>AduAja - Pengerjaan Tugas</title>
+    <title>AduAja - Form Eksekusi Tugas</title>
     <link rel="stylesheet" th:href="@{/css/app.css}" />
     <style>
-      [x-cloak] { display: none !important; }
-      #cameraModal { display: none !important; }
-      #cameraModal.camera-active { display: flex !important; }
-      .cam-grid-overlay {
-        background-image: linear-gradient(to right, rgba(255,255,255,0.3) 1px, transparent 1px),
-                          linear-gradient(to bottom, rgba(255,255,255,0.3) 1px, transparent 1px);
-        background-size: 33.33% 33.33%;
+      [x-cloak] {
+        display: none !important;
       }
-      .zoom-slider { -webkit-appearance: none; appearance: none; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; outline: none; }
-      .zoom-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: white; cursor: pointer; border: 2px solid rgba(0,0,0,0.3); }
+      .phone-mockup {
+        max-width: 480px;
+        margin: 0 auto;
+        background: #1f2937;
+        border-radius: 40px;
+        padding: 12px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      }
+      .phone-screen {
+        background: #f9fafb;
+        border-radius: 32px;
+        overflow: hidden;
+        min-height: 700px;
+      }
+      .phone-header {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: white;
+        padding: 16px;
+        position: relative;
+      }
+      .phone-notch {
+        width: 120px;
+        height: 24px;
+        background: #1f2937;
+        border-radius: 0 0 16px 16px;
+        margin: 0 auto 12px;
+      }
+      .upload-slot {
+        border: 2px dashed #d1d5db;
+        border-radius: 12px;
+        padding: 24px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: #f9fafb;
+      }
+      .upload-slot:hover {
+        border-color: #3b82f6;
+        background: #eff6ff;
+      }
+      .upload-slot.has-file {
+        border-color: #10b981;
+        background: #ecfdf5;
+      }
     </style>
   </th:block>
 
-  <div
-    layout:fragment="content"
-    class="min-h-screen bg-gray-50"
-    x-data="{
-      step: 'before',
-      showCompleteModal: false,
-      beforePhotoTaken: false,
-      beforePhotoUrl: '',
-      beforePhotoBase64: '',
-      afterPhotoTaken: false,
-      afterPhotoUrl: '',
-      afterPhotoBase64: '',
-      openCamera: function(step) { startCamera(this, step); }
-    }"
-  >
-    <!-- Header -->
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 pt-4">
-      <div class="bg-blue-600 text-white rounded-xl shadow-md mb-4">
-        <div class="px-4 sm:px-6 pt-4 pb-4">
-        <div class="flex items-center justify-between mb-3">
-          <div class="flex items-center gap-3">
-            <a
-              th:href="@{/petugas/task-detail(id=${task['id']})}"
-              class="p-2 hover:bg-blue-700 rounded-lg"
-            >
-              <svg
-                class="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M15 19l-7-7 7-7"
-                />
+  <div layout:fragment="content" class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8">
+    <!-- Page Header -->
+    <div class="max-w-4xl mx-auto px-6 mb-6">
+      <div class="flex items-center gap-3 mb-2">
+        <a th:href="@{/petugas/tasks}" class="aduaja-btn-secondary inline-flex items-center gap-2 text-sm">
+          <i data-lucide="arrow-left" class="w-4 h-4"></i>
+          Kembali ke Daftar Tugas
+        </a>
+      </div>
+      <h1 class="text-2xl font-bold text-gray-900">Form Eksekusi & Unggah Bukti</h1>
+      <p class="text-sm text-gray-600 mt-1">
+        Mockup tampilan mobile untuk petugas lapangan saat mengerjakan tugas
+      </p>
+    </div>
+
+    <!-- Phone Mockup Container -->
+    <div class="phone-mockup">
+      <div class="phone-screen" x-data="{ step: 'start', photoBefore: false, photoAfter: false }">
+        
+        <!-- Phone Header -->
+        <div class="phone-header">
+          <div class="phone-notch"></div>
+          <div class="flex items-center justify-between mb-3">
+            <a th:href="@{/petugas/task-detail(id=${task['id']})}" class="p-2 hover:bg-blue-700 rounded-lg transition-colors">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
               </svg>
             </a>
-            <div>
-              <h2 class="text-xl font-semibold">Pengerjaan Tugas</h2>
-              <p
-                class="text-sm text-blue-100"
-                th:text="|${task['id']} - ${task['title']}|"
-              >Tugas</p>
+            <div class="text-right">
+              <h2 class="text-lg font-semibold">Pengerjaan Tugas</h2>
+              <p class="text-xs text-blue-100" th:text="${task['id']}">TGS-001</p>
             </div>
+            <div class="w-9"></div>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="flex items-center gap-2 mb-2">
+            <div class="flex-1 h-1.5 rounded-full" :class="step !== 'start' ? 'bg-white' : 'bg-blue-400'"></div>
+            <div class="flex-1 h-1.5 rounded-full" :class="step === 'after' || step === 'complete' ? 'bg-white' : 'bg-blue-400'"></div>
+            <div class="flex-1 h-1.5 rounded-full" :class="step === 'complete' ? 'bg-white' : 'bg-blue-400'"></div>
+          </div>
+          <div class="flex justify-between text-xs text-blue-100">
+            <span>Mulai</span>
+            <span>Foto Awal</span>
+            <span>Foto Akhir</span>
           </div>
         </div>
 
-        <div class="flex items-center gap-2">
-          <div
-            class="flex-1 h-2 rounded-full"
-            :class="step === 'before' || step === 'after' ? 'bg-white' : 'bg-blue-400'"
-          ></div>
-          <div
-            class="flex-1 h-2 rounded-full"
-            :class="step === 'after' ? 'bg-white' : 'bg-blue-400'"
-          ></div>
-        </div>
-        <div class="flex justify-between text-xs mt-1">
-          <span>Foto Awal</span>
-          <span>Foto Akhir</span>
-        </div>
-
-        <div
-          class="mt-3 bg-blue-700 rounded-lg p-3 flex items-center justify-between"
-        >
-          <span class="text-sm">Durasi Pengerjaan:</span>
-          <span
-            class="text-lg font-mono font-bold"
-            th:text="${task['workDuration']}"
-            >00:00:00</span>
-          >
-        </div>
-      </div>
-    </div>
-    
-    <!-- Content -->
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-4">
-      <section x-show="step === 'before'" x-cloak class="space-y-4">
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 class="font-semibold text-blue-800 mb-2">Foto Kondisi Awal</h3>
-          <p class="text-sm text-blue-700">
-            Ambil minimal 2 foto sebelum perbaikan.
-          </p>
-        </div>
-
-        <!-- Photo Preview -->
-        <div x-show="beforePhotoTaken" x-cloak class="mb-4">
-          <div class="relative rounded-lg overflow-hidden border-2 border-blue-300">
-            <img :src="beforePhotoUrl" class="w-full h-64 object-cover" alt="Foto Awal" />
-            <div class="absolute top-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-              Foto berhasil diambil
-            </div>
-            <div class="absolute top-2 right-2 flex gap-2">
-              <button type="button" @click="openCamera('before')" class="bg-blue-500 text-white rounded-full p-1.5 hover:bg-blue-600">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
-              </button>
-              <button type="button" @click="beforePhotoTaken = false; beforePhotoUrl = ''; beforePhotoBase64 = ''" class="bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
-              </button>
+        <!-- Phone Content -->
+        <div class="px-4 py-4 space-y-4">
+          
+          <!-- Task Info Summary -->
+          <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+            <h3 class="font-semibold text-gray-900 mb-2" th:text="${task['title']}">Judul Tugas</h3>
+            <div class="space-y-2 text-sm text-gray-600">
+              <div class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                </svg>
+                <span th:text="${task['location']}">Lokasi</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span>Deadline: <span class="font-semibold text-red-600" th:text="${task['slaDeadline']}">SLA</span></span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Camera Button -->
-        <button
-          type="button"
-          @click="openCamera('before')"
-          class="w-full flex flex-col items-center justify-center py-8 border-2 border-dashed border-blue-300 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-all bg-gradient-to-br from-blue-50 to-white"
-          :class="{ 'hidden': beforePhotoTaken }"
-        >
-          <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
-          </div>
-          <p class="text-base font-semibold text-blue-900 mb-1">Buka Kamera</p>
-          <p class="text-sm text-blue-600">Ambil foto kondisi awal</p>
-        </button>
-
-        <form
-          th:action="@{/petugas/task-execution}"
-          method="post"
-          class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 space-y-4"
-        >
-          <input type="hidden" name="id" th:value="${task['id']}" />
-          <input type="hidden" name="action" value="save" />
-          <input type="hidden" name="photoBeforeData" :value="beforePhotoBase64" />
-          <button
-            type="submit"
-            class="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700"
-            :disabled="!beforePhotoTaken"
-          >Simpan Foto Awal</button>
-        </form>
-        <button
-          type="button"
-          x-on:click="step = 'after'"
-          class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700"
-          :disabled="!beforePhotoTaken"
-        >Selesai - Ambil Foto Sesudah</button>
-      </section>
-
-      <section x-show="step === 'after'" x-cloak class="space-y-4">
-        <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
-          <h3 class="font-semibold text-purple-800 mb-2">
-            Foto Kondisi Akhir
-          </h3>
-          <p class="text-sm text-purple-700">
-            Ambil minimal 2 foto setelah perbaikan.
-          </p>
-        </div>
-
-        <!-- Photo Preview -->
-        <div x-show="afterPhotoTaken" x-cloak class="mb-4">
-          <div class="relative rounded-lg overflow-hidden border-2 border-purple-300">
-            <img :src="afterPhotoUrl" class="w-full h-64 object-cover" alt="Foto Akhir" />
-            <div class="absolute top-2 left-2 bg-purple-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-              Foto berhasil diambil
+          <!-- Step 1: Start Button -->
+          <div x-show="step === 'start'" x-cloak class="space-y-4">
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <div class="flex items-start gap-3">
+                <svg class="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <div class="text-sm text-blue-800">
+                  <p class="font-semibold mb-1">Sebelum Memulai:</p>
+                  <ul class="list-disc list-inside space-y-1 text-xs">
+                    <li>Pastikan Anda berada di lokasi tugas</li>
+                    <li>GPS akan divalidasi saat memulai</li>
+                    <li>Siapkan kamera untuk foto kondisi awal</li>
+                  </ul>
+                </div>
+              </div>
             </div>
-            <div class="absolute top-2 right-2 flex gap-2">
-              <button type="button" @click="openCamera('after')" class="bg-blue-500 text-white rounded-full p-1.5 hover:bg-blue-600">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
-              </button>
-              <button type="button" @click="afterPhotoTaken = false; afterPhotoUrl = ''; afterPhotoBase64 = ''" class="bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
-              </button>
+
+            <!-- GPS Validation Box -->
+            <div class="bg-white rounded-xl border border-gray-200 p-4">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                  </svg>
+                  <span class="font-semibold text-gray-900">Validasi GPS</span>
+                </div>
+                <span class="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 font-semibold">Terverifikasi</span>
+              </div>
+              <p class="text-xs text-gray-600">Lokasi Anda: <span class="font-mono">3.5952, 98.6722</span></p>
+              <p class="text-xs text-gray-500 mt-1">Jarak ke lokasi tugas: <span class="font-semibold text-blue-600" th:text="${task['distanceToTask']}">1,2 km</span></p>
+            </div>
+
+            <!-- Start Work Button -->
+            <button
+              type="button"
+              x-on:click="step = 'before'"
+              class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-700 transition-colors shadow-lg flex items-center justify-center gap-3"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              Mulai Kerjakan
+            </button>
+          </div>
+
+          <!-- Step 2: Upload Foto Sebelum -->
+          <div x-show="step === 'before'" x-cloak class="space-y-4">
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <div class="flex items-start gap-3">
+                <svg class="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                <div class="text-sm text-blue-800">
+                  <p class="font-semibold mb-1">Foto Kondisi Awal</p>
+                  <p class="text-xs">Unggah minimal 2 foto sebelum perbaikan untuk dokumentasi.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Upload Slot Before -->
+            <div class="upload-slot" :class="{ 'has-file': photoBefore }" x-on:click="$refs.photoBeforeInput.click()">
+              <input type="file" x-ref="photoBeforeInput" class="hidden" accept="image/*" multiple x-on:change="photoBefore = true" />
+              <template x-if="!photoBefore">
+                <div>
+                  <svg class="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3"/>
+                  </svg>
+                  <p class="text-sm font-semibold text-gray-700 mb-1">Ketuk untuk Unggah Foto</p>
+                  <p class="text-xs text-gray-500">Minimal 2 foto kondisi awal</p>
+                </div>
+              </template>
+              <template x-if="photoBefore">
+                <div>
+                  <svg class="w-12 h-12 text-green-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  <p class="text-sm font-semibold text-green-700 mb-1">Foto Berhasil Diunggah</p>
+                  <p class="text-xs text-green-600">2 foto kondisi awal</p>
+                </div>
+              </template>
+            </div>
+
+            <!-- Continue Button -->
+            <button
+              type="button"
+              x-on:click="step = 'after'"
+              class="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-700 transition-colors shadow-lg flex items-center justify-center gap-3"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+              </svg>
+              Lanjut ke Foto Sesudah
+            </button>
+          </div>
+
+          <!-- Step 3: Upload Foto Sesudah -->
+          <div x-show="step === 'after'" x-cloak class="space-y-4">
+            <div class="bg-purple-50 border border-purple-200 rounded-xl p-4">
+              <div class="flex items-start gap-3">
+                <svg class="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <div class="text-sm text-purple-800">
+                  <p class="font-semibold mb-1">Foto Kondisi Akhir</p>
+                  <p class="text-xs">Unggah minimal 2 foto setelah perbaikan sebagai bukti penyelesaian.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Upload Slot After -->
+            <div class="upload-slot" :class="{ 'has-file': photoAfter }" x-on:click="$refs.photoAfterInput.click()">
+              <input type="file" x-ref="photoAfterInput" class="hidden" accept="image/*" multiple x-on:change="photoAfter = true" />
+              <template x-if="!photoAfter">
+                <div>
+                  <svg class="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3"/>
+                  </svg>
+                  <p class="text-sm font-semibold text-gray-700 mb-1">Ketuk untuk Unggah Foto</p>
+                  <p class="text-xs text-gray-500">Minimal 2 foto kondisi akhir</p>
+                </div>
+              </template>
+              <template x-if="photoAfter">
+                <div>
+                  <svg class="w-12 h-12 text-green-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  <p class="text-sm font-semibold text-green-700 mb-1">Foto Berhasil Diunggah</p>
+                  <p class="text-xs text-green-600">2 foto kondisi akhir</p>
+                </div>
+              </template>
+            </div>
+
+            <!-- Work Notes -->
+            <div class="bg-white rounded-xl border border-gray-200 p-4">
+              <label class="block text-sm font-semibold text-gray-900 mb-2">Catatan Pekerjaan <span class="text-red-500">*</span></label>
+              <textarea
+                rows="3"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Tulis catatan pekerjaan yang telah dilakukan..."
+              ></textarea>
+            </div>
+
+            <!-- Complete Button -->
+            <button
+              type="button"
+              x-on:click="step = 'complete'"
+              class="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-700 transition-colors shadow-lg flex items-center justify-center gap-3"
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              Selesaikan Tugas
+            </button>
+          </div>
+
+          <!-- Step 4: Complete -->
+          <div x-show="step === 'complete'" x-cloak class="space-y-4">
+            <div class="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
+              <svg class="w-16 h-16 text-green-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <h3 class="text-xl font-bold text-green-800 mb-2">Tugas Selesai!</h3>
+              <p class="text-sm text-green-700 mb-4">Data telah dikirim dan menunggu verifikasi dari Admin Dinas.</p>
+              <a th:href="@{/petugas/tasks}" class="inline-flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+                Kembali ke Daftar Tugas
+              </a>
             </div>
           </div>
+
         </div>
-
-        <!-- Camera Button -->
-        <button
-          type="button"
-          @click="openCamera('after')"
-          class="w-full flex flex-col items-center justify-center py-8 border-2 border-dashed border-purple-300 rounded-lg cursor-pointer hover:bg-purple-50 hover:border-purple-400 transition-all bg-gradient-to-br from-purple-50 to-white"
-          :class="{ 'hidden': afterPhotoTaken }"
-        >
-          <div class="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-purple-600"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
-          </div>
-          <p class="text-base font-semibold text-purple-900 mb-1">Buka Kamera</p>
-          <p class="text-sm text-purple-600">Ambil foto kondisi akhir</p>
-        </button>
-
-        <form
-          th:action="@{/petugas/task-execution}"
-          method="post"
-          class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 space-y-4"
-        >
-          <input type="hidden" name="id" th:value="${task['id']}" />
-          <input type="hidden" name="action" value="complete" />
-          <input type="hidden" name="photoAfterData" :value="afterPhotoBase64" />
-          <button
-            type="button"
-            x-on:click="showCompleteModal = true"
-            class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700"
-            :disabled="!afterPhotoTaken"
-          >Selesaikan Tugas</button>
-        </form>
-      </section>
-    </div>
-
-    <!-- Camera Modal -->
-    <div id="cameraModal" class="fixed inset-0 bg-black flex flex-col" style="z-index: 99999">
-      <!-- Top Bar -->
-      <div class="flex items-center justify-between px-4 py-3 bg-black/60 backdrop-blur-sm relative z-10">
-        <button type="button" id="camCloseBtn" class="w-10 h-10 rounded-full bg-black/40 flex items-center justify-center text-white active:bg-white/30">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-        </button>
-        <div class="flex items-center gap-3">
-          <button type="button" id="camGridBtn" class="w-10 h-10 rounded-full bg-black/40 flex items-center justify-center text-white active:bg-white/30">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>
-          </button>
-          <button type="button" id="camFlashBtn" class="w-10 h-10 rounded-full bg-black/40 flex items-center justify-center text-white active:bg-white/30">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-          </button>
-          <button type="button" id="camSwitchBtn" class="w-10 h-10 rounded-full bg-black/40 flex items-center justify-center text-white active:bg-white/30">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-          </button>
-        </div>
-      </div>
-
-      <!-- Viewfinder -->
-      <div class="flex-1 relative overflow-hidden bg-black">
-        <video id="cameraVideo" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
-        <div id="camGridOverlay" class="absolute inset-0 pointer-events-none hidden cam-grid-overlay"></div>
-        <div id="camFlashOverlay" class="absolute inset-0 bg-white pointer-events-none" style="opacity: 0; transition: opacity 0.3s;"></div>
-        <div id="camZoomLabel" class="absolute top-4 left-1/2 -translate-x-1/2 bg-black/50 text-white text-xs px-3 py-1 rounded-full hidden">1.0x</div>
-      </div>
-
-      <!-- Zoom Slider -->
-      <div class="px-8 py-2 bg-black/60 backdrop-blur-sm relative z-10">
-        <div class="flex items-center gap-3 text-white text-xs">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
-          <input type="range" id="camZoomSlider" min="1" max="5" step="0.1" value="1" class="zoom-slider flex-1" />
-          <span id="camZoomValue" class="w-10 text-center font-mono">1.0x</span>
-        </div>
-      </div>
-
-      <!-- Bottom Controls -->
-      <div class="flex items-center justify-around px-8 py-6 bg-black/60 backdrop-blur-sm relative z-10">
-        <button type="button" id="camGalleryBtn" class="w-12 h-12 rounded-xl bg-black/40 flex items-center justify-center text-white active:bg-white/30 overflow-hidden border border-white/20">
-          <div id="camGalleryThumb" class="w-full h-full bg-gray-700 flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="M21 15l-5-5L5 21"></path></svg>
-          </div>
-        </button>
-
-        <!-- Capture Button -->
-        <button type="button" id="camCaptureBtn" class="bg-white rounded-full flex items-center justify-center active:scale-90 transition-transform border-4 border-gray-300 shadow-xl" style="width: 72px; height: 72px;">
-          <div class="bg-red-500 rounded-full active:bg-red-600 transition-colors" style="width: 56px; height: 56px;"></div>
-        </button>
-
-        <div class="w-12 h-12"></div>
-      </div>
-
-      <!-- Preview Overlay -->
-      <div id="camPreviewOverlay" class="absolute inset-0 bg-black flex flex-col items-center justify-center p-4 hidden" style="z-index: 99998;">
-        <img id="camPreviewImg" src="" class="w-full max-w-md rounded-lg mb-6 shadow-2xl" alt="Preview" />
-        <div class="flex gap-4">
-          <button type="button" id="camRetakeBtn" class="px-6 py-3 bg-gray-600 text-white rounded-xl font-medium hover:bg-gray-700 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg> Ulangi
-          </button>
-          <button type="button" id="camConfirmBtn" class="px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Gunakan Foto
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Complete Modal -->
-    <div
-      x-show="showCompleteModal"
-      x-cloak
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-    >
-      <div class="bg-white rounded-lg p-6 max-w-md w-full">
-        <div class="text-center mb-4">
-          <h3 class="text-xl font-bold text-gray-900 mb-2">
-            Konfirmasi Penyelesaian
-          </h3>
-          <p class="text-gray-600 mb-4">
-            Pastikan semua data sudah benar sebelum menyelesaikan tugas.
-          </p>
-        </div>
-          <form
-            th:action="@{/petugas/task-execution}"
-            method="post"
-            class="space-y-4"
-          >
-            <input type="hidden" name="id" th:value="${task['id']}" />
-            <input type="hidden" name="action" value="complete" />
-            <div class="flex gap-3">
-              <button
-                type="button"
-                x-on:click="showCompleteModal = false"
-                class="flex-1 px-4 py-3 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50"
-              >Batal</button>
-              <button
-                type="submit"
-                class="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700"
-              >Ya, Selesaikan</button>
-            </div>
-          </form>
       </div>
     </div>
   </div>
-
-  <th:block layout:fragment="extraScripts">
-    <script>
-      // Global camera state
-      let camState = {
-        stream: null, facingMode: 'environment', zoom: 1, flash: false, grid: false,
-        photoUrl: '', photoBase64: '', parentScope: null, currentStep: null
-      }
-
-      function startCamera(scope, step) {
-        camState.parentScope = scope
-        camState.currentStep = step
-        const modal = document.getElementById('cameraModal')
-        const video = document.getElementById('cameraVideo')
-        if (!modal || !video) { alert('Camera UI error'); return; }
-
-        // Stop previous stream
-        if (camState.stream) {
-          camState.stream.getTracks().forEach(t => t.stop())
-          camState.stream = null
-        }
-
-        // Show modal first
-        modal.classList.add('camera-active')
-        document.body.style.overflow = 'hidden'
-
-        // Then start camera
-        navigator.mediaDevices.getUserMedia({
-          video: { facingMode: camState.facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
-          audio: false
-        }).then(stream => {
-          camState.stream = stream
-          video.srcObject = stream
-          video.play().catch(e => console.error('Play error:', e))
-
-          // Reset UI
-          document.getElementById('camPreviewOverlay').classList.add('hidden')
-          document.getElementById('camGridOverlay').classList.toggle('hidden', !camState.grid)
-          updateZoomUI()
-        }).catch(err => {
-          modal.classList.remove('camera-active')
-          document.body.style.overflow = ''
-          if (err.name === 'NotAllowedError') alert('Akses kamera ditolak. Izinkan di pengaturan browser.')
-          else if (err.name === 'NotFoundError') alert('Kamera tidak ditemukan.')
-          else alert('Gagal membuka kamera: ' + err.message)
-        })
-      }
-
-      function stopCamera() {
-        if (camState.stream) {
-          camState.stream.getTracks().forEach(t => t.stop())
-          camState.stream = null
-        }
-        const video = document.getElementById('cameraVideo')
-        if (video) video.srcObject = null
-        const modal = document.getElementById('cameraModal')
-        if (modal) modal.classList.remove('camera-active')
-        document.body.style.overflow = ''
-      }
-
-      function capturePhoto() {
-        const video = document.getElementById('cameraVideo')
-        if (!video || !video.videoWidth) return
-        const canvas = document.createElement('canvas')
-        canvas.width = video.videoWidth
-        canvas.height = video.videoHeight
-        canvas.getContext('2d').drawImage(video, 0, 0)
-        camState.photoBase64 = canvas.toDataURL('image/jpeg', 0.85)
-        camState.photoUrl = camState.photoBase64
-
-        // Flash effect
-        const flash = document.getElementById('camFlashOverlay')
-        flash.style.opacity = '1'
-        setTimeout(() => { flash.style.opacity = '0' }, 300)
-
-        // Show preview
-        document.getElementById('camPreviewImg').src = camState.photoUrl
-        document.getElementById('camPreviewOverlay').classList.remove('hidden')
-      }
-
-      function confirmPhoto() {
-        if (camState.parentScope && camState.currentStep) {
-          if (camState.currentStep === 'before') {
-            camState.parentScope.beforePhotoUrl = camState.photoUrl
-            camState.parentScope.beforePhotoBase64 = camState.photoBase64
-            camState.parentScope.beforePhotoTaken = true
-          } else if (camState.currentStep === 'after') {
-            camState.parentScope.afterPhotoUrl = camState.photoUrl
-            camState.parentScope.afterPhotoBase64 = camState.photoBase64
-            camState.parentScope.afterPhotoTaken = true
-          }
-        }
-        stopCamera()
-      }
-
-      function retakePhoto() {
-        document.getElementById('camPreviewOverlay').classList.add('hidden')
-      }
-
-      function switchCamera() {
-        camState.facingMode = camState.facingMode === 'environment' ? 'user' : 'environment'
-        startCamera(camState.parentScope, camState.currentStep)
-      }
-
-      function updateZoomUI() {
-        const slider = document.getElementById('camZoomSlider')
-        const label = document.getElementById('camZoomValue')
-        const zoomLabel = document.getElementById('camZoomLabel')
-        if (slider) slider.value = camState.zoom
-        if (label) label.textContent = camState.zoom.toFixed(1) + 'x'
-        // Apply digital zoom via CSS transform
-        const video = document.getElementById('cameraVideo')
-        if (video) video.style.transform = 'scale(' + camState.zoom + ')'
-      }
-
-      // Initialize event listeners
-      (function() {
-        document.getElementById('camCloseBtn').addEventListener('click', stopCamera)
-        document.getElementById('camCaptureBtn').addEventListener('click', capturePhoto)
-        document.getElementById('camRetakeBtn').addEventListener('click', retakePhoto)
-        document.getElementById('camConfirmBtn').addEventListener('click', confirmPhoto)
-        document.getElementById('camSwitchBtn').addEventListener('click', switchCamera)
-
-        document.getElementById('camGridBtn').addEventListener('click', function() {
-          camState.grid = !camState.grid
-          document.getElementById('camGridOverlay').classList.toggle('hidden', !camState.grid)
-          this.style.backgroundColor = camState.grid ? 'rgba(59, 130, 246, 0.5)' : 'rgba(0,0,0,0.4)'
-        })
-
-        document.getElementById('camFlashBtn').addEventListener('click', function() {
-          camState.flash = !camState.flash
-          this.style.backgroundColor = camState.flash ? 'rgba(59, 130, 246, 0.5)' : 'rgba(0,0,0,0.4)'
-        })
-
-        document.getElementById('camZoomSlider').addEventListener('input', function() {
-          camState.zoom = parseFloat(this.value)
-          updateZoomUI()
-          const zoomLabel = document.getElementById('camZoomLabel')
-          zoomLabel.classList.remove('hidden')
-          zoomLabel.textContent = camState.zoom.toFixed(1) + 'x'
-          clearTimeout(zoomLabel._timeout)
-          zoomLabel._timeout = setTimeout(() => zoomLabel.classList.add('hidden'), 1000)
-        })
-      })()
-    </script>
-  </th:block>
 </html>

@@ -1,0 +1,307 @@
+<html
+  lang="id"
+  xmlns:th="http://www.thymeleaf.org"
+  xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+  layout:decorate="~{layouts/master}"
+>
+  <th:block layout:fragment="extraHead">
+    <title>AduAja - Detail Disposisi</title>
+  </th:block>
+
+  <div
+    layout:fragment="content"
+    class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100"
+  >
+    <!-- Header -->
+    <header class="aduaja-header sticky top-0 z-20 border-b">
+      <div class="px-6 py-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <a
+              th:href="@{/admin/dashboard(tab='disposisi')}"
+              class="aduaja-btn-secondary inline-flex items-center gap-2 text-sm"
+            >
+              <i data-lucide="arrow-left" class="w-4 h-4"></i>
+              Kembali ke Disposisi
+            </a>
+            <div class="ml-4 pl-4 border-l">
+              <h1 class="text-2xl font-bold text-gray-900">
+                Detail &amp; Edit Disposisi
+              </h1>
+              <p
+                class="text-sm text-gray-600 mt-1"
+                th:text="${'Tiket: ' + selectedDisposition.id}"
+              ></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="p-6 max-w-4xl mx-auto space-y-6">
+      <div th:if="${selectedDisposition != null}" class="space-y-6">
+        <!-- Basic Info Card -->
+        <div class="aduaja-panel">
+          <div class="aduaja-card-header">
+            <h2 class="aduaja-card-title">
+              <i data-lucide="info" class="w-5 h-5"></i>
+              Informasi Laporan
+            </h2>
+          </div>
+
+          <div class="px-6 py-6">
+            <div class="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+              <div>
+                <p class="text-xs text-gray-600 font-semibold">ID Tiket</p>
+                <p
+                  class="font-mono font-semibold text-blue-600 mt-1"
+                  th:text="${selectedDisposition.id}"
+                ></p>
+              </div>
+              <div>
+                <p class="text-xs text-gray-600 font-semibold">Status</p>
+                <span
+                  class="aduaja-badge aduaja-badge-success mt-1"
+                  th:text="${selectedDisposition.status}"
+                ></span>
+              </div>
+              <div>
+                <p class="text-xs text-gray-600 font-semibold">Pelapor</p>
+                <p
+                  class="font-medium mt-1"
+                  th:text="${selectedDisposition.pelapor}"
+                ></p>
+              </div>
+              <div>
+                <p class="text-xs text-gray-600 font-semibold">Wilayah</p>
+                <p
+                  class="text-sm mt-1"
+                  th:text="${selectedDisposition.wilayah}"
+                ></p>
+              </div>
+              <div class="col-span-2">
+                <p class="text-xs text-gray-600 font-semibold">Judul Laporan</p>
+                <p
+                  class="font-medium mt-1"
+                  th:text="${selectedDisposition.judul}"
+                ></p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Disposition Form Card -->
+        <form th:action="@{/admin/disposisi}" method="post" class="space-y-6">
+          <input type="hidden" name="id" th:value="${selectedDisposition.id}" />
+
+          <!-- Dinas Tujuan -->
+          <div class="aduaja-panel">
+            <div class="aduaja-card-header">
+              <h2 class="aduaja-card-title">
+                <i data-lucide="building-2" class="w-5 h-5"></i>
+                Dinas Tujuan
+              </h2>
+              <p class="aduaja-card-subtitle">
+                Pilih dinas yang akan menangani tiket ini
+              </p>
+            </div>
+
+            <div class="px-6 py-6">
+              <div class="space-y-2">
+                <label
+                  th:each="dinas : ${dinasList}"
+                  class="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-blue-50 transition-colors"
+                >
+                  <input
+                    type="radio"
+                    name="dinasId"
+                    th:value="${dinas.id}"
+                    class="mt-1 w-4 h-4 cursor-pointer"
+                    required
+                    th:checked="${dinas.name == selectedDisposition.dinasRekomendasi}"
+                  />
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2">
+                      <i
+                        data-lucide="building-2"
+                        class="w-4 h-4 text-gray-600"
+                      ></i>
+                      <p
+                        class="font-medium text-sm"
+                        th:text="${dinas.name}"
+                      ></p>
+                    </div>
+                    <p
+                      class="text-xs text-gray-500 mt-1"
+                      th:text="|Menangani: ${#strings.listJoin(dinas.kategori, ', ')}|"
+                    ></p>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Prioritas Sistem -->
+          <div class="aduaja-panel">
+            <div class="aduaja-card-header">
+              <h2 class="aduaja-card-title">
+                <i data-lucide="zap" class="w-5 h-5"></i>
+                Tingkat Prioritas
+              </h2>
+              <p class="aduaja-card-subtitle">
+                Tentukan urgensi penanganan tiket
+              </p>
+            </div>
+
+            <div class="px-6 py-6">
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <!-- Ascending order: Rendah -> Sedang -> Tinggi -> Kritis -->
+                <label
+                  class="flex items-center justify-center p-3 border rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                >
+                  <input
+                    type="radio"
+                    name="priority"
+                    value="Rendah"
+                    class="mr-2 cursor-pointer"
+                    th:checked="${selectedDisposition.prioritasSistem == 'Rendah'}"
+                    required
+                  />
+                  <span class="text-sm font-medium">Rendah</span>
+                </label>
+                <label
+                  class="flex items-center justify-center p-3 border rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                >
+                  <input
+                    type="radio"
+                    name="priority"
+                    value="Sedang"
+                    class="mr-2 cursor-pointer"
+                    th:checked="${selectedDisposition.prioritasSistem == 'Sedang'}"
+                    required
+                  />
+                  <span class="text-sm font-medium">Sedang</span>
+                </label>
+                <label
+                  class="flex items-center justify-center p-3 border rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                >
+                  <input
+                    type="radio"
+                    name="priority"
+                    value="Tinggi"
+                    class="mr-2 cursor-pointer"
+                    th:checked="${selectedDisposition.prioritasSistem == 'Tinggi'}"
+                    required
+                  />
+                  <span class="text-sm font-medium">Tinggi</span>
+                </label>
+                <label
+                  class="flex items-center justify-center p-3 border rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                >
+                  <input
+                    type="radio"
+                    name="priority"
+                    value="Kritis"
+                    class="mr-2 cursor-pointer"
+                    th:checked="${selectedDisposition.prioritasSistem == 'Kritis'}"
+                    required
+                  />
+                  <span class="text-sm font-medium">Kritis</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Deadline -->
+          <div class="aduaja-panel">
+            <div class="aduaja-card-header">
+              <h2 class="aduaja-card-title">
+                <i data-lucide="calendar" class="w-5 h-5"></i>
+                Target Waktu Penyelesaian
+              </h2>
+              <p class="aduaja-card-subtitle">
+                Tentukan deadline penanganan tiket
+              </p>
+            </div>
+
+            <div class="px-6 py-6">
+              <input
+                id="deadline"
+                type="datetime-local"
+                name="deadline"
+                class="aduaja-input"
+                th:value="${selectedDisposition.deadline}"
+                required
+              />
+              <p class="mt-2 text-xs text-gray-500">Format: YYYY-MM-DD HH:MM</p>
+            </div>
+          </div>
+
+          <!-- Instruksi Admin -->
+          <div class="aduaja-panel">
+            <div class="aduaja-card-header">
+              <h2 class="aduaja-card-title">
+                <i data-lucide="message-square" class="w-5 h-5"></i>
+                Instruksi dan Catatan untuk Dinas
+              </h2>
+              <p class="aduaja-card-subtitle">
+                Instruksi minimal 20 karakter - berikan detail tindakan yang
+                diperlukan
+              </p>
+            </div>
+
+            <div class="px-6 py-6">
+              <textarea
+                id="instructions"
+                name="instructions"
+                rows="6"
+                class="aduaja-input"
+                placeholder="Masukkan instruksi dan catatan untuk dinas..."
+                required
+                minlength="20"
+                th:text="${selectedDisposition.instruksiAdmin}"
+              ></textarea>
+              <p class="mt-2 text-xs text-gray-500">
+                Minimum 20 karakter. Jelaskan secara detail tindakan yang harus
+                dilakukan dinas.
+              </p>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex gap-3">
+            <button
+              type="submit"
+              class="aduaja-btn-primary flex-1 flex items-center justify-center gap-2 py-3"
+            >
+              <i data-lucide="send" class="w-4 h-4"></i>
+              Kirim ke Dinas
+            </button>
+            <a
+              th:href="@{/admin/dashboard(tab='disposisi')}"
+              class="aduaja-btn-secondary flex-1 text-center py-3"
+            >
+              Batal
+            </a>
+          </div>
+        </form>
+      </div>
+
+      <!-- Empty State -->
+      <div th:if="${selectedDisposition == null}" class="aduaja-panel">
+        <div
+          class="flex flex-col items-center justify-center h-64 text-gray-400 border rounded-lg bg-gray-50"
+        >
+          <i data-lucide="alert-circle" class="w-12 h-12 mb-3"></i>
+          <p class="text-sm">Tiket tidak ditemukan</p>
+          <a
+            th:href="@{/admin/dashboard(tab='disposisi')}"
+            class="aduaja-btn-secondary text-sm mt-4"
+          >
+            Kembali ke Disposisi
+          </a>
+        </div>
+      </div>
+    </main>
+  </div>
+</html>
