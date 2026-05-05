@@ -13,30 +13,26 @@
     </style>
   </th:block>
 
-  <div
-    layout:fragment="content"
-    class="min-h-screen bg-gray-50"
-    x-data="adminDinasDashboardState()"
-  >
+  <div layout:fragment="content" class="min-h-screen bg-gray-50" x-data="{ activeTab: 'penugasan' }">
     <header class="bg-white border-b sticky top-0 z-10">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div class="flex items-center justify-between">
-          <div>
-            <h1 class="text-xl font-bold text-gray-900">
-              Dashboard Admin Dinas
-            </h1>
-            <p class="text-sm text-gray-600">
-              <span
-                class="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium bg-white"
-                th:text="${dinasName != null ? dinasName : 'Dinas Pekerjaan Umum'}"
-                >Dinas</span
-              >
-            </p>
+          <div class="flex items-center gap-2">
+            <img
+              th:src="@{/img/Adu Aja Logo.png}"
+              class="w-16 h-16 object-contain"
+              alt="Logo AduAja"
+            />
+            <div>
+              <h1 class="text-xl font-extrabold text-gray-900 tracking-tight">AduAja</h1>
+              <p class="text-sm text-gray-600">
+                <span class="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium bg-white"
+                  th:text="${dinasName != null ? dinasName : 'Dinas Pekerjaan Umum'}">Dinas</span>
+              </p>
+            </div>
           </div>
-          <form th:action="@{/admin/logout}" method="post">
-            <button
-              class="flex items-center gap-2 border border-gray-300 px-3 py-2 rounded-md text-sm hover:bg-gray-50"
-            >
+          <form th:action="@{/admin/login}" method="get">
+            <button class="flex items-center gap-2 border border-gray-300 px-3 py-2 rounded-md text-sm hover:bg-gray-50">
               <i data-lucide="log-out" class="w-4 h-4"></i>
               Logout
             </button>
@@ -47,24 +43,14 @@
 
     <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div
-          th:each="stat : ${stats}"
-          class="bg-white rounded-xl border border-gray-100 shadow-sm p-6"
-        >
+        <div th:each="stat : ${stats}" class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
           <div class="flex items-center justify-between">
             <div>
               <p
                 class="text-sm font-medium text-gray-600"
                 th:text="${stat.title}"
-              >
-                Judul
-              </p>
-              <h3
-                class="text-3xl font-bold mt-2 text-gray-900"
-                th:text="${stat.value}"
-              >
-                0
-              </h3>
+              >Judul</p>
+              <h3 class="text-3xl font-bold mt-2 text-gray-900" th:text="${stat.value}">0</h3>
             </div>
             <div th:class="|p-3 rounded-lg ${stat.bgColor}|">
               <i
@@ -80,8 +66,9 @@
         <div class="flex items-start gap-2">
           <i data-lucide="building-2" class="h-4 w-4 text-green-600 mt-0.5"></i>
           <div class="text-green-800 text-sm">
-            <strong class="text-gray-900">Peran Admin Dinas:</strong> Mengelola
-            penugasan petugas dan sengketa
+            <strong class="text-gray-900">Peran Admin Dinas:</strong> Menerima laporan dari disposisi
+            Admin Pusat -> Tugaskan ke Petugas Lapangan (FR-PRS) -> Handle
+            sengketa dari warga (FR-RSL)
           </div>
         </div>
       </div>
@@ -91,89 +78,63 @@
           class="grid w-full grid-cols-2 lg:w-auto bg-gray-100 text-gray-700 rounded-xl p-1"
         >
           <button
-            x-on:click="setTab('penugasan')"
-            :class="activeTab === 'penugasan' ? 'aduaja-tab-active' : ''"
+            x-on:click="activeTab = 'penugasan'"
+            :class="activeTab === 'penugasan' ? 'bg-white text-gray-900' : ''"
             class="flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium"
           >
             <i data-lucide="user-plus" class="w-4 h-4"></i>
-            Penugasan Petugas
+            Penugasan Petugas (FR-PRS)
           </button>
           <button
-            x-on:click="setTab('sengketa')"
-            :class="activeTab === 'sengketa' ? 'aduaja-tab-active' : ''"
+            x-on:click="activeTab = 'sengketa'"
+            :class="activeTab === 'sengketa' ? 'bg-white text-gray-900' : ''"
             class="flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium"
           >
             <i data-lucide="alert-triangle" class="w-4 h-4"></i>
-            Sengketa
+            Sengketa (FR-RSL-11 s/d 13)
           </button>
         </div>
 
         <section x-show="activeTab === 'penugasan'" x-cloak>
           <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-            <h2 class="text-lg font-semibold text-gray-900 mb-2">
-              Penugasan Petugas
-            </h2>
+            <h2 class="text-lg font-semibold text-gray-900 mb-2">Penugasan Petugas</h2>
             <p class="text-sm text-gray-600 mb-4">
               Tetapkan petugas lapangan untuk menangani laporan yang masuk.
             </p>
 
             <div class="space-y-3">
-              <div
-                th:each="report : ${pendingAssignments}"
-                class="border rounded-lg p-4 hover:bg-gray-50"
-              >
+              <div th:each="report : ${pendingAssignments}" class="border rounded-lg p-4 hover:bg-gray-50">
                 <div class="flex items-start justify-between mb-3">
                   <div>
-                    <span
-                      class="font-mono text-sm font-semibold text-blue-600"
-                      th:text="${report['id']}"
-                      >ID</span
-                    >
-                    <h4
-                      class="font-medium text-gray-900 mt-1"
-                      th:text="${report['judul']}"
-                    >
-                      Judul
-                    </h4>
+                    <span class="font-mono text-sm font-semibold text-blue-600" th:text="${report['id']}">ID</span>
+                    <h4 class="font-medium text-gray-900 mt-1" th:text="${report['judul']}">Judul</h4>
                     <p class="text-xs text-gray-500 mt-1">
-                      <span th:text="${report['kategori']}">Kategori</span>
-                      &middot;
+                      <span th:text="${report['kategori']}">Kategori</span> &middot;
                       <span th:text="${report['prioritas']}">Prioritas</span>
                     </p>
                   </div>
-                  <span
-                    class="text-xs px-2 py-1 rounded bg-red-100 text-red-700 font-medium"
+                  <span class="text-xs px-2 py-1 rounded bg-red-100 text-red-700 font-medium"
                     th:if="${report['slaStatus'] == 'Terlambat'}"
-                    >Terlambat SLA</span
-                  >
-                  <span
-                    class="text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-700 font-medium"
+                    >Terlambat SLA</span>
+                  <span class="text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-700 font-medium"
                     th:if="${report['slaStatus'] != 'Terlambat'}"
-                    th:text="${report['slaStatus']}"
-                    >SLA</span
-                  >
+                    th:text="${report['slaStatus']}">SLA</span>
                 </div>
 
-                <!-- Move assignment to detail page: open detail to allocate petugas -->
-                <div class="flex items-center gap-3">
-                  <a
-                    th:href="@{/admin/dinas/penugasan(id=${report['id']})}"
-                    class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 inline-flex items-center gap-2"
-                  >
-                    <i data-lucide="eye" class="w-4 h-4"></i>
-                    Lihat Detail
-                  </a>
-                </div>
+                <form th:action="@{/admin/dinas/penugasan}" method="post" class="flex items-center gap-3">
+                  <input type="hidden" name="id" th:value="${report['id']}" />
+                  <select name="petugasId" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm" required>
+                    <option value="">Pilih Petugas</option>
+                    <option th:each="p : ${availablePetugas}" th:value="${p['id']}" th:text="${p['name']}">Petugas</option>
+                  </select>
+                  <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+                    Tugaskan
+                  </button>
+                </form>
               </div>
 
-              <div
-                th:if="${#lists.isEmpty(pendingAssignments)}"
-                class="text-center py-8 text-gray-400"
-              >
-                <i
-                  data-lucide="clipboard-list"
-                  class="w-12 h-12 mx-auto mb-3"
-                ></i>
+              <div th:if="${#lists.isEmpty(pendingAssignments)}" class="text-center py-8 text-gray-400">
+                <i data-lucide="clipboard-list" class="w-12 h-12 mx-auto mb-3"></i>
                 <p class="text-sm">Tidak ada laporan yang perlu ditugaskan</p>
               </div>
             </div>
@@ -182,19 +143,15 @@
 
         <section x-show="activeTab === 'sengketa'" x-cloak>
           <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-            <h2 class="text-lg font-semibold text-gray-900 mb-2">
-              Resolusi Sengketa
-            </h2>
+            <h2 class="text-lg font-semibold text-gray-900 mb-2">Sengketa</h2>
             <p class="text-sm text-gray-600 mb-4">
-              Kelola sengketa yang masuk dari warga dan lakukan evaluasi
-              berdasarkan bukti foto.
+              Kelola sengketa yang masuk dan lakukan resolusi.
             </p>
             <a
-              th:href="@{/admin/dinas/sengketa}"
-              class="inline-flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-700"
+              th:href="@{/admin/sengketa}"
+              class="inline-flex items-center gap-2 border border-gray-300 px-3 py-2 rounded-md text-sm hover:bg-gray-50"
             >
-              <i data-lucide="scale" class="w-4 h-4"></i>
-              Buka Panel Resolusi Sengketa
+              Buka Panel Sengketa
             </a>
           </div>
         </section>

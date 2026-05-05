@@ -12,14 +12,14 @@
     <header class="bg-white shadow-sm sticky top-0 z-10">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
-          <div class="flex items-center gap-3">
-            <div
-              class="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center"
-            >
-              <span class="text-white font-bold text-lg">A</span>
-            </div>
+          <div class="flex items-center gap-2">
+            <img
+              th:src="@{/img/Adu Aja Logo.png}"
+              class="w-16 h-16 object-contain"
+              alt="Logo AduAja"
+            />
             <div>
-              <h1 class="text-xl font-bold text-gray-900">AduAja</h1>
+              <h1 class="text-2xl font-extrabold text-gray-900 tracking-tight">AduAja</h1>
               <p class="text-xs text-gray-500 hidden sm:block">
                 Pengaduan Masyarakat
               </p>
@@ -165,9 +165,10 @@
           class="space-y-4"
           th:if="${recentReports != null and !#lists.isEmpty(recentReports)}"
         >
-          <div
+          <a
             th:each="report : ${recentReports}"
-            class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
+            th:href="@{/warga/report-detail(id=${report['id']})}"
+            class="block bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
           >
             <div
               class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3"
@@ -181,18 +182,18 @@
                 <div class="flex-1 min-w-0">
                   <h4
                     class="font-semibold text-gray-900 mb-1 truncate"
-                    th:text="${report.title}"
+                    th:text="${report['title']}"
                   >
                     Judul
                   </h4>
-                  <p class="text-sm text-gray-500" th:text="${report.category}">
+                  <p class="text-sm text-gray-500" th:text="${report['category']}">
                     Kategori
                   </p>
                 </div>
               </div>
               <span
-                th:class="|px-3 py-1 rounded-full text-xs font-medium ${report.statusColor} whitespace-nowrap self-start sm:self-center|"
-                th:text="${report.status}"
+                th:class="|px-3 py-1 rounded-full text-xs font-medium ${report['statusColor']} whitespace-nowrap self-start sm:self-center|"
+                th:text="${report['status']}"
                 >Status</span
               >
             </div>
@@ -200,18 +201,18 @@
               class="flex flex-wrap items-center gap-4 text-sm text-gray-500"
             >
               <span class="flex items-center gap-1">
-                <span class="font-medium text-gray-700" th:text="${report.id}"
+                <span class="font-medium text-gray-700" th:text="${report['id']}"
                   >ID</span
                 >
               </span>
               <span>&bull;</span>
-              <span th:text="${report.location}">Lokasi</span>
+              <span th:text="${report['location']}">Lokasi</span>
               <span>&bull;</span>
-              <span th:text="${#temporals.format(report.date, 'd MMMM yyyy')}"
+              <span th:text="${#temporals.format(report['date'], 'd MMMM yyyy')}"
                 >Tanggal</span
               >
             </div>
-          </div>
+          </a>
         </div>
 
         <div

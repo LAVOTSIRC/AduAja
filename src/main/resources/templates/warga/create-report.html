@@ -6,44 +6,44 @@
 >
   <th:block layout:fragment="extraHead">
     <title>AduAja - Buat Laporan</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+      #map { height: 300px; z-index: 1; }
+      [x-cloak] { display: none !important; }
+      #cameraModal { display: none !important; }
+      #cameraModal.camera-active { display: flex !important; }
+      .cam-grid-overlay {
+        background-image: linear-gradient(to right, rgba(255,255,255,0.3) 1px, transparent 1px),
+                          linear-gradient(to bottom, rgba(255,255,255,0.3) 1px, transparent 1px);
+        background-size: 33.33% 33.33%;
+      }
+      .zoom-slider { -webkit-appearance: none; appearance: none; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; outline: none; }
+      .zoom-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: white; cursor: pointer; border: 2px solid rgba(0,0,0,0.3); }
+    </style>
   </th:block>
 
   <div layout:fragment="content" class="min-h-screen bg-gray-50">
     <header class="bg-white shadow-sm sticky top-0 z-10">
       <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center gap-3 h-16">
-          <a
-            th:href="@{/warga/dashboard}"
-            class="p-2 hover:bg-gray-100 rounded-lg"
-          >
+          <a th:href="@{/warga/dashboard}" class="p-2 hover:bg-gray-100 rounded-lg">
             <i data-lucide="arrow-left" class="w-5 h-5 text-gray-600"></i>
           </a>
           <div>
             <h1 class="font-bold text-gray-900">Buat Laporan Baru</h1>
-            <p class="text-xs text-gray-500">
-              Laporkan kerusakan infrastruktur
-            </p>
+            <p class="text-xs text-gray-500">Laporkan kerusakan infrastruktur</p>
           </div>
         </div>
       </div>
     </header>
 
-    <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <form
-        th:action="@{/warga/dashboard}"
-        method="get"
-        enctype="multipart/form-data"
-        class="space-y-6"
-      >
+    <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6" x-data="reportForm()" x-init="initMap()">
+      <form th:action="@{/warga/create-report}" method="post" enctype="multipart/form-data" class="space-y-6">
+        <input type="hidden" name="photoData" :value="photoBase64" />
+
         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <label class="block text-sm font-medium text-gray-900 mb-2">
-            Kategori Laporan <span class="text-red-500">*</span>
-          </label>
-          <select
-            name="category"
-            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            required
-          >
+          <label class="block text-sm font-medium text-gray-900 mb-2">Kategori Laporan <span class="text-red-500">*</span></label>
+          <select name="category" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
             <option value="">Pilih kategori</option>
             <option value="Infrastruktur Jalan">Infrastruktur Jalan</option>
             <option value="Listrik Publik">Listrik Publik</option>
@@ -54,136 +54,329 @@
         </div>
 
         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <label class="block text-sm font-medium text-gray-900 mb-2">
-            Foto Laporan <span class="text-red-500">*</span>
-          </label>
-          <div
-            class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4"
-          >
-            <p class="text-sm text-yellow-800 flex items-start gap-2">
-              <i
-                data-lucide="alert-circle"
-                class="w-4 h-4 mt-0.5 flex-shrink-0"
-              ></i>
-              <span>
-                <strong>Wajib menggunakan kamera:</strong> Foto harus diambil
-                langsung menggunakan kamera perangkat Anda, bukan dari
-                galeri/file.
-              </span>
+          <label class="block text-sm font-medium text-gray-900 mb-2">Foto Laporan <span class="text-red-500">*</span></label>
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+            <p class="text-sm text-blue-800 flex items-start gap-2">
+              <i data-lucide="info" class="w-4 h-4 mt-0.5 flex-shrink-0"></i>
+              <span><strong>Foto langsung dari kamera:</strong> Tekan tombol kamera di bawah untuk mengambil foto di lokasi kejadian.</span>
             </p>
           </div>
 
-          <div class="relative">
-            <label class="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-blue-300 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-all bg-gradient-to-br from-blue-50 to-white"
-            >
-              <div
-                class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-4"
-              >
-                <i data-lucide="camera" class="w-10 h-10 text-blue-600"></i>
+          <div x-show="photoTaken" x-cloak class="mb-4">
+            <div class="relative rounded-lg overflow-hidden border-2 border-green-300">
+              <img :src="photoUrl" class="w-full h-64 object-cover" alt="Foto laporan" />
+              <div class="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Foto berhasil diambil
               </div>
-              <p class="text-base font-semibold text-blue-900 mb-1">
-                Buka Kamera
-              </p>
-              <p class="text-sm text-blue-600 mb-1">
-                Ambil foto kerusakan secara langsung
-              </p>
-              <p class="text-xs text-gray-500 px-6 text-center">
-                Klik untuk mengakses kamera perangkat Anda
-              </p>
-              <input
-                type="file"
-                name="photo"
-                accept="image/*"
-                capture="environment"
-                class="hidden"
-                required
-              />
-            </label>
+              <div class="absolute top-2 right-2 flex gap-2">
+                <button type="button" @click="openCamera()" class="bg-blue-500 text-white rounded-full p-1.5 hover:bg-blue-600">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+                </button>
+                <button type="button" @click="removePhoto()" class="bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                </button>
+              </div>
+            </div>
           </div>
+
+          <button type="button" @click="openCamera()" class="w-full flex flex-col items-center justify-center py-8 border-2 border-dashed border-blue-300 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-all bg-gradient-to-br from-blue-50 to-white" :class="{ 'hidden': photoTaken }">
+            <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
+            </div>
+            <p class="text-base font-semibold text-blue-900 mb-1">Buka Kamera</p>
+            <p class="text-sm text-blue-600">Ambil foto kerusakan secara langsung</p>
+          </button>
         </div>
 
-        <div
-          class="bg-white p-6 rounded-xl shadow-sm border border-gray-100"
-          x-data="{ count: 0 }"
-          x-init="count = $el.querySelector('textarea').value.length"
-        >
-          <label class="block text-sm font-medium text-gray-900 mb-2">
-            Deskripsi Kerusakan <span class="text-red-500">*</span>
-          </label>
-          <textarea
-            name="description"
-            rows="5"
-            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-            placeholder="Jelaskan detail kerusakan (minimal 20 karakter)"
-            x-on:input="count = $event.target.value.length"
-          ></textarea>
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100" x-data="{ count: 0 }" x-init="count = $el.querySelector('textarea').value.length">
+          <label class="block text-sm font-medium text-gray-900 mb-2">Deskripsi Kerusakan <span class="text-red-500">*</span></label>
+          <textarea name="description" rows="5" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none" placeholder="Jelaskan detail kerusakan (minimal 20 karakter)" x-on:input="count = $event.target.value.length" required></textarea>
           <div class="flex justify-between items-center mt-2">
-            <p
-              class="text-xs text-gray-500"
-              x-text="count + '/20 karakter minimum'"
-            ></p>
+            <p class="text-xs" :class="count >= 20 ? 'text-green-600' : 'text-red-500'" x-text="count + '/20 karakter minimum'"></p>
           </div>
         </div>
 
         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <label class="block text-sm font-medium text-gray-900 mb-2">
-            Lokasi <span class="text-red-500">*</span>
-          </label>
-
+          <label class="block text-sm font-medium text-gray-900 mb-2">Lokasi <span class="text-red-500">*</span></label>
           <div class="mb-4">
-            <label class="block text-sm text-gray-600 mb-2"
-              >Patokan Lokasi</label
-            >
-            <input
-              type="text"
-              name="landmark"
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Contoh: Dekat Indomaret"
-            />
+            <label class="block text-sm text-gray-600 mb-2">Patokan Lokasi</label>
+            <input type="text" name="landmark" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Contoh: Dekat Indomaret" />
           </div>
-
-          <button
-            type="button"
-            class="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-          >
+          <div id="map" class="rounded-lg border border-gray-200 mb-4"></div>
+          <button type="button" @click="getLocation()" class="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 mb-4">
             <i data-lucide="map-pin" class="w-5 h-5"></i>
-            Ambil Koordinat GPS
+            <span x-text="loadingGps ? 'Mengambil lokasi...' : 'Ambil Koordinat GPS'"></span>
           </button>
-
-          <div class="mt-4">
-            <div class="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <p class="text-gray-600">Latitude:</p>
-                <input
-                  type="text"
-                  name="latitude"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono"
-                />
-              </div>
-              <div>
-                <p class="text-gray-600">Longitude:</p>
-                <input
-                  type="text"
-                  name="longitude"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono"
-                />
-              </div>
+          <div class="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <p class="text-gray-600">Latitude:</p>
+              <input type="text" name="latitude" x-model="lat" class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono" readonly />
+            </div>
+            <div>
+              <p class="text-gray-600">Longitude:</p>
+              <input type="text" name="longitude" x-model="lng" class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono" readonly />
             </div>
           </div>
         </div>
 
         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-          <button
-            type="submit"
-            class="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-lg font-medium hover:shadow-lg transition-shadow"
-          >
-            Kirim Laporan
-          </button>
-          <p class="text-xs text-gray-500 text-center mt-3">
-            Pastikan semua informasi sudah benar sebelum mengirim
-          </p>
+          <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-4 rounded-lg font-medium hover:shadow-lg transition-shadow">Kirim Laporan</button>
+          <p class="text-xs text-gray-500 text-center mt-3">Pastikan semua informasi sudah benar sebelum mengirim</p>
         </div>
       </form>
     </main>
+
+    <!-- CAMERA MODAL (Inside content fragment so Thymeleaf doesn't strip it) -->
+    <div id="cameraModal" class="fixed inset-0 bg-black flex flex-col" style="z-index: 99999;">
+      <!-- Top Bar -->
+      <div class="flex items-center justify-between px-4 py-3 bg-black/60 backdrop-blur-sm relative z-10">
+        <button type="button" id="camCloseBtn" class="w-10 h-10 rounded-full bg-black/40 flex items-center justify-center text-white active:bg-white/30">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+        <div class="flex items-center gap-3">
+          <button type="button" id="camGridBtn" class="w-10 h-10 rounded-full bg-black/40 flex items-center justify-center text-white active:bg-white/30">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>
+          </button>
+          <button type="button" id="camFlashBtn" class="w-10 h-10 rounded-full bg-black/40 flex items-center justify-center text-white active:bg-white/30">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          </button>
+          <button type="button" id="camSwitchBtn" class="w-10 h-10 rounded-full bg-black/40 flex items-center justify-center text-white active:bg-white/30">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Viewfinder -->
+      <div class="flex-1 relative overflow-hidden bg-black">
+        <video id="cameraVideo" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
+        <div id="camGridOverlay" class="absolute inset-0 pointer-events-none hidden cam-grid-overlay"></div>
+        <div id="camFlashOverlay" class="absolute inset-0 bg-white pointer-events-none" style="opacity: 0; transition: opacity 0.3s;"></div>
+        <div id="camZoomLabel" class="absolute top-4 left-1/2 -translate-x-1/2 bg-black/50 text-white text-xs px-3 py-1 rounded-full hidden">1.0x</div>
+      </div>
+
+      <!-- Zoom Slider -->
+      <div class="px-8 py-2 bg-black/60 backdrop-blur-sm relative z-10">
+        <div class="flex items-center gap-3 text-white text-xs">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+          <input type="range" id="camZoomSlider" min="1" max="5" step="0.1" value="1" class="zoom-slider flex-1" />
+          <span id="camZoomValue" class="w-10 text-center font-mono">1.0x</span>
+        </div>
+      </div>
+
+      <!-- Bottom Controls -->
+      <div class="flex items-center justify-around px-8 py-6 bg-black/60 backdrop-blur-sm relative z-10">
+        <button type="button" id="camGalleryBtn" class="w-12 h-12 rounded-xl bg-black/40 flex items-center justify-center text-white active:bg-white/30 overflow-hidden border border-white/20">
+          <div id="camGalleryThumb" class="w-full h-full bg-gray-700 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="M21 15l-5-5L5 21"></path></svg>
+          </div>
+        </button>
+
+        <!-- Capture Button -->
+        <button type="button" id="camCaptureBtn" class="bg-white rounded-full flex items-center justify-center active:scale-90 transition-transform border-4 border-gray-300 shadow-xl" style="width: 72px; height: 72px;">
+          <div class="bg-red-500 rounded-full active:bg-red-600 transition-colors" style="width: 56px; height: 56px;"></div>
+        </button>
+
+        <div class="w-12 h-12"></div>
+      </div>
+
+      <!-- Preview Overlay -->
+      <div id="camPreviewOverlay" class="absolute inset-0 bg-black flex flex-col items-center justify-center p-4 hidden" style="z-index: 99998;">
+        <img id="camPreviewImg" src="" class="w-full max-w-md rounded-lg mb-6 shadow-2xl" alt="Preview" />
+        <div class="flex gap-4">
+          <button type="button" id="camRetakeBtn" class="px-6 py-3 bg-gray-600 text-white rounded-xl font-medium hover:bg-gray-700 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg> Ulangi
+          </button>
+          <button type="button" id="camConfirmBtn" class="px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Gunakan Foto
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
+
+  <th:block layout:fragment="extraScripts">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+      function reportForm() {
+        return {
+          lat: '', lng: '', map: null, marker: null, loadingGps: false,
+          photoTaken: false, photoUrl: '', photoBase64: '',
+          cameraOpen: false, cameraStream: null, facingMode: 'environment',
+          zoomLevel: 1, flashOn: false, gridOn: false,
+
+          initMap() {
+            this.map = L.map('map').setView([3.5952, 98.6722], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(this.map);
+            this.map.on('click', (e) => this.setMarker(e.latlng.lat, e.latlng.lng));
+            setTimeout(() => { this.map.invalidateSize(); }, 200);
+          },
+          setMarker(lat, lng) {
+            this.lat = lat.toFixed(6);
+            this.lng = lng.toFixed(6);
+            if (this.marker) { this.marker.setLatLng([lat, lng]); }
+            else {
+              this.marker = L.marker([lat, lng], { draggable: true }).addTo(this.map);
+              this.marker.on('dragend', (e) => {
+                this.lat = e.target.getLatLng().lat.toFixed(6);
+                this.lng = e.target.getLatLng().lng.toFixed(6);
+              });
+            }
+            this.map.setView([lat, lng], 15);
+          },
+          getLocation() {
+            this.loadingGps = true;
+            if (navigator.geolocation) {
+              navigator.geolocation.getCurrentPosition(
+                (pos) => { this.setMarker(pos.coords.latitude, pos.coords.longitude); this.loadingGps = false; },
+                (err) => { alert('Gagal mengambil lokasi. Pastikan GPS aktif.'); this.loadingGps = false; },
+                { enableHighAccuracy: true }
+              );
+            } else { alert('Browser tidak mendukung Geolocation.'); this.loadingGps = false; }
+          },
+          openCamera() { startCamera(this); },
+          removePhoto() { this.photoTaken = false; this.photoUrl = ''; this.photoBase64 = ''; }
+        };
+      }
+
+      // Global camera state
+      let camState = {
+        stream: null, facingMode: 'environment', zoom: 1, flash: false, grid: false,
+        photoUrl: '', photoBase64: '', parentScope: null
+      };
+
+      function startCamera(scope) {
+        camState.parentScope = scope;
+        const modal = document.getElementById('cameraModal');
+        const video = document.getElementById('cameraVideo');
+        if (!modal || !video) { alert('Camera UI error'); return; }
+
+        // Stop previous stream
+        if (camState.stream) {
+          camState.stream.getTracks().forEach(t => t.stop());
+          camState.stream = null;
+        }
+
+        // Show modal first
+        modal.classList.add('camera-active');
+        document.body.style.overflow = 'hidden';
+
+        // Then start camera
+        navigator.mediaDevices.getUserMedia({
+          video: { facingMode: camState.facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
+          audio: false
+        }).then(stream => {
+          camState.stream = stream;
+          video.srcObject = stream;
+          video.play().catch(e => console.error('Play error:', e));
+
+          // Reset UI
+          document.getElementById('camPreviewOverlay').classList.add('hidden');
+          document.getElementById('camGridOverlay').classList.toggle('hidden', !camState.grid);
+          updateZoomUI();
+        }).catch(err => {
+          modal.classList.remove('camera-active');
+          document.body.style.overflow = '';
+          if (err.name === 'NotAllowedError') alert('Akses kamera ditolak. Izinkan di pengaturan browser.');
+          else if (err.name === 'NotFoundError') alert('Kamera tidak ditemukan.');
+          else alert('Gagal membuka kamera: ' + err.message);
+        });
+      }
+
+      function stopCamera() {
+        if (camState.stream) {
+          camState.stream.getTracks().forEach(t => t.stop());
+          camState.stream = null;
+        }
+        const video = document.getElementById('cameraVideo');
+        if (video) video.srcObject = null;
+        const modal = document.getElementById('cameraModal');
+        if (modal) modal.classList.remove('camera-active');
+        document.body.style.overflow = '';
+      }
+
+      function capturePhoto() {
+        const video = document.getElementById('cameraVideo');
+        if (!video || !video.videoWidth) return;
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        camState.photoBase64 = canvas.toDataURL('image/jpeg', 0.85);
+        camState.photoUrl = camState.photoBase64;
+
+        // Flash effect
+        const flash = document.getElementById('camFlashOverlay');
+        flash.style.opacity = '1';
+        setTimeout(() => { flash.style.opacity = '0'; }, 300);
+
+        // Show preview
+        document.getElementById('camPreviewImg').src = camState.photoUrl;
+        document.getElementById('camPreviewOverlay').classList.remove('hidden');
+      }
+
+      function confirmPhoto() {
+        if (camState.parentScope) {
+          camState.parentScope.photoUrl = camState.photoUrl;
+          camState.parentScope.photoBase64 = camState.photoBase64;
+          camState.parentScope.photoTaken = true;
+        }
+        // Update gallery thumb
+        const thumb = document.getElementById('camGalleryThumb');
+        thumb.innerHTML = '<img src="' + camState.photoUrl + '" class="w-full h-full object-cover" />';
+        stopCamera();
+      }
+
+      function retakePhoto() {
+        document.getElementById('camPreviewOverlay').classList.add('hidden');
+      }
+
+      function switchCamera() {
+        camState.facingMode = camState.facingMode === 'environment' ? 'user' : 'environment';
+        startCamera(camState.parentScope);
+      }
+
+      function updateZoomUI() {
+        const slider = document.getElementById('camZoomSlider');
+        const label = document.getElementById('camZoomValue');
+        const zoomLabel = document.getElementById('camZoomLabel');
+        if (slider) slider.value = camState.zoom;
+        if (label) label.textContent = camState.zoom.toFixed(1) + 'x';
+        // Apply digital zoom via CSS transform
+        const video = document.getElementById('cameraVideo');
+        if (video) video.style.transform = 'scale(' + camState.zoom + ')';
+      }
+
+      // Initialize event listeners (script runs at bottom of body, DOM is ready)
+      (function() {
+        document.getElementById('camCloseBtn').addEventListener('click', stopCamera);
+        document.getElementById('camCaptureBtn').addEventListener('click', capturePhoto);
+        document.getElementById('camRetakeBtn').addEventListener('click', retakePhoto);
+        document.getElementById('camConfirmBtn').addEventListener('click', confirmPhoto);
+        document.getElementById('camSwitchBtn').addEventListener('click', switchCamera);
+
+        document.getElementById('camGridBtn').addEventListener('click', function() {
+          camState.grid = !camState.grid;
+          document.getElementById('camGridOverlay').classList.toggle('hidden', !camState.grid);
+          this.style.backgroundColor = camState.grid ? 'rgba(59, 130, 246, 0.5)' : 'rgba(0,0,0,0.4)';
+        });
+
+        document.getElementById('camFlashBtn').addEventListener('click', function() {
+          camState.flash = !camState.flash;
+          this.style.backgroundColor = camState.flash ? 'rgba(59, 130, 246, 0.5)' : 'rgba(0,0,0,0.4)';
+        });
+
+        document.getElementById('camZoomSlider').addEventListener('input', function() {
+          camState.zoom = parseFloat(this.value);
+          updateZoomUI();
+          const zoomLabel = document.getElementById('camZoomLabel');
+          zoomLabel.classList.remove('hidden');
+          zoomLabel.textContent = camState.zoom.toFixed(1) + 'x';
+          clearTimeout(zoomLabel._timeout);
+          zoomLabel._timeout = setTimeout(() => zoomLabel.classList.add('hidden'), 1000);
+        });
+      })();
+    </script>
+  </th:block>
 </html>

@@ -13,36 +13,53 @@
     </style>
   </th:block>
 
-  <div layout:fragment="content" class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100" th:attr="x-data=|adminDashboardState('${userRole}')|">
-    <header class="aduaja-header sticky top-0 z-20">
-      <div class="px-6 py-5">
+  <div layout:fragment="content" class="min-h-screen bg-gray-50" x-data="{ activeTab: 'queue', showFilters: false }">
+    <header class="bg-white border-b sticky top-0 z-10">
+      <div class="px-6 py-4">
         <div class="flex items-center justify-between">
-          <div>
-            <h1 class="text-3xl font-bold text-gray-900">
-              Dashboard Admin AduAja
-            </h1>
-            <p class="text-sm text-gray-600 mt-1">
-              <span
-                class="aduaja-badge aduaja-badge-primary"
-                th:text="${userRole == 'admin_dinas' ? 'Administrator Dinas' : 'Administrator Pusat'}"
-                >Administrator</span
-              >
-            </p>
+          <div class="flex items-center gap-2">
+            <img
+              th:src="@{/img/Adu Aja Logo.png}"
+              class="w-16 h-16 object-contain"
+              alt="Logo AduAja"
+            />
+            <div>
+              <h1 class="text-2xl font-extrabold text-gray-900 tracking-tight">AduAja</h1>
+              <p class="text-sm text-gray-600">
+                <span
+                  class="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700 border-blue-200"
+                  th:text="${userRole == 'admin_dinas' ? 'Administrator Dinas' : 'Administrator Pusat'}"
+                  >Administrator</span
+                >
+              </p>
+            </div>
           </div>
+          <form th:action="@{/admin/login}" method="get">
+            <button
+              class="flex items-center gap-2 border border-gray-300 px-3 py-2 rounded-md text-sm hover:bg-gray-50"
+            >
+              <i data-lucide="log-out" class="w-4 h-4"></i>
+              Logout
+            </button>
+          </form>
         </div>
       </div>
     </header>
 
-    <main class="p-6 max-w-[1400px] mx-auto space-y-6">
-      <!-- Stats Section -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div th:each="stat : ${stats}" class="aduaja-stat-card">
-          <div class="flex items-start justify-between">
-            <div class="flex-1">
-              <p class="aduaja-stat-label" th:text="${stat.title}">Judul</p>
-              <h3 class="aduaja-stat-value" th:text="${stat.value}">0</h3>
+    <main class="p-6 max-w-[1400px] mx-auto">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div th:each="stat : ${stats}" class="bg-white rounded-xl border p-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <p
+                class="text-sm font-medium text-gray-600"
+                th:text="${stat.title}"
+              >
+                Judul
+              </p>
+              <h3 class="text-3xl font-bold mt-2" th:text="${stat.value}">0</h3>
             </div>
-            <div th:class="|aduaja-stat-icon ${stat.bgColor}|">
+            <div th:class="|p-3 rounded-lg ${stat.bgColor}|">
               <i
                 th:attr="data-lucide=${stat.icon}"
                 th:class="|w-6 h-6 ${stat.color}|"
@@ -52,115 +69,133 @@
         </div>
       </div>
 
-      <!-- Info Banner -->
-      <div th:classappend="${userRole == 'admin_dinas'} ? 'aduaja-info-box accent' : 'aduaja-info-box'" class="aduaja-info-box">
-        <div class="flex items-start gap-3">
+      <div class="mb-6 p-4 rounded-lg border"
+        th:classappend="${userRole == 'admin_dinas'} ? 'border-green-200 bg-green-50' : 'border-blue-200 bg-blue-50'">
+        <div class="flex items-start gap-2">
           <i
             th:attr="data-lucide=${userRole == 'admin_dinas' ? 'building-2' : 'shield'}"
-            class="h-5 w-5 flex-shrink-0 mt-0.5"
-            th:classappend="${userRole == 'admin_dinas'} ? 'text-teal-600' : 'text-blue-600'"
+            th:class="|h-5 w-5 mt-0.5 ${userRole == 'admin_dinas' ? 'text-green-600' : 'text-blue-600'}|"
           ></i>
-          <div class="text-sm" th:classappend="${userRole == 'admin_dinas'} ? 'text-teal-800' : 'text-blue-800'">
+          <div class="text-sm" th:class="${userRole == 'admin_dinas'} ? 'text-green-800' : 'text-blue-800'">
             <div th:if="${userRole == 'admin_dinas'}">
-              <strong>Peran Admin Dinas:</strong> Mengelola penugasan petugas dan proses penutupan tiket
+              <strong>Peran Admin Dinas:</strong> Menerima laporan dari disposisi
+              Admin Pusat -> Tugaskan ke Petugas Lapangan (FR-PRS) -> Monitor progress ->
+              Penutupan tiket dengan bukti penyelesaian (FR-CLS)
             </div>
             <div th:if="${userRole != 'admin_dinas'}">
-              <strong>Peran Admin Pusat:</strong> Validator dan Dispatcher - Mengelola validasi, penggabungan duplikat, dan disposisi laporan
+              <strong>Peran Admin Pusat:</strong> Validator dan Dispatcher -
+              Menerima laporan dari warga -> Validasi (FR-ADM-05 s/d 10) ->
+              Deteksi dan merge duplikat (FR-ADM-11 s/d 18) -> Disposisi ke dinas
+              tujuan (FR-DSP-01 s/d 06)
             </div>
           </div>
         </div>
       </div>
 
-
-
-      <div class="space-y-6">
-        <!-- Tabs Navigation -->
-        <div class="flex flex-wrap gap-2">
-          <!-- Tabs untuk Admin Pusat -->
-          <div
-            th:if="${userRole != 'admin_dinas'}"
-            class="flex gap-2 p-1 bg-gray-100 rounded-lg"
+      <div class="space-y-4">
+        <!-- Tabs untuk Admin Pusat -->
+        <div
+          th:if="${userRole != 'admin_dinas'}"
+          class="grid w-full grid-cols-4 lg:w-auto bg-gray-100 text-gray-700 rounded-xl p-1"
+        >
+          <button
+            x-on:click="activeTab = 'queue'"
+            :class="activeTab === 'queue' ? 'bg-white text-gray-900' : ''"
+            class="flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium"
           >
-            <button
-              x-on:click="setTab('queue')"
-              :class="activeTab === 'queue' ? 'aduaja-tab-active' : 'text-gray-600 hover:text-gray-900'"
-              class="flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-semibold transition-all"
-            >
-              <i data-lucide="file-text" class="w-4 h-4"></i>
-              Antrean Laporan
-            </button>
-            <button
-              x-on:click="setTab('merge')"
-              :class="activeTab === 'merge' ? 'aduaja-tab-active' : 'text-gray-600 hover:text-gray-900'"
-              class="flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-semibold transition-all"
-            >
-              <i data-lucide="git-merge" class="w-4 h-4"></i>
-              Merge Tiket
-            </button>
-            <button
-              x-on:click="setTab('disposisi')"
-              :class="activeTab === 'disposisi' ? 'aduaja-tab-active' : 'text-gray-600 hover:text-gray-900'"
-              class="flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-semibold transition-all"
-            >
-              <i data-lucide="send" class="w-4 h-4"></i>
-              Disposisi
-            </button>
-          </div>
-
-          <!-- Tabs untuk Admin Dinas -->
-          <div
-            th:if="${userRole == 'admin_dinas'}"
-            class="flex gap-2 p-1 bg-gray-100 rounded-lg"
+            <i data-lucide="file-text" class="w-4 h-4"></i>
+            Antrean Laporan
+          </button>
+          <button
+            x-on:click="activeTab = 'validation'"
+            :class="activeTab === 'validation' ? 'bg-white text-gray-900' : ''"
+            class="flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium"
           >
-            <button
-              x-on:click="setTab('penugasan')"
-              :class="activeTab === 'penugasan' ? 'aduaja-tab-active' : 'text-gray-600 hover:text-gray-900'"
-              class="flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-semibold transition-all"
-            >
-              <i data-lucide="user-plus" class="w-4 h-4"></i>
-              Penugasan Petugas
-            </button>
-            <button
-              x-on:click="setTab('progress')"
-              :class="activeTab === 'progress' ? 'aduaja-tab-active' : 'text-gray-600 hover:text-gray-900'"
-              class="flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-semibold transition-all"
-            >
-              <i data-lucide="trending-up" class="w-4 h-4"></i>
-              Progress Penanganan
-            </button>
-            <button
-              x-on:click="setTab('close')"
-              :class="activeTab === 'close' ? 'aduaja-tab-active' : 'text-gray-600 hover:text-gray-900'"
-              class="flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-semibold transition-all"
-            >
-              <i data-lucide="check-square" class="w-4 h-4"></i>
-              Penutupan Tiket
-            </button>
-          </div>
+            <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+            Validasi (FR-ADM)
+          </button>
+          <button
+            x-on:click="activeTab = 'merge'"
+            :class="activeTab === 'merge' ? 'bg-white text-gray-900' : ''"
+            class="flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium"
+          >
+            <i data-lucide="git-merge" class="w-4 h-4"></i>
+            Merge Tiket (FR-ADM)
+          </button>
+          <button
+            x-on:click="activeTab = 'disposisi'"
+            :class="activeTab === 'disposisi' ? 'bg-white text-gray-900' : ''"
+            class="flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium"
+          >
+            <i data-lucide="send" class="w-4 h-4"></i>
+            Disposisi (FR-DSP)
+          </button>
         </div>
 
-        <section x-show="activeTab === 'queue'" x-cloak class="space-y-4" x-data="{ showFilters: false }">
-          <div class="aduaja-panel">
-            <div class="aduaja-card-header">
-              <div class="flex items-center justify-between">
-                <div>
-                  <h2 class="aduaja-card-title">
-                    <i data-lucide="file-text" class="w-5 h-5"></i>
-                    Antrean Laporan Masuk
-                  </h2>
-                  <p class="aduaja-card-subtitle">
-                    Daftar laporan yang perlu divalidasi dan diproses
-                  </p>
-                </div>
-                <div th:if="${selectedReport != null}" class="aduaja-modal-overlay">
-                </div>
-            </div>
+        <!-- Tabs untuk Admin Dinas -->
+        <div
+          th:if="${userRole == 'admin_dinas'}"
+          class="grid w-full grid-cols-3 lg:w-auto bg-gray-100 text-gray-700 rounded-xl p-1"
+        >
+          <button
+            x-on:click="activeTab = 'penugasan'"
+            :class="activeTab === 'penugasan' ? 'bg-white text-gray-900' : ''"
+            class="flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium"
+          >
+            <i data-lucide="user-plus" class="w-4 h-4"></i>
+            Penugasan Petugas
+          </button>
+          <button
+            x-on:click="activeTab = 'progress'"
+            :class="activeTab === 'progress' ? 'bg-white text-gray-900' : ''"
+            class="flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium"
+          >
+            <i data-lucide="trending-up" class="w-4 h-4"></i>
+            Progress Penanganan
+          </button>
+          <button
+            x-on:click="activeTab = 'close'"
+            :class="activeTab === 'close' ? 'bg-white text-gray-900' : ''"
+            class="flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium"
+          >
+            <i data-lucide="check-square" class="w-4 h-4"></i>
+            Penutupan Tiket
+          </button>
+        </div>
 
-            <div class="px-6 py-6 space-y-4">
-              <div x-show="showFilters" x-cloak class="grid grid-cols-1 gap-3 md:grid-cols-3 p-4 bg-gray-50 rounded-lg">
+        <section x-show="activeTab === 'queue'" x-cloak class="space-y-4">
+          <div class="bg-white rounded-xl border">
+            <div class="px-6 pt-6 pb-4 flex items-center justify-between">
+              <div>
+                <h2 class="text-lg font-semibold">Antrean Laporan Masuk</h2>
+                <p class="text-sm text-gray-600">
+                  Daftar laporan yang perlu divalidasi dan diproses (FR-ADM-01)
+                </p>
+              </div>
+              <button
+                type="button"
+                x-on:click="showFilters = !showFilters"
+                class="flex items-center gap-2 border px-3 py-2 rounded-md text-sm"
+              >
+                <i data-lucide="filter" class="w-4 h-4"></i>
+                <span
+                  x-text="showFilters ? 'Tutup Filter' : 'Filter dan Sortir'"
+                ></span>
+              </button>
+            </div>
+            <div class="px-6 pb-6">
+              <div
+                x-show="showFilters"
+                x-cloak
+                class="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3"
+              >
                 <div>
-                  <label class="text-xs text-gray-600 mb-2 block font-semibold">Prioritas</label>
-                  <select class="aduaja-input">
+                  <label class="text-xs text-gray-600 mb-1 block"
+                    >Prioritas</label
+                  >
+                  <select
+                    class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
                     <option>Semua Prioritas</option>
                     <option>Kritis</option>
                     <option>Tinggi</option>
@@ -169,33 +204,41 @@
                   </select>
                 </div>
                 <div>
-                  <label class="text-xs text-gray-600 mb-2 block font-semibold">Urutkan</label>
-                  <select class="aduaja-input">
+                  <label class="text-xs text-gray-600 mb-1 block"
+                    >Urutkan</label
+                  >
+                  <select
+                    class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
                     <option>Tanggal Masuk</option>
                     <option>Prioritas</option>
                     <option>Status</option>
                   </select>
                 </div>
                 <div>
-                  <label class="text-xs text-gray-600 mb-2 block font-semibold">Arah</label>
-                  <select class="aduaja-input">
+                  <label class="text-xs text-gray-600 mb-1 block">Arah</label>
+                  <select
+                    class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
                     <option>Terbaru / Tertinggi</option>
                     <option>Terlama / Terendah</option>
                   </select>
                 </div>
               </div>
 
-              <div class="flex flex-col gap-3 sm:flex-row">
+              <div class="mb-4 flex gap-3">
                 <div class="relative flex-1">
-                  <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+                  <i
+                    data-lucide="search"
+                    class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+                  ></i>
                   <input
                     type="text"
-                    x-model="searchQuery"
-                    class="aduaja-input pl-10"
-                    placeholder="Cari berdasarkan ID, Judul, atau Kategori..."
+                    class="w-full pl-10 px-3 py-2 border rounded-md"
+                    placeholder="Cari berdasarkan ID Tiket, Nama Pelapor, atau Wilayah..."
                   />
                 </div>
-                <select class="aduaja-input sm:w-40">
+                <select class="px-3 py-2 border rounded-md">
                   <option>Semua Status</option>
                   <option>Menunggu Verifikasi</option>
                   <option>Dalam Peninjauan</option>
@@ -203,60 +246,134 @@
                 </select>
               </div>
 
-              <div class="border rounded-lg overflow-hidden bg-white">
+              <div class="border rounded-lg overflow-hidden">
                 <div class="overflow-x-auto">
-                  <table class="aduaja-table">
-                    <thead>
+                  <table class="w-full">
+                    <thead class="bg-gray-50">
                       <tr>
-                        <th>ID Tiket</th>
-                        <th>Judul dan Kategori</th>
-                        <th>Pelapor</th>
-                        <th>Wilayah</th>
-                        <th>Tanggal Masuk</th>
-                        <th>Status</th>
-                        <th>SLA</th>
-                        <th>Aksi</th>
+                        <th
+                          class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase"
+                        >
+                          ID Tiket
+                        </th>
+                        <th
+                          class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase"
+                        >
+                          Judul dan Kategori
+                        </th>
+                        <th
+                          class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase"
+                        >
+                          Pelapor
+                        </th>
+                        <th
+                          class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase"
+                        >
+                          Wilayah
+                        </th>
+                        <th
+                          class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase"
+                        >
+                          Tanggal Masuk
+                        </th>
+                        <th
+                          class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase"
+                        >
+                          Status
+                        </th>
+                        <th
+                          class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase"
+                        >
+                          SLA
+                        </th>
+                        <th
+                          class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase"
+                        >
+                          Aksi
+                        </th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody class="divide-y divide-gray-200">
                       <tr
                         th:each="laporan : ${queueReports}"
-                        th:attr="data-id=${laporan.id}, data-judul=${laporan.judul}, data-kategori=${laporan.kategori}"
-                        x-show="searchQuery === '' || $el.dataset.id.toLowerCase().includes(searchQuery.toLowerCase()) || $el.dataset.judul.toLowerCase().includes(searchQuery.toLowerCase()) || $el.dataset.kategori.toLowerCase().includes(searchQuery.toLowerCase())"
+                        class="hover:bg-gray-50"
                       >
-                        <td>
+                        <td class="px-4 py-3">
                           <div class="flex items-center gap-2">
-                            <span class="font-mono font-semibold text-blue-600" th:text="${laporan.id}"></span>
-                            <span class="aduaja-badge aduaja-badge-primary" th:text="${laporan.prioritas}"></span>
+                            <span
+                              class="font-mono text-sm font-semibold"
+                              th:text="${laporan.id}"
+                              >ID</span
+                            >
+                            <span
+                              class="text-xs px-2 py-0.5 rounded bg-gray-100"
+                              th:text="${laporan.prioritas}"
+                              >Prioritas</span
+                            >
                           </div>
                         </td>
-                        <td>
+                        <td class="px-4 py-3">
                           <div>
-                            <p class="font-medium text-sm" th:text="${laporan.judul}"></p>
-                            <p class="text-xs text-gray-500 mt-1" th:text="${laporan.kategori}"></p>
+                            <p
+                              class="font-medium text-sm"
+                              th:text="${laporan.judul}"
+                            >
+                              Judul
+                            </p>
+                            <p
+                              class="text-xs text-gray-500"
+                              th:text="${laporan.kategori}"
+                            >
+                              Kategori
+                            </p>
                           </div>
                         </td>
-                        <td class="text-sm" th:text="${laporan.pelapor}"></td>
-                        <td>
+                        <td
+                          class="px-4 py-3 text-sm"
+                          th:text="${laporan.pelapor}"
+                        >
+                          Pelapor
+                        </td>
+                        <td class="px-4 py-3">
                           <div class="flex items-center gap-1 text-sm">
-                            <i data-lucide="map-pin" class="w-3 h-3 text-gray-400"></i>
-                            <span th:text="${laporan.wilayah}"></span>
+                            <i
+                              data-lucide="map-pin"
+                              class="w-3 h-3 text-gray-400"
+                            ></i>
+                            <span th:text="${laporan.wilayah}">Wilayah</span>
                           </div>
                         </td>
-                        <td>
+                        <td class="px-4 py-3">
                           <div class="flex items-center gap-1 text-sm">
-                            <i data-lucide="clock" class="w-3 h-3 text-gray-400"></i>
-                            <span th:text="${laporan.tanggalMasuk}"></span>
+                            <i
+                              data-lucide="clock"
+                              class="w-3 h-3 text-gray-400"
+                            ></i>
+                            <span th:text="${laporan.tanggalMasuk}"
+                              >Tanggal</span
+                            >
                           </div>
                         </td>
-                        <td><span class="aduaja-badge aduaja-badge-warning" th:text="${laporan.status}"></span></td>
-                        <td><span class="text-sm font-medium" th:text="${laporan.sisaWaktuSLA}"></span></td>
-                        <td>
-                          <a
-                            th:href="@{/admin/dashboard/detail(id=${laporan.id})}"
-                            class="aduaja-btn-secondary inline-flex items-center gap-1 text-xs"
+                        <td class="px-4 py-3">
+                          <span
+                            class="text-xs px-2 py-1 rounded bg-gray-100"
+                            th:text="${laporan.status}"
+                            >Status</span
                           >
-                            <i data-lucide="eye" class="w-3 h-3"></i>
+                        </td>
+                        <td class="px-4 py-3">
+                          <span
+                            class="text-sm font-medium"
+                            th:text="${laporan.sisaWaktuSLA}"
+                            >SLA</span
+                          >
+                        </td>
+                        <td class="px-4 py-3">
+                          <a
+                            th:href="@{/admin/validation(id=${laporan.id})}"
+                            class="inline-flex items-center gap-1 border px-2 py-1 rounded text-sm"
+                          >
+                            <i data-lucide="eye" class="w-4 h-4"></i>
                             Detail
                           </a>
                         </td>
@@ -269,123 +386,290 @@
           </div>
         </section>
 
-        <section x-show="activeTab === 'merge'" x-cloak class="space-y-4">
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Ticket List -->
-            <div class="lg:col-span-2 aduaja-panel">
-              <form th:action="@{/admin/merge}" method="post">
-                <div class="aduaja-card-header flex items-center justify-between">
+        <section x-show="activeTab === 'validation'" x-cloak class="space-y-4">
+          <div class="bg-white rounded-xl border">
+            <div class="px-6 pt-6 pb-4">
+              <h2 class="text-lg font-semibold">Detail Laporan dan Validasi</h2>
+              <p class="text-sm text-gray-600">
+                Periksa foto, GPS, dan deskripsi sebelum memvalidasi (FR-ADM-06,
+                FR-ADM-07)
+              </p>
+            </div>
+            <div class="px-6 pb-6">
+              <div
+                th:if="${selectedReport == null}"
+                class="flex items-center justify-center h-64 text-gray-400"
+              >
+                <div class="text-center">
+                  <i data-lucide="file-text" class="w-12 h-12 mx-auto mb-3"></i>
+                  <p>Pilih laporan dari daftar untuk memulai validasi</p>
+                </div>
+              </div>
+              <div th:if="${selectedReport != null}" class="space-y-6">
+                <div class="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
                   <div>
-                    <h2 class="aduaja-card-title">
-                      <i data-lucide="git-merge" class="w-5 h-5"></i>
-                      Deteksi Tiket Duplikat
-                    </h2>
-                    <p class="aduaja-card-subtitle">
-                      Sistem otomatis mendeteksi tiket dengan lokasi, kategori, dan waktu serupa
+                    <p class="text-xs text-gray-600">ID Tiket</p>
+                    <p
+                      class="font-mono font-semibold"
+                      th:text="${selectedReport.id}"
+                    >
+                      ID
                     </p>
                   </div>
-                  <button type="submit" class="aduaja-btn-primary bg-orange-600 hover:bg-orange-700 flex items-center gap-2 text-sm">
-                    <i data-lucide="git-merge" class="w-4 h-4"></i>
-                    Gabungkan
-                  </button>
+                  <div>
+                    <p class="text-xs text-gray-600">Prioritas</p>
+                    <span
+                      class="text-xs px-2 py-1 rounded bg-gray-100"
+                      th:text="${selectedReport.prioritas}"
+                      >Prioritas</span
+                    >
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-600">Status</p>
+                    <span
+                      class="text-xs px-2 py-1 rounded bg-gray-100"
+                      th:text="${selectedReport.status}"
+                      >Status</span
+                    >
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-600">Nama Pelapor</p>
+                    <p class="font-medium" th:text="${selectedReport.pelapor}">
+                      Pelapor
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-600">Kontak Pelapor</p>
+                    <p
+                      class="font-medium"
+                      th:text="${selectedReport.kontakPelapor}"
+                    >
+                      Kontak
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-600">Tanggal Masuk</p>
+                    <p class="text-sm" th:text="${selectedReport.tanggalMasuk}">
+                      Tanggal
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-600">Kategori</p>
+                    <p class="font-medium" th:text="${selectedReport.kategori}">
+                      Kategori
+                    </p>
+                  </div>
+                  <div class="col-span-2">
+                    <p class="text-xs text-gray-600">Wilayah</p>
+                    <p
+                      class="font-medium text-sm"
+                      th:text="${selectedReport.wilayah}"
+                    >
+                      Wilayah
+                    </p>
+                  </div>
                 </div>
 
-                <div class="px-6 py-6 space-y-4">
-                  <div class="relative">
-                    <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
-                    <input
-                      type="text"
-                      x-model="searchMergeQuery"
-                      class="aduaja-input pl-10"
-                      placeholder="Cari berdasarkan ID, judul, atau lokasi..."
+                <div>
+                  <p class="text-sm font-medium mb-2">Foto Bukti</p>
+                  <div class="border rounded-lg overflow-hidden">
+                    <img
+                      th:src="${selectedReport.foto}"
+                      alt="Foto bukti"
+                      class="w-full h-64 object-cover"
                     />
                   </div>
+                </div>
 
-                  <div class="space-y-3 max-h-[600px] overflow-y-auto">
+                <div>
+                  <p class="text-sm font-medium mb-2">
+                    Lokasi dan Koordinat GPS
+                  </p>
+                  <div class="space-y-2">
+                    <input
+                      type="text"
+                      readonly
+                      class="w-full px-3 py-2 border rounded-md"
+                      th:value="${selectedReport.koordinatStr}"
+                    />
                     <div
-                      th:each="ticket : ${mergeTickets}"
-                      th:attr="data-id=${ticket.id}, data-judul=${ticket.judul}, data-lokasi=${ticket.wilayah}"
-                      x-show="searchMergeQuery === '' || $el.dataset.id.toLowerCase().includes(searchMergeQuery.toLowerCase()) || $el.dataset.judul.toLowerCase().includes(searchMergeQuery.toLowerCase()) || $el.dataset.lokasi.toLowerCase().includes(searchMergeQuery.toLowerCase())"
-                      class="p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                      th:if="${selectedReport.patokan}"
+                      class="p-2 bg-blue-50 border border-blue-200 rounded text-sm"
                     >
-                      <div class="flex gap-4">
-                        <input type="checkbox" name="selectedTickets" th:value="${ticket.id}" class="mt-1 w-4 h-4 cursor-pointer" />
-                        <img th:src="${ticket.foto}" alt="Foto laporan" class="w-20 h-20 object-cover rounded border" />
-                        <div class="flex-1 min-w-0">
-                          <div class="flex items-start justify-between mb-2">
-                            <div>
-                              <span class="font-mono text-sm font-semibold text-blue-600" th:text="${ticket.id}"></span>
-                              <h4 class="font-medium text-sm mt-1" th:text="${ticket.judul}"></h4>
-                            </div>
-                            <span class="aduaja-badge aduaja-badge-warning text-xs flex-shrink-0" th:text="|${ticket.similarityScore}%|"></span>
-                          </div>
-                          <p class="text-xs text-gray-600 mb-2" th:text="${ticket.deskripsi}"></p>
-                          <div class="grid grid-cols-2 gap-2 text-xs text-gray-500">
-                            <div class="flex items-center gap-1">
-                              <i data-lucide="users" class="w-3 h-3"></i>
-                              <span th:text="${ticket.pelapor}"></span>
-                            </div>
-                            <div class="flex items-center gap-1">
-                              <i data-lucide="clock" class="w-3 h-3"></i>
-                              <span th:text="${ticket.tanggalMasuk}"></span>
-                            </div>
-                            <div class="flex items-center gap-1">
-                              <i data-lucide="map-pin" class="w-3 h-3"></i>
-                              <span th:text="${ticket.wilayah}"></span>
-                            </div>
-                            <span class="aduaja-badge aduaja-badge-primary text-xs" th:text="${ticket.kategori}"></span>
-                          </div>
+                      <p class="text-xs text-gray-600">Patokan Lokasi:</p>
+                      <p class="text-sm" th:text="${selectedReport.patokan}">
+                        Patokan
+                      </p>
+                    </div>
+                    <p class="text-xs text-gray-500">
+                      Waktu Kejadian:
+                      <span th:text="${selectedReport.waktuKejadian}"
+                        >Waktu</span
+                      >
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <p class="text-sm font-medium mb-2">Deskripsi Laporan</p>
+                  <div class="p-4 border rounded-lg bg-white">
+                    <p
+                      class="text-sm text-gray-700"
+                      th:text="${selectedReport.deskripsi}"
+                    >
+                      Deskripsi
+                    </p>
+                  </div>
+                </div>
+
+                <form
+                  th:action="@{/admin/dashboard}"
+                  method="get"
+                  class="space-y-4 border-t pt-6"
+                >
+                  <input
+                    type="hidden"
+                    name="id"
+                    th:value="${selectedReport.id}"
+                  />
+                  <div>
+                    <p class="mb-3 font-semibold">Keputusan Validasi</p>
+                    <div class="grid grid-cols-3 gap-3">
+                      <button
+                        name="action"
+                        value="approved"
+                        type="submit"
+                        class="flex items-center justify-center gap-2 bg-green-600 text-white rounded-md py-2"
+                      >
+                        Terima
+                      </button>
+                      <button
+                        name="action"
+                        value="rejected"
+                        type="submit"
+                        class="flex items-center justify-center gap-2 bg-red-600 text-white rounded-md py-2"
+                      >
+                        Tolak
+                      </button>
+                      <button
+                        name="action"
+                        value="revision"
+                        type="submit"
+                        class="flex items-center justify-center gap-2 bg-yellow-600 text-white rounded-md py-2"
+                      >
+                        Revisi
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label for="reason" class="mb-2 block text-sm"
+                      >Alasan / Keterangan</label
+                    >
+                    <textarea
+                      id="reason"
+                      name="reason"
+                      rows="4"
+                      class="w-full px-3 py-2 border rounded-md"
+                      placeholder="Jelaskan alasan keputusan validasi (minimal 10 karakter)"
+                    ></textarea>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section x-show="activeTab === 'merge'" x-cloak class="space-y-4">
+          <div class="bg-white rounded-xl border">
+            <div class="px-6 pt-6 pb-4 flex items-center justify-between">
+              <div>
+                <h2 class="text-lg font-semibold">Deteksi Tiket Duplikat</h2>
+                <p class="text-sm text-gray-600">
+                  Sistem otomatis mendeteksi tiket dengan lokasi, kategori, dan
+                  waktu serupa (FR-ADM-11, FR-ADM-12)
+                </p>
+              </div>
+              <form th:action="@{/admin/dashboard}" method="get">
+                <button
+                  class="bg-blue-600 text-white px-3 py-2 rounded-md text-sm"
+                >
+                  Gabungkan
+                </button>
+              </form>
+            </div>
+            <div class="px-6 pb-6">
+              <div class="relative mb-4">
+                <i
+                  data-lucide="search"
+                  class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+                ></i>
+                <input
+                  type="text"
+                  class="w-full pl-10 px-3 py-2 border rounded-md"
+                  placeholder="Cari berdasarkan ID, judul, atau lokasi..."
+                />
+              </div>
+              <div class="space-y-3 max-h-[600px] overflow-y-auto">
+                <div
+                  th:each="ticket : ${mergeTickets}"
+                  class="p-4 border rounded-lg hover:bg-gray-50"
+                >
+                  <div class="flex gap-4">
+                    <input type="checkbox" class="mt-1 w-4 h-4" />
+                    <img
+                      th:src="${ticket.foto}"
+                      alt="Foto laporan"
+                      class="w-20 h-20 object-cover rounded border"
+                    />
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-start justify-between mb-2">
+                        <div>
+                          <span
+                            class="font-mono text-sm font-semibold text-blue-600"
+                            th:text="${ticket.id}"
+                            >ID</span
+                          >
+                          <h4
+                            class="font-medium text-sm mt-1"
+                            th:text="${ticket.judul}"
+                          >
+                            Judul
+                          </h4>
+                        </div>
+                        <span
+                          class="text-xs px-2 py-1 rounded bg-yellow-500 text-white"
+                          th:text="|Mirip ${ticket.similarityScore}%|"
+                          >Mirip</span
+                        >
+                      </div>
+                      <p
+                        class="text-xs text-gray-600 mb-2"
+                        th:text="${ticket.deskripsi}"
+                      >
+                        Deskripsi
+                      </p>
+                      <div class="grid grid-cols-2 gap-2 text-xs text-gray-500">
+                        <div class="flex items-center gap-1">
+                          <i data-lucide="users" class="w-3 h-3"></i
+                          ><span th:text="${ticket.pelapor}">Pelapor</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                          <i data-lucide="clock" class="w-3 h-3"></i
+                          ><span th:text="${ticket.tanggalMasuk}">Tanggal</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                          <i data-lucide="map-pin" class="w-3 h-3"></i
+                          ><span th:text="${ticket.wilayah}">Wilayah</span>
+                        </div>
+                        <div class="text-xs">
+                          <span
+                            class="border rounded px-2 py-0.5"
+                            th:text="${ticket.kategori}"
+                            >Kategori</span
+                          >
                         </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              </form>
-            </div>
-
-            <!-- Cluster Panel -->
-            <div class="aduaja-panel">
-              <div class="aduaja-card-header">
-                <h2 class="aduaja-card-title">
-                  <i data-lucide="link-2" class="w-5 h-5"></i>
-                  Cluster Terdeteksi
-                </h2>
-                <p class="aduaja-card-subtitle">
-                  Kelompok tiket dengan kesamaan tinggi
-                </p>
-              </div>
-
-              <div class="px-6 py-6">
-                <div th:if="${clusters == null or #lists.isEmpty(clusters)}" class="text-center py-8 text-gray-400">
-                  <i data-lucide="link-2" class="w-12 h-12 mx-auto mb-3"></i>
-                  <p class="text-sm">Tidak ada cluster duplikat terdeteksi</p>
-                </div>
-
-                <div th:if="${clusters != null and !#lists.isEmpty(clusters)}" class="space-y-4">
-                  <div th:each="cluster, iter : ${clusters}" class="p-4 border border-orange-200 rounded-lg bg-orange-50 hover:border-orange-300 transition-colors">
-                    <div class="flex items-center justify-between mb-3 pb-3 border-b border-orange-200">
-                      <span class="aduaja-badge bg-orange-600 text-white" th:text="|Cluster ${iter.index + 1}|"></span>
-                      <span class="text-xs font-semibold text-orange-700" th:text="|${#lists.size(cluster)} Tiket|"></span>
-                    </div>
-
-                    <p class="text-sm font-medium mb-1" th:text="${cluster[0].kategori}"></p>
-                    <p class="text-xs text-gray-600 mb-3" th:text="${cluster[0].wilayah}"></p>
-
-                    <div class="space-y-2 mb-3">
-                      <div th:each="ticket : ${cluster}" class="text-xs bg-white p-2 rounded border border-orange-100">
-                        <div class="font-mono font-bold text-blue-600" th:text="${ticket.id}"></div>
-                        <div class="font-medium mt-1 text-gray-900" th:text="${ticket.judul}"></div>
-                        <div class="text-gray-500 mt-1" th:text="${ticket.pelapor}"></div>
-                      </div>
-                    </div>
-
-                    <form th:action="@{/admin/merge}" method="post">
-                      <input type="hidden" name="clusterIndex" th:value="${iter.index}" />
-                      <button type="submit" class="aduaja-btn-secondary w-full text-xs flex items-center justify-center gap-2 text-red-600 hover:text-red-700">
-                        <i data-lucide="x" class="w-3 h-3"></i>
-                        Pisahkan Cluster
-                      </button>
-                    </form>
                   </div>
                 </div>
               </div>
@@ -394,185 +678,239 @@
         </section>
 
         <section x-show="activeTab === 'disposisi'" x-cloak class="space-y-4">
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="lg:col-span-1 aduaja-panel">
-              <div class="aduaja-card-header">
-                <h2 class="aduaja-card-title">
-                  <i data-lucide="send" class="w-5 h-5"></i>
-                  Antrian Disposisi
-                </h2>
-                <p class="aduaja-card-subtitle">
-                  Pilih tiket untuk melihat detail dan mengedit disposisi sebelum dikirim ke dinas.
-                </p>
-              </div>
-
-              <div class="px-6 py-6 space-y-3 max-h-[760px] overflow-y-auto">
-                <a
-                  th:each="report : ${disposisiReports}"
-                  th:href="@{/admin/dashboard(tab='disposisi', id=${report.id})}"
-                  class="block p-4 border rounded-lg transition-colors hover:bg-blue-50 hover:border-blue-200"
-                  th:classappend="${selectedDisposition != null and #strings.equals(selectedDisposition.id, report.id)} ? 'border-blue-300 bg-blue-50' : 'border-gray-200'"
-                >
-                  <div class="flex items-start justify-between gap-3">
-                    <div class="min-w-0 flex-1">
-                      <span class="font-mono text-sm font-semibold text-blue-600" th:text="${report.id}"></span>
-                      <h4 class="font-medium text-gray-900 mt-1 line-clamp-2" th:text="${report.judul}"></h4>
-                      <p class="text-xs text-gray-500 mt-2">
-                        <span class="aduaja-badge aduaja-badge-primary text-xs" th:text="${report.prioritasSistem}"></span>
-                        <span class="aduaja-badge aduaja-badge-warning text-xs ml-2" th:text="${report.dinasRekomendasi}"></span>
-                      </p>
-                    </div>
-                    <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400 flex-shrink-0 mt-1"></i>
-                  </div>
-                </a>
-              </div>
+          <div class="bg-white rounded-xl border">
+            <div class="px-6 pt-6 pb-4">
+              <h2 class="text-lg font-semibold">Form Disposisi</h2>
+              <p class="text-sm text-gray-600">
+                Disposisikan laporan ke dinas terkait dengan instruksi yang
+                jelas (FR-DSP-02 sampai FR-DSP-06)
+              </p>
             </div>
-
-            <div class="lg:col-span-2 aduaja-panel">
-              <div class="aduaja-card-header">
-                <h2 class="aduaja-card-title">
-                  <i data-lucide="edit-3" class="w-5 h-5"></i>
-                  Detail & Edit Disposisi
-                </h2>
-                <p class="aduaja-card-subtitle">
-                  Ubah tujuan dinas, prioritas, deadline, dan instruksi sebelum dikirim.
-                </p>
+            <div class="px-6 pb-6">
+              <div
+                th:if="${selectedDisposition == null}"
+                class="flex items-center justify-center h-64 text-gray-400"
+              >
+                <div class="text-center">
+                  <i data-lucide="send" class="w-12 h-12 mx-auto mb-3"></i>
+                  <p>Pilih laporan dari daftar untuk mulai disposisi</p>
+                </div>
               </div>
-
-              <div class="px-6 py-6">
-                <div th:if="${selectedDisposition == null}" class="flex flex-col items-center justify-center h-64 text-gray-400 border rounded-lg bg-gray-50">
-                  <i data-lucide="send" class="w-12 h-12 mb-3"></i>
-                  <p class="text-sm">Pilih tiket dari daftar disposisi di sebelah kiri</p>
+              <form
+                th:if="${selectedDisposition != null}"
+                th:action="@{/admin/dashboard}"
+                method="get"
+                class="space-y-4"
+              >
+                <input
+                  type="hidden"
+                  name="id"
+                  th:value="${selectedDisposition.id}"
+                />
+                <div class="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+                  <div>
+                    <p class="text-xs text-gray-600">ID Tiket</p>
+                    <p
+                      class="font-mono font-semibold"
+                      th:text="${selectedDisposition.id}"
+                    >
+                      ID
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-600">Pelapor</p>
+                    <p
+                      class="font-medium"
+                      th:text="${selectedDisposition.pelapor}"
+                    >
+                      Pelapor
+                    </p>
+                  </div>
+                  <div class="col-span-2">
+                    <p class="text-xs text-gray-600">Judul Laporan</p>
+                    <p
+                      class="font-medium"
+                      th:text="${selectedDisposition.judul}"
+                    >
+                      Judul
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-600">Kategori</p>
+                    <span
+                      class="border rounded px-2 py-0.5"
+                      th:text="${selectedDisposition.kategori}"
+                      >Kategori</span
+                    >
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-600">Wilayah</p>
+                    <p class="text-sm" th:text="${selectedDisposition.wilayah}">
+                      Wilayah
+                    </p>
+                  </div>
                 </div>
 
-                <form th:if="${selectedDisposition != null}" th:action="@{/admin/disposisi}" method="post" class="space-y-6">
-                  <input type="hidden" name="id" th:value="${selectedDisposition['id']}" />
-
-                  <div class="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <p class="text-xs text-gray-600 font-semibold">ID Tiket</p>
-                      <p class="font-mono font-semibold text-blue-600 mt-1" th:text="${selectedDisposition['id']}"></p>
-                    </div>
-                    <div>
-                      <p class="text-xs text-gray-600 font-semibold">Status</p>
-                      <span class="aduaja-badge aduaja-badge-success mt-1" th:text="${selectedDisposition['status']}"></span>
-                    </div>
-                    <div>
-                      <p class="text-xs text-gray-600 font-semibold">Pelapor</p>
-                      <p class="font-medium mt-1" th:text="${selectedDisposition['pelapor']}"></p>
-                    </div>
-                    <div>
-                      <p class="text-xs text-gray-600 font-semibold">Wilayah</p>
-                      <p class="text-sm mt-1" th:text="${selectedDisposition['wilayah']}"></p>
-                    </div>
-                    <div class="col-span-2">
-                      <p class="text-xs text-gray-600 font-semibold">Judul Laporan</p>
-                      <p class="font-medium mt-1" th:text="${selectedDisposition['judul']}"></p>
-                    </div>
-                  </div>
-
-                  <div class="border-t pt-6">
-                    <label class="block text-sm font-semibold mb-3 text-gray-900">Dinas Tujuan <span class="text-red-500">*</span></label>
-                    <div class="space-y-2">
-                      <label th:each="dinas : ${dinasList}" class="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
-                        <input type="radio" name="dinasId" th:value="${dinas['id']}" class="mt-1 w-4 h-4 cursor-pointer" required th:checked="${dinas['name'] == selectedDisposition['dinasRekomendasi']}" />
-                        <div class="flex-1">
-                          <div class="flex items-center gap-2">
-                            <i data-lucide="building-2" class="w-4 h-4 text-gray-600"></i>
-                            <p class="font-medium text-sm" th:text="${dinas['name']}"></p>
-                          </div>
-                          <p class="text-xs text-gray-500 mt-1" th:text="|Menangani: ${#strings.listJoin(dinas['kategori'], ', ')}|"></p>
+                <div>
+                  <label class="mb-2 block text-sm"
+                    >Dinas Tujuan <span class="text-red-500">*</span></label
+                  >
+                  <div class="space-y-2">
+                    <label
+                      th:each="dinas : ${dinasList}"
+                      class="flex items-start gap-3 p-3 border rounded-lg cursor-pointer"
+                    >
+                      <input
+                        type="radio"
+                        name="dinas"
+                        th:value="${dinas.id}"
+                        class="mt-1 w-4 h-4"
+                      />
+                      <div class="flex-1">
+                        <div class="flex items-center gap-2">
+                          <i
+                            data-lucide="building-2"
+                            class="w-4 h-4 text-gray-600"
+                          ></i>
+                          <p
+                            class="font-medium text-sm"
+                            th:text="${dinas.name}"
+                          >
+                            Nama Dinas
+                          </p>
                         </div>
-                      </label>
-                    </div>
+                        <p
+                          class="text-xs text-gray-500 mt-1"
+                          th:text="|Menangani: ${#strings.listJoin(dinas.kategori, ', ')}|"
+                        >
+                          Kategori
+                        </p>
+                      </div>
+                    </label>
                   </div>
+                </div>
 
-                  <div class="border-t pt-6">
-                    <label class="block text-sm font-semibold mb-3 text-gray-900">Tingkat Prioritas <span class="text-red-500">*</span></label>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <!-- Ascending: Rendah -> Sedang -> Tinggi -> Kritis -->
-                      <label class="flex items-center justify-center p-3 border rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors">
-                        <input type="radio" name="priority" value="Rendah" class="mr-2 cursor-pointer" th:checked="${selectedDisposition['prioritasSistem'] == 'Rendah'}" />
-                        <span class="text-sm font-medium">Rendah</span>
-                      </label>
-                      <label class="flex items-center justify-center p-3 border rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors">
-                        <input type="radio" name="priority" value="Sedang" class="mr-2 cursor-pointer" th:checked="${selectedDisposition['prioritasSistem'] == 'Sedang'}" />
-                        <span class="text-sm font-medium">Sedang</span>
-                      </label>
-                      <label class="flex items-center justify-center p-3 border rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors">
-                        <input type="radio" name="priority" value="Tinggi" class="mr-2 cursor-pointer" th:checked="${selectedDisposition['prioritasSistem'] == 'Tinggi'}" />
-                        <span class="text-sm font-medium">Tinggi</span>
-                      </label>
-                      <label class="flex items-center justify-center p-3 border rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors">
-                        <input type="radio" name="priority" value="Kritis" class="mr-2 cursor-pointer" th:checked="${selectedDisposition['prioritasSistem'] == 'Kritis'}" />
-                        <span class="text-sm font-medium">Kritis</span>
-                      </label>
-                    </div>
+                <div>
+                  <label class="mb-2 block text-sm"
+                    >Tingkat Prioritas
+                    <span class="text-red-500">*</span></label
+                  >
+                  <div class="grid grid-cols-4 gap-3">
+                    <label
+                      class="flex items-center justify-center border rounded-md py-2"
+                      ><input
+                        type="radio"
+                        name="priority"
+                        value="Kritis"
+                        class="mr-2"
+                      />Kritis</label
+                    >
+                    <label
+                      class="flex items-center justify-center border rounded-md py-2"
+                      ><input
+                        type="radio"
+                        name="priority"
+                        value="Tinggi"
+                        class="mr-2"
+                      />Tinggi</label
+                    >
+                    <label
+                      class="flex items-center justify-center border rounded-md py-2"
+                      ><input
+                        type="radio"
+                        name="priority"
+                        value="Sedang"
+                        class="mr-2"
+                      />Sedang</label
+                    >
+                    <label
+                      class="flex items-center justify-center border rounded-md py-2"
+                      ><input
+                        type="radio"
+                        name="priority"
+                        value="Rendah"
+                        class="mr-2"
+                      />Rendah</label
+                    >
                   </div>
+                </div>
 
-                  <div class="border-t pt-6">
-                    <label for="deadline" class="block text-sm font-semibold mb-2 text-gray-900">Target Waktu Penyelesaian <span class="text-red-500">*</span></label>
-                    <input id="deadline" type="datetime-local" name="deadline" class="aduaja-input" th:value="${selectedDisposition['deadline']}" required />
-                  </div>
+                <div>
+                  <label for="deadline" class="mb-2 block text-sm"
+                    >Target Waktu Penyelesaian
+                    <span class="text-red-500">*</span></label
+                  >
+                  <input
+                    id="deadline"
+                    type="datetime-local"
+                    name="deadline"
+                    class="w-full px-3 py-2 border rounded-md"
+                  />
+                </div>
 
-                  <div>
-                    <label for="instructions" class="block text-sm font-semibold mb-2 text-gray-900">Instruksi dan Catatan <span class="text-red-500">*</span></label>
-                    <textarea id="instructions" name="instructions" rows="5" class="aduaja-input" placeholder="Instruksi minimal 20 karakter" required th:text="${selectedDisposition['instruksiAdmin']}"></textarea>
-                  </div>
+                <div>
+                  <label for="instructions" class="mb-2 block text-sm"
+                    >Instruksi dan Catatan
+                    <span class="text-red-500">*</span></label
+                  >
+                  <textarea
+                    id="instructions"
+                    name="instructions"
+                    rows="5"
+                    class="w-full px-3 py-2 border rounded-md"
+                    placeholder="Instruksi minimal 20 karakter"
+                  ></textarea>
+                </div>
 
-                  <div class="flex gap-3 pt-4 border-t">
-                    <button type="submit" class="aduaja-btn-primary bg-green-600 hover:bg-green-700 flex-1 flex items-center justify-center gap-2">
-                      <i data-lucide="send" class="w-4 h-4"></i>
-                      Kirim ke Dinas
-                    </button>
-                    <a th:href="@{/admin/disposisi(id=${selectedDisposition['id']})}" class="aduaja-btn-secondary flex-1 text-center">
-                      Reset Detail
-                    </a>
-                  </div>
-                </form>
-              </div>
+                <div class="flex gap-3 pt-4 border-t">
+                  <button
+                    type="submit"
+                    class="flex-1 bg-blue-600 text-white py-2 rounded-md"
+                  >
+                    Kirim Disposisi
+                  </button>
+                  <button type="button" class="flex-1 border py-2 rounded-md">
+                    Batal
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </section>
         <!-- Sections untuk Admin Dinas -->
         <section th:if="${userRole == 'admin_dinas'}" x-show="activeTab === 'penugasan'" x-cloak class="space-y-4">
-          <div class="aduaja-panel">
-            <div class="aduaja-card-header">
-              <h2 class="aduaja-card-title">
-                <i data-lucide="user-plus" class="w-5 h-5"></i>
-                Laporan Menunggu Penugasan
-              </h2>
-              <p class="aduaja-card-subtitle">Tetapkan petugas lapangan untuk menangani laporan yang sudah didisposisikan.</p>
+          <div class="bg-white rounded-xl border">
+            <div class="px-6 pt-6 pb-4">
+              <h2 class="text-lg font-semibold">Laporan Menunggu Penugasan</h2>
+              <p class="text-sm text-gray-600">Tetapkan petugas lapangan untuk menangani laporan yang sudah didisposisikan.</p>
             </div>
-
-            <div class="px-6 py-6 space-y-3">
-              <div th:each="report : ${pendingAssignments}" class="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+            <div class="px-6 pb-6 space-y-3">
+              <div th:each="report : ${pendingAssignments}" class="border rounded-lg p-4 hover:bg-gray-50">
                 <div class="flex items-start justify-between mb-3">
-                  <div class="flex-1">
-                    <span class="font-mono text-sm font-semibold text-blue-600" th:text="${report.id}"></span>
-                    <h4 class="font-medium text-gray-900 mt-1" th:text="${report.judul}"></h4>
+                  <div>
+                    <span class="font-mono text-sm font-semibold text-blue-600" th:text="${report.id}">ID</span>
+                    <h4 class="font-medium text-gray-900 mt-1" th:text="${report.judul}">Judul</h4>
                     <p class="text-xs text-gray-500 mt-1">
-                      <span class="aduaja-badge aduaja-badge-primary text-xs" th:text="${report.kategori}"></span>
-                      <span class="aduaja-badge aduaja-badge-warning text-xs ml-2" th:text="${report.prioritas}"></span>
+                      <span th:text="${report.kategori}">Kategori</span> &middot;
+                      <span th:text="${report.prioritas}">Prioritas</span>
                     </p>
                   </div>
-                  <span th:if="${report.slaStatus == 'Terlambat'}" class="aduaja-badge bg-red-600 text-white flex-shrink-0">Terlambat SLA</span>
-                  <span th:if="${report.slaStatus != 'Terlambat'}" class="aduaja-badge aduaja-badge-warning flex-shrink-0" th:text="${report.slaStatus}"></span>
+                  <span class="text-xs px-2 py-1 rounded bg-red-100 text-red-700 font-medium"
+                    th:if="${report.slaStatus == 'Terlambat'}">Terlambat SLA</span>
+                  <span class="text-xs px-2 py-1 rounded bg-yellow-100 text-yellow-700 font-medium"
+                    th:if="${report.slaStatus != 'Terlambat'}" th:text="${report.slaStatus}">SLA</span>
                 </div>
-
                 <form th:action="@{/admin/dinas/penugasan}" method="post" class="flex items-center gap-3">
                   <input type="hidden" name="id" th:value="${report.id}" />
-                  <select name="petugasId" class="aduaja-input flex-1" required>
+                  <select name="petugasId" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm" required>
                     <option value="">Pilih Petugas</option>
-                    <option th:each="p : ${availablePetugas}" th:value="${p.id}" th:text="${p.nama}"></option>
+                    <option th:each="p : ${availablePetugas}" th:value="${p.id}" th:text="${p.name}">Petugas</option>
                   </select>
-                  <button type="submit" class="aduaja-btn-primary bg-green-600 hover:bg-green-700 flex-shrink-0 flex items-center gap-2 text-sm">
-                    <i data-lucide="check" class="w-4 h-4"></i>
+                  <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
                     Tugaskan
                   </button>
                 </form>
               </div>
-
               <div th:if="${#lists.isEmpty(pendingAssignments)}" class="text-center py-8 text-gray-400">
                 <i data-lucide="clipboard-list" class="w-12 h-12 mx-auto mb-3"></i>
                 <p class="text-sm">Tidak ada laporan yang perlu ditugaskan</p>
@@ -582,17 +920,13 @@
         </section>
 
         <section th:if="${userRole == 'admin_dinas'}" x-show="activeTab === 'progress'" x-cloak class="space-y-4">
-          <div class="aduaja-panel">
-            <div class="aduaja-card-header">
-              <h2 class="aduaja-card-title">
-                <i data-lucide="trending-up" class="w-5 h-5"></i>
-                Progress Penanganan
-              </h2>
-              <p class="aduaja-card-subtitle">Pantau progres tugas yang sedang ditangani petugas lapangan.</p>
+          <div class="bg-white rounded-xl border">
+            <div class="px-6 pt-6 pb-4">
+              <h2 class="text-lg font-semibold">Progress Penanganan</h2>
+              <p class="text-sm text-gray-600">Pantau progres tugas yang sedang ditangani petugas lapangan.</p>
             </div>
-
-            <div class="px-6 py-6">
-              <a th:href="@{/admin/dinas/progress}" class="aduaja-btn-secondary inline-flex items-center gap-2">
+            <div class="px-6 pb-6">
+              <a th:href="@{/admin/dinas/progress}" class="inline-flex items-center gap-2 border border-gray-300 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">
                 <i data-lucide="trending-up" class="w-4 h-4"></i>
                 Buka Halaman Progress
               </a>
@@ -601,17 +935,13 @@
         </section>
 
         <section th:if="${userRole == 'admin_dinas'}" x-show="activeTab === 'close'" x-cloak class="space-y-4">
-          <div class="aduaja-panel">
-            <div class="aduaja-card-header">
-              <h2 class="aduaja-card-title">
-                <i data-lucide="check-square" class="w-5 h-5"></i>
-                Penutupan Tiket
-              </h2>
-              <p class="aduaja-card-subtitle">Tutup tiket yang sudah selesai dan upload bukti penyelesaian.</p>
+          <div class="bg-white rounded-xl border">
+            <div class="px-6 pt-6 pb-4">
+              <h2 class="text-lg font-semibold">Penutupan Tiket</h2>
+              <p class="text-sm text-gray-600">Tutup tiket yang sudah selesai dan upload bukti penyelesaian.</p>
             </div>
-
-            <div class="px-6 py-6">
-              <a th:href="@{/admin/dinas/close}" class="aduaja-btn-secondary inline-flex items-center gap-2">
+            <div class="px-6 pb-6">
+              <a th:href="@{/admin/dinas/close}" class="inline-flex items-center gap-2 border border-gray-300 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">
                 <i data-lucide="check-square" class="w-4 h-4"></i>
                 Buka Halaman Penutupan
               </a>

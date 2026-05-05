@@ -1,5 +1,8 @@
 package com.plr.aduaja.controller;
 
+import com.plr.aduaja.model.*;
+import com.plr.aduaja.service.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -8,6 +11,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -16,12 +21,36 @@ import java.util.Map;
 @Controller
 public class WebController {
 
+    @Autowired
+    private ReportService reportService;
+
+    @Autowired
+    private UserService userService;
+
+    @Autowired
+    private TicketService ticketService;
+
+    @Autowired
+    private DisposisiService disposisiService;
+
+    @Autowired
+    private SengketaService sengketaService;
+
+    @Autowired
+    private AttendanceService attendanceService;
+
+    @Autowired
+    private NotificationService notificationService;
+
+    @Autowired
+    private MergeClusterService mergeClusterService;
+
     // ==========================================
     // ROOT REDIRECT
     // ==========================================
     @GetMapping("/")
     public String rootRedirect() {
-        return "redirect:/warga/login";
+        return "index";
     }
 
     // ==========================================
@@ -39,13 +68,7 @@ public class WebController {
 
     /** GET /admin/login — halaman login admin */
     @GetMapping("/admin/login")
-    public String adminLogin(
-            Model model,
-            @RequestParam(value = "logout", required = false) String logout
-    ) {
-        if (logout != null) {
-            model.addAttribute("info", "Anda berhasil logout dari dashboard admin.");
-        }
+    public String adminLogin() {
         return "admin/login";
     }
 
@@ -59,12 +82,6 @@ public class WebController {
         }
     }
 
-    /** POST /admin/logout — logout dummy (tanpa session persistence) */
-    @PostMapping("/admin/logout")
-    public String adminLogout() {
-        return "redirect:/admin/login?logout=1";
-    }
-
     /** GET /admin/home — redirect ke dashboard */
     @GetMapping("/admin/home")
     public String adminHome() {
@@ -75,9 +92,7 @@ public class WebController {
     @GetMapping("/admin/dashboard")
     public String adminDashboard(
             Model model,
-            @RequestParam(value = "role", required = false, defaultValue = "admin_pusat") String role,
-            @RequestParam(value = "tab", required = false, defaultValue = "queue") String tab,
-            @RequestParam(value = "id", required = false) String id
+            @RequestParam(value = "role", required = false, defaultValue = "admin_pusat") String role
     ) {
         model.addAttribute("userRole", role);
 
@@ -98,11 +113,11 @@ public class WebController {
         } else {
             // Stat cards for admin_pusat
             List<Map<String, Object>> stats = new ArrayList<>();
-            stats.add(Map.of("title", "Laporan Masuk", "value", dummyQueueReports().size(),
+            stats.add(Map.of("title", "Laporan Masuk", "value", 24,
                     "icon", "file-text", "bgColor", "bg-blue-100", "color", "text-blue-600"));
-            stats.add(Map.of("title", "Menunggu Validasi", "value", dummyValidationReports().size(),
+            stats.add(Map.of("title", "Menunggu Validasi", "value", 8,
                     "icon", "clock", "bgColor", "bg-yellow-100", "color", "text-yellow-600"));
-            stats.add(Map.of("title", "Dalam Antrean Dinas", "value", dummyDisposisiReports().size(),
+            stats.add(Map.of("title", "Terlambat SLA", "value", 3,
                     "icon", "alert-triangle", "bgColor", "bg-red-100", "color", "text-red-600"));
             stats.add(Map.of("title", "Selesai Hari Ini", "value", 5,
                     "icon", "check-circle", "bgColor", "bg-green-100", "color", "text-green-600"));
@@ -139,22 +154,21 @@ public class WebController {
                 "color", "bg-purple-100 text-purple-600",
                 "href", "/admin/disposisi"
         ));
+        panels.add(Map.of(
+                "title", "Sengketa",
+                "description", "Kelola banding dan resolusi sengketa (FR-RSL-09 s/d 13)",
+                "icon", "scale",
+                "color", "bg-orange-100 text-orange-600",
+                "href", "/admin/sengketa"
+        ));
         model.addAttribute("panels", panels);
 
         // Queue reports (for "Antrean Laporan" tab)
         model.addAttribute("queueReports", dummyQueueReports());
 
-        // Reports for validation tab (now merged into queue)
-        List<Map<String, Object>> validationReports = dummyValidationReports();
-        model.addAttribute("validationReports", validationReports);
-        
-        Map<String, Object> selected = null;
-        if (id != null) {
-            selected = validationReports.stream()
-                    .filter(r -> r.get("id").equals(id))
-                    .findFirst().orElse(null);
-        }
-        model.addAttribute("selectedReport", selected);
+        // Reports for validation tab
+        model.addAttribute("validationReports", dummyValidationReports());
+        model.addAttribute("selectedValidation", null);
 
         // Merge tickets
         model.addAttribute("mergeTickets", dummyMergeTickets());
@@ -162,88 +176,11 @@ public class WebController {
         model.addAttribute("selectedTickets", new ArrayList<>());
 
         // Disposisi
-                List<Map<String, Object>> disposisiReports = dummyDisposisiReports();
-                model.addAttribute("disposisiReports", disposisiReports);
+        model.addAttribute("disposisiReports", dummyDisposisiReports());
         model.addAttribute("dinasList", dummyDinasList());
-        
-                Map<String, Object> selectedDisposition = null;
-                if ("disposisi".equalsIgnoreCase(tab)) {
-                        if (id != null && !id.trim().isEmpty()) {
-                                String targetId = id.trim();
-                                for (Map<String, Object> r : disposisiReports) {
-                                        Object rid = r.get("id");
-                                        if (rid != null && targetId.equals(String.valueOf(rid))) {
-                                                selectedDisposition = r;
-                                                break;
-                                        }
-                                }
-                                // Fallback to first item if specific ID not found
-                                if (selectedDisposition == null && !disposisiReports.isEmpty()) {
-                                        selectedDisposition = disposisiReports.get(0);
-                                }
-                        } else if (!disposisiReports.isEmpty()) {
-                                selectedDisposition = disposisiReports.get(0);
-                        }
-                }
-                model.addAttribute("selectedDisposition", selectedDisposition);
+        model.addAttribute("selectedDisposition", null);
 
         return "admin/dashboard";
-    }
-
-    /** GET /admin/dashboard/detail — halaman detail laporan antrian untuk validasi */
-    @GetMapping("/admin/dashboard/detail")
-    public String adminQueueDetail(
-            Model model,
-            @RequestParam(value = "id", required = false) String id
-    ) {
-        List<Map<String, Object>> validationReports = dummyValidationReports();
-        List<Map<String, Object>> disposisiReports = dummyDisposisiReports();
-        
-        Map<String, Object> selectedReport = null;
-        boolean isInDisposisi = false;
-        
-        if (id != null && !id.trim().isEmpty()) {
-            String ticketId = id.trim();
-            for (Map<String, Object> r : validationReports) {
-                if (ticketId.equals(String.valueOf(r.get("id")))) {
-                    selectedReport = r;
-                    break;
-                }
-            }
-            if (selectedReport == null) {
-                for (Map<String, Object> r : disposisiReports) {
-                    if (ticketId.equals(String.valueOf(r.get("id")))) {
-                        selectedReport = r;
-                        isInDisposisi = true;
-                        break;
-                    }
-                }
-            }
-        }
-        
-        model.addAttribute("selectedReport", selectedReport);
-        model.addAttribute("isInDisposisi", isInDisposisi);
-        return "admin/queue-detail";
-    }
-
-    /** GET /admin/dashboard/disposisi-detail — halaman detail disposisi untuk edit */
-    @GetMapping("/admin/dashboard/disposisi-detail")
-    public String adminDisposisiDetail(
-            Model model,
-            @RequestParam(value = "id", required = false) String id
-    ) {
-        List<Map<String, Object>> disposisiReports = dummyDisposisiReports();
-        model.addAttribute("dinasList", dummyDinasList());
-        
-        Map<String, Object> selectedDisposition = null;
-        if (id != null) {
-            selectedDisposition = disposisiReports.stream()
-                    .filter(r -> r.get("id").equals(id))
-                    .findFirst().orElse(null);
-        }
-        
-        model.addAttribute("selectedDisposition", selectedDisposition);
-        return "admin/disposisi-detail";
     }
 
     /** GET /admin/laporan-queue — antrean laporan masuk */
@@ -273,48 +210,21 @@ public class WebController {
         return "admin/validation-panel";
     }
 
+    /** POST /admin/validation — proses aksi validasi (approve/reject) */
     @PostMapping("/admin/validation")
     public String adminValidationPost(
             @RequestParam(value = "id", required = false) String id,
             @RequestParam(value = "action", required = false) String action,
-            @RequestParam(value = "reason", required = false) String reason
+            @RequestParam(value = "rejectionReason", required = false) String rejectionReason
     ) {
-        if (id == null || id.trim().isEmpty() || action == null || cachedValidationReports == null) {
-            return "redirect:/admin/dashboard?tab=queue";
+        try {
+            String adminId = userService.getUserByUsername("admin_pusat")
+                    .map(User::getId).orElse(null);
+            boolean approved = "approve".equals(action);
+            reportService.validateReport(id, approved, rejectionReason, adminId);
+        } catch (Exception ignored) {
         }
-
-        String ticketId = id.trim();
-        Map<String, Object> report = null;
-        for (Map<String, Object> r : cachedValidationReports) {
-            Object rid = r.get("id");
-            if (rid != null && ticketId.equals(String.valueOf(rid))) {
-                report = r;
-                break;
-            }
-        }
-
-        if (report != null) {
-            cachedValidationReports.remove(report);
-            if ("approved".equals(action)) {
-                if (cachedDisposisiReports == null) {
-                    dummyDisposisiReports();
-                }
-                Map<String, Object> disp = new HashMap<>(report);
-                disp.put("status", "Tervalidasi");
-                disp.put("prioritasSistem", report.getOrDefault("prioritas", "Sedang"));
-                disp.put("dinasRekomendasi", "Dinas Terkait");
-                if (reason != null && !reason.trim().isEmpty()) {
-                    disp.put("catatanValidasi", reason.trim());
-                }
-                cachedDisposisiReports.add(disp);
-                return "redirect:/admin/dashboard?tab=disposisi";
-            } else if ("rejected".equals(action) || "revision".equals(action)) {
-                if (reason != null && !reason.trim().isEmpty()) {
-                    report.put("alasanPenolakan", reason.trim());
-                }
-            }
-        }
-        return "redirect:/admin/dashboard?tab=queue";
+        return "redirect:/admin/validation" + (id != null ? "?id=" + id : "");
     }
 
     // Alias lama agar tidak break
@@ -340,33 +250,23 @@ public class WebController {
         return "admin/merge-ticket-panel";
     }
 
+    /** POST /admin/merge — proses merge tiket */
     @PostMapping("/admin/merge")
     public String adminMergeTicketPost(
-            @RequestParam(value = "selectedTickets", required = false) List<String> selectedTickets,
-            @RequestParam(value = "clusterIndex", required = false) Integer clusterIndex
+            @RequestParam(value = "clusterId", required = false) String clusterId,
+            @RequestParam(value = "action", required = false) String action
     ) {
-        if (selectedTickets != null && !selectedTickets.isEmpty() && cachedMergeTickets != null && cachedClusters != null) {
-            List<Map<String, Object>> newCluster = new ArrayList<>();
-            for (String tid : selectedTickets) {
-                Map<String, Object> t = cachedMergeTickets.stream()
-                        .filter(r -> tid.equals(r.get("id"))).findFirst().orElse(null);
-                if (t != null) {
-                    cachedMergeTickets.remove(t);
-                    newCluster.add(t);
-                }
+        try {
+            String adminId = userService.getUserByUsername("admin_pusat")
+                    .map(User::getId).orElse(null);
+            if ("merge".equals(action) && clusterId != null) {
+                mergeClusterService.mergeCluster(clusterId, adminId);
+            } else if ("cancel".equals(action) && clusterId != null) {
+                mergeClusterService.cancelCluster(clusterId);
             }
-            if (!newCluster.isEmpty()) {
-                cachedClusters.add(newCluster);
-            }
+        } catch (Exception ignored) {
         }
-
-        if (clusterIndex != null && cachedClusters != null && clusterIndex >= 0 && clusterIndex < cachedClusters.size()) {
-            List<Map<String, Object>> separated = cachedClusters.remove((int) clusterIndex);
-            if (cachedMergeTickets != null) {
-                cachedMergeTickets.addAll(separated);
-            }
-        }
-        return "redirect:/admin/dashboard?tab=merge";
+        return "redirect:/admin/merge";
     }
 
     // Alias lama
@@ -377,7 +277,7 @@ public class WebController {
 
     @PostMapping("/admin/merge-ticket-panel")
     public String adminMergeTicketPanelAliasPost() {
-        return "redirect:/admin/dashboard?tab=merge";
+        return "redirect:/admin/merge";
     }
 
     /** GET /admin/disposisi — panel disposisi ke dinas */
@@ -401,20 +301,20 @@ public class WebController {
         return "admin/disposisi-panel";
     }
 
+    /** POST /admin/disposisi — proses kirim disposisi ke dinas */
     @PostMapping("/admin/disposisi")
     public String adminDisposisiPost(
             @RequestParam(value = "id", required = false) String id,
             @RequestParam(value = "dinasId", required = false) String dinasId,
             @RequestParam(value = "catatan", required = false) String catatan
     ) {
-        if (id != null && cachedDisposisiReports != null) {
-            Map<String, Object> report = cachedDisposisiReports.stream()
-                    .filter(r -> id.equals(r.get("id"))).findFirst().orElse(null);
-            if (report != null) {
-                cachedDisposisiReports.remove(report);
-            }
+        try {
+            String adminId = userService.getUserByUsername("admin_pusat")
+                    .map(User::getId).orElse(null);
+            disposisiService.createDisposisi(id, dinasId, adminId, catatan, LocalDateTime.now().plusDays(3));
+        } catch (Exception ignored) {
         }
-        return "redirect:/admin/dashboard?tab=disposisi";
+        return "redirect:/admin/disposisi" + (id != null ? "?id=" + id : "");
     }
 
     // Alias lama
@@ -429,6 +329,55 @@ public class WebController {
             @RequestParam(value = "id", required = false) String id
     ) {
         return "redirect:/admin/disposisi" + (id != null ? "?id=" + id : "");
+    }
+
+    /** GET /admin/sengketa — panel resolusi sengketa */
+    @GetMapping("/admin/sengketa")
+    public String adminSengketaPanel(
+            Model model,
+            @RequestParam(value = "id", required = false) String id
+    ) {
+        List<Map<String, Object>> disputes = dummyDisputeList();
+        model.addAttribute("disputes", disputes);
+
+        Map<String, Object> selected = null;
+        if (id != null) {
+            selected = disputes.stream()
+                    .filter(d -> d.get("id").equals(id))
+                    .findFirst().orElse(disputes.get(0));
+        }
+        model.addAttribute("selectedDispute", selected);
+        return "admin/sengketa-panel";
+    }
+
+    /** POST /admin/sengketa — proses keputusan sengketa */
+    @PostMapping("/admin/sengketa")
+    public String adminSengketaPost(
+            @RequestParam(value = "id", required = false) String id,
+            @RequestParam(value = "keputusan", required = false) String keputusan,
+            @RequestParam(value = "catatan", required = false) String catatan
+    ) {
+        try {
+            String adminId = userService.getUserByUsername("admin_pusat")
+                    .map(User::getId).orElse(null);
+            sengketaService.resolveSengketa(id, keputusan, catatan, adminId);
+        } catch (Exception ignored) {
+        }
+        return "redirect:/admin/sengketa" + (id != null ? "?id=" + id : "");
+    }
+
+    // Alias lama
+    @GetMapping("/admin/sengketa-panel")
+    public String adminSengketaPanelAlias(Model model,
+                                          @RequestParam(value = "id", required = false) String id) {
+        return adminSengketaPanel(model, id);
+    }
+
+    @PostMapping("/admin/sengketa-panel")
+    public String adminSengketaPanelAliasPost(
+            @RequestParam(value = "id", required = false) String id
+    ) {
+        return "redirect:/admin/sengketa" + (id != null ? "?id=" + id : "");
     }
 
     // ==========================================
@@ -510,20 +459,10 @@ public class WebController {
         model.addAttribute("petugasList", dummyPetugasList());
 
         Map<String, Object> selected = null;
-        if (id != null && !id.trim().isEmpty()) {
-            String targetId = id.trim();
-            for (Map<String, Object> r : incomingReports) {
-                Object rid = r.get("id");
-                if (rid != null && targetId.equals(String.valueOf(rid))) {
-                    selected = r;
-                    break;
-                }
-            }
-            if (selected == null && !incomingReports.isEmpty()) {
-                selected = incomingReports.get(0);
-            }
-        } else if (!incomingReports.isEmpty()) {
-            selected = incomingReports.get(0);
+        if (id != null) {
+            selected = incomingReports.stream()
+                    .filter(r -> r.get("id").equals(id))
+                    .findFirst().orElse(incomingReports.get(0));
         }
         model.addAttribute("selectedReport", selected);
         return "admin/dinas/penugasan-petugas";
@@ -536,6 +475,31 @@ public class WebController {
             @RequestParam(value = "petugasId", required = false) String petugasId,
             @RequestParam(value = "catatan", required = false) String catatan
     ) {
+        try {
+            String adminDinasId = userService.getUserByUsername("admin_dinas")
+                    .map(User::getId).orElse(null);
+            // Find or create ticket for this report
+            List<Ticket> existingTickets = ticketService.getAllTickets();
+            Ticket ticket = existingTickets.stream()
+                    .filter(t -> t.getReport() != null && t.getReport().getId().equals(id))
+                    .findFirst().orElse(null);
+
+            if (ticket == null) {
+                // Need to find the report and create a ticket
+                List<Report> reports = reportService.getAllReports();
+                Report report = reports.stream()
+                        .filter(r -> r.getId().equals(id))
+                        .findFirst().orElse(null);
+                if (report != null) {
+                    User petugas = userService.getUserById(petugasId).orElse(null);
+                    User admin = userService.getUserById(adminDinasId).orElse(null);
+                    if (petugas != null && admin != null) {
+                        ticketService.createTicket(report, petugas, admin);
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
         return "redirect:/admin/dinas/penugasan" + (id != null ? "?id=" + id : "");
     }
 
@@ -579,6 +543,12 @@ public class WebController {
             @RequestParam(value = "keterangan", required = false) String keterangan,
             @RequestParam(value = "estimasi", required = false) String estimasi
     ) {
+        try {
+            String adminDinasId = userService.getUserByUsername("admin_dinas")
+                    .map(User::getId).orElse(null);
+            ticketService.addProgress(id, adminDinasId, keterangan, estimasi);
+        } catch (Exception ignored) {
+        }
         return "redirect:/admin/dinas/progress" + (id != null ? "?id=" + id : "");
     }
 
@@ -621,6 +591,10 @@ public class WebController {
             @RequestParam(value = "id", required = false) String id,
             @RequestParam(value = "keterangan", required = false) String keterangan
     ) {
+        try {
+            ticketService.completeTicket(id, keterangan);
+        } catch (Exception ignored) {
+        }
         return "redirect:/admin/dinas/close" + (id != null ? "?id=" + id : "");
     }
 
@@ -638,48 +612,11 @@ public class WebController {
         return "redirect:/admin/dinas/close" + (id != null ? "?id=" + id : "");
     }
 
-    /** GET /admin/dinas/sengketa — panel resolusi sengketa untuk admin dinas */
-    @GetMapping("/admin/dinas/sengketa")
-    public String adminDinasSengketa(
-            Model model,
-            @RequestParam(value = "id", required = false) String id
-    ) {
-        List<Map<String, Object>> disputes = dummyDisputeList();
-        model.addAttribute("disputes", disputes);
-
-        Map<String, Object> selected = null;
-        if (id != null && !id.trim().isEmpty()) {
-            String targetId = id.trim();
-            for (Map<String, Object> d : disputes) {
-                Object did = d.get("id");
-                if (did != null && targetId.equals(String.valueOf(did))) {
-                    selected = d;
-                    break;
-                }
-            }
-            if (selected == null && !disputes.isEmpty()) {
-                selected = disputes.get(0);
-            }
-        } else if (!disputes.isEmpty()) {
-            selected = disputes.get(0);
-        }
-        model.addAttribute("selectedDispute", selected);
-        return "admin/dinas/sengketa-dinas";
-    }
-
-    /** POST /admin/dinas/sengketa — proses keputusan sengketa untuk admin dinas */
-    @PostMapping("/admin/dinas/sengketa")
-    public String adminDinasSengketaPost(
-            @RequestParam(value = "id", required = false) String id,
-            @RequestParam(value = "keputusan", required = false) String keputusan,
-            @RequestParam(value = "catatan", required = false) String catatan
-    ) {
-        return "redirect:/admin/dinas/sengketa" + (id != null ? "?id=" + id : "");
-    }
-
     // ==========================================
     // PETUGAS ROUTES
     // ==========================================
+
+    private List<Map<String, Object>> currentTasks = new ArrayList<>();
 
     @GetMapping("/petugas/login")
     public String petugasLogin() {
@@ -689,6 +626,7 @@ public class WebController {
     /** POST /petugas/login — proses login petugas */
     @PostMapping("/petugas/login")
     public String petugasLoginPost() {
+        currentTasks = allDummyTasks();
         return "redirect:/petugas/dashboard";
     }
 
@@ -698,26 +636,82 @@ public class WebController {
         return "redirect:/petugas/dashboard";
     }
 
+    /** POST /petugas/task-action — proses aksi pada tugas (Start, Postpone, dll) */
+    @PostMapping("/petugas/task-action")
+    public String petugasTaskAction(
+            @RequestParam(value = "id", required = false) String id,
+            @RequestParam(value = "action", required = false, defaultValue = "start") String action,
+            @RequestParam(value = "description", required = false) String description
+    ) {
+        if (id != null) {
+            try {
+                switch (action) {
+                    case "start" -> ticketService.startTicket(id, "admin_pusat");
+                    case "pending" -> ticketService.pendingTicket(id, description != null ? description : "Ditunda oleh petugas");
+                    case "reportback" -> ticketService.updateStatus(id, Ticket.Status.DIBATALKAN);
+                    case "escalation" -> ticketService.updateStatus(id, Ticket.Status.ESKALASI);
+                    case "complete" -> ticketService.completeTicket(id, "Tugas selesai");
+                }
+            } catch (Exception e) {
+                // If ticket not found in database, update dummy data as fallback
+                if (currentTasks != null) {
+                    for (Map<String, Object> t : currentTasks) {
+                        if (t.get("id").equals(id)) {
+                            if ("start".equals(action)) {
+                                t.put("status", "in_progress");
+                                t.put("startedAt", "04 Mei 2026 10:00");
+                            } else if ("pending".equals(action)) {
+                                t.put("status", "pending");
+                                t.put("pendingReason", description != null ? description : "Ditunda oleh petugas");
+                            } else if ("reportback".equals(action)) {
+                                t.put("status", "invalid");
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return "redirect:/petugas/task-detail?id=" + id;
+    }
+
     @GetMapping("/petugas/dashboard")
-    public String petugasDashboard(Model model) {
+    public String petugasDashboard(
+            Model model,
+            @RequestParam(value = "checkIn", required = false) Boolean checkIn
+    ) {
+        if (currentTasks == null || currentTasks.isEmpty()) {
+            currentTasks = allDummyTasks();
+        }
+        
+        boolean isCheckedIn = true; 
+        if (checkIn != null && !checkIn) {
+            isCheckedIn = false;
+        }
+
         Map<String, Object> user = new HashMap<>();
         user.put("name", "Ahmad Fauzi");
         user.put("dinas", "Dinas Pekerjaan Umum");
         model.addAttribute("user", user);
 
         Map<String, Object> attendance = new HashMap<>();
-        attendance.put("checkedIn", true);
-        attendance.put("currentStatus", "Siap Bertugas");
-        attendance.put("checkInTime", "08:05");
-        attendance.put("workDuration", "04:32:10");
-        attendance.put("location", "Kantor Dinas PU Medan");
+        attendance.put("checkedIn", isCheckedIn);
+        attendance.put("currentStatus", isCheckedIn ? "Siap Bertugas" : "Belum Check-In");
+        attendance.put("checkInTime", isCheckedIn ? "08:05" : "-");
+        attendance.put("workDuration", isCheckedIn ? "04:32:10" : "00:00:00");
+        attendance.put("location", isCheckedIn ? "Kantor Dinas PU Medan" : "-");
         model.addAttribute("attendance", attendance);
 
         Map<String, Object> stats = new HashMap<>();
-        stats.put("selesaiHariIni", 2);
-        stats.put("sedangDikerjakan", 1);
-        stats.put("tugasBaru", 3);
-        stats.put("tertunda", 0);
+        long selesai = currentTasks.stream().filter(t -> "completed".equals(t.get("status"))).count();
+        long inProgress = currentTasks.stream().filter(t -> "in_progress".equals(t.get("status"))).count();
+        long newTasks = currentTasks.stream().filter(t -> "new".equals(t.get("status"))).count();
+        long pending = currentTasks.stream().filter(t -> "pending".equals(t.get("status"))).count();
+
+        stats.put("selesaiHariIni", selesai);
+        stats.put("sedangDikerjakan", inProgress);
+        stats.put("tugasBaru", newTasks);
+        stats.put("tertunda", pending);
         model.addAttribute("stats", stats);
 
         Map<String, Object> deviceInfo = new HashMap<>();
@@ -745,11 +739,15 @@ public class WebController {
 
     @GetMapping("/petugas/tasks")
     public String petugasTasks(Model model) {
+        if (currentTasks == null || currentTasks.isEmpty()) {
+            currentTasks = allDummyTasks();
+        }
+
         List<Map<String, Object>> tasksNew        = new ArrayList<>();
         List<Map<String, Object>> tasksInProgress = new ArrayList<>();
         List<Map<String, Object>> tasksPending    = new ArrayList<>();
 
-        for (Map<String, Object> t : allDummyTasks()) {
+        for (Map<String, Object> t : currentTasks) {
             switch (t.get("status").toString()) {
                 case "new"         -> tasksNew.add(t);
                 case "in_progress" -> tasksInProgress.add(t);
@@ -768,10 +766,14 @@ public class WebController {
             Model model,
             @RequestParam(value = "id", required = false, defaultValue = "TGS-001") String id
     ) {
-        Map<String, Object> task = allDummyTasks().stream()
+        if (currentTasks == null || currentTasks.isEmpty()) {
+            currentTasks = allDummyTasks();
+        }
+
+        Map<String, Object> task = currentTasks.stream()
                 .filter(t -> t.get("id").equals(id))
                 .findFirst()
-                .orElse(allDummyTasks().get(0));
+                .orElse(currentTasks.get(0));
 
         task.put("description",
                 "Terdapat beberapa lubang besar di badan jalan dengan kedalaman sekitar 15 cm " +
@@ -793,6 +795,8 @@ public class WebController {
         task.put("statusHistory", statusHistory);
 
         model.addAttribute("task", task);
+        model.addAttribute("user", Map.of("name", "Ahmad Fauzi"));
+        model.addAttribute("attendance", Map.of("checkedIn", true));
         return "petugas/task-detail";
     }
 
@@ -801,12 +805,27 @@ public class WebController {
             Model model,
             @RequestParam(value = "id", required = false, defaultValue = "TGS-001") String id
     ) {
-        Map<String, Object> task = new HashMap<>();
-        task.put("id", id);
-        task.put("title", "Perbaikan Jalan Berlubang Jl. Sudirman");
-        task.put("workDuration", "01:24:38");
+        if (currentTasks == null || currentTasks.isEmpty()) {
+            currentTasks = allDummyTasks();
+        }
+        
+        Map<String, Object> task = currentTasks.stream()
+                .filter(t -> t.get("id").equals(id))
+                .findFirst()
+                .orElse(currentTasks.get(0));
+
+        Map<String, Object> locationMap = new HashMap<>();
+        locationMap.put("address", task.getOrDefault("location", "Jl. Sudirman No. 10, Medan Kota").toString());
+        locationMap.put("latitude", "3.5952");
+        locationMap.put("longitude", "98.6722");
+        task.put("location", locationMap);
+        task.put("distanceToTask", task.getOrDefault("distanceToTask", "1,2 km"));
+
         model.addAttribute("task", task);
-        model.addAttribute("materials", new ArrayList<>());
+        
+        // Dummy materials for simulation
+        List<Map<String, Object>> materials = new ArrayList<>();
+        model.addAttribute("materials", materials);
         return "petugas/task-execution";
     }
 
@@ -814,8 +833,34 @@ public class WebController {
     @PostMapping("/petugas/task-execution")
     public String petugasTaskExecutionPost(
             @RequestParam(value = "id", required = false, defaultValue = "TGS-001") String id,
-            @RequestParam(value = "keterangan", required = false) String keterangan
+            @RequestParam(value = "action", required = false, defaultValue = "save") String action,
+            @RequestParam(value = "materialName", required = false) String materialName,
+            @RequestParam(value = "quantity", required = false) Integer quantity,
+            @RequestParam(value = "unit", required = false) String unit
     ) {
+        if ("complete".equals(action)) {
+            try {
+                ticketService.completeTicket(id, "Tugas selesai dikerjakan");
+            } catch (Exception e) {
+                // Fallback to dummy data
+                if (currentTasks != null) {
+                    for (Map<String, Object> t : currentTasks) {
+                        if (t.get("id").equals(id)) {
+                            t.put("status", "completed");
+                            break;
+                        }
+                    }
+                }
+            }
+            return "redirect:/petugas/dashboard";
+        }
+        if (materialName != null && quantity != null) {
+            try {
+                ticketService.addMaterial(id, materialName, quantity, unit);
+            } catch (Exception ignored) {
+                // Fallback: dummy data
+            }
+        }
         return "redirect:/petugas/task-execution?id=" + id;
     }
 
@@ -962,32 +1007,41 @@ public class WebController {
         user.put("name", "Budi Santoso");
         model.addAttribute("user", user);
 
+        List<Report> dbReports = reportService.getAllReports();
+        long total = dbReports.size();
+        long diproses = dbReports.stream().filter(r -> r.getStatus() == Report.Status.DIPROSES).count();
+        long selesai = dbReports.stream().filter(r -> r.getStatus() == Report.Status.SELESAI).count();
+        long ditolak = dbReports.stream().filter(r -> r.getStatus() == Report.Status.DITOLAK).count();
+        long menunggu = dbReports.stream().filter(r -> r.getStatus() == Report.Status.MENUNGGU).count();
+
         List<Map<String, Object>> stats = new ArrayList<>();
-        stats.add(Map.of("icon","file-text",   "color","bg-blue-100 text-blue-600",   "count",5,"label","Total Laporan"));
-        stats.add(Map.of("icon","clock",        "color","bg-yellow-100 text-yellow-600","count",2,"label","Diproses"));
-        stats.add(Map.of("icon","check-circle", "color","bg-green-100 text-green-600", "count",2,"label","Selesai"));
-        stats.add(Map.of("icon","x-circle",     "color","bg-red-100 text-red-600",     "count",1,"label","Ditolak"));
+        stats.add(Map.of("icon","file-text",   "color","bg-blue-100 text-blue-600",   "count",total,"label","Total Laporan"));
+        stats.add(Map.of("icon","clock",        "color","bg-yellow-100 text-yellow-600","count",menunggu,"label","Menunggu"));
+        stats.add(Map.of("icon","tool",         "color","bg-orange-100 text-orange-600","count",diproses,"label","Diproses"));
+        stats.add(Map.of("icon","check-circle", "color","bg-green-100 text-green-600", "count",selesai,"label","Selesai"));
+        stats.add(Map.of("icon","x-circle",     "color","bg-red-100 text-red-600",     "count",ditolak,"label","Ditolak"));
         model.addAttribute("stats", stats);
 
         List<Map<String, Object>> recentReports = new ArrayList<>();
-        recentReports.add(Map.of(
-                "id","RPT-001","title","Jalan Berlubang di Jl. Sudirman",
-                "category","Infrastruktur Jalan","status","Diproses",
-                "statusColor","bg-yellow-100 text-yellow-700",
-                "location","Jl. Sudirman, Medan Kota","date",LocalDate.of(2025,4,20)
-        ));
-        recentReports.add(Map.of(
-                "id","RPT-002","title","Lampu Jalan Mati di Gang Melati",
-                "category","Listrik Publik","status","Selesai",
-                "statusColor","bg-green-100 text-green-700",
-                "location","Gang Melati, Medan Baru","date",LocalDate.of(2025,4,15)
-        ));
-        recentReports.add(Map.of(
-                "id","RPT-003","title","Saluran Drainase Tersumbat",
-                "category","Sistem Drainase","status","Menunggu",
-                "statusColor","bg-gray-100 text-gray-700",
-                "location","Jl. Gatot Subroto, Medan Petisah","date",LocalDate.of(2025,4,28)
-        ));
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
+        for (Report r : dbReports) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", r.getId().substring(0, Math.min(8, r.getId().length())));
+            map.put("title", r.getTitle());
+            map.put("category", r.getCategory());
+            map.put("status", r.getStatus().toString());
+            String colorClass = switch (r.getStatus()) {
+                case MENUNGGU -> "bg-gray-100 text-gray-700";
+                case DIVALIDASI, DIPROSES -> "bg-yellow-100 text-yellow-700";
+                case SELESAI -> "bg-green-100 text-green-700";
+                case DITOLAK -> "bg-red-100 text-red-700";
+                default -> "bg-gray-100 text-gray-700";
+            };
+            map.put("statusColor", colorClass);
+            map.put("location", r.getLocation());
+            map.put("date", r.getCreatedAt().toLocalDate());
+            recentReports.add(map);
+        }
         model.addAttribute("recentReports", recentReports);
         return "warga/dashboard";
     }
@@ -1004,7 +1058,28 @@ public class WebController {
             @ModelAttribute ReportForm reportForm,
             Model model
     ) {
-        // Dummy: setelah submit langsung redirect ke history
+        try {
+            // For now, use a fixed user ID. In production, get from session/authentication
+            String userId = userService.getUserByUsername("budi_santoso")
+                    .map(User::getId).orElse(null);
+
+            if (userId != null) {
+                Report report = new Report();
+                report.setTitle(reportForm.getCategory() + " - " + reportForm.getDescription().substring(0, Math.min(50, reportForm.getDescription().length())));
+                report.setDescription(reportForm.getDescription());
+                report.setCategory(reportForm.getCategory());
+                report.setLocation(reportForm.getLandmark());
+                report.setLandmark(reportForm.getLandmark());
+                report.setLatitude(reportForm.getLatitude());
+                report.setLongitude(reportForm.getLongitude());
+                report.setSlaDeadline(LocalDateTime.now().plusDays(7));
+
+                reportService.createReport(report, userId);
+            }
+        } catch (Exception e) {
+            model.addAttribute("error", "Gagal mengirim laporan: " + e.getMessage());
+            return "warga/create-report";
+        }
         return "redirect:/warga/report-history";
     }
 
@@ -1014,7 +1089,23 @@ public class WebController {
             @RequestParam(value = "status", required = false, defaultValue = "Semua") String filterStatus,
             @RequestParam(value = "q",      required = false, defaultValue = "") String searchQuery
     ) {
-        List<Map<String, Object>> allReports = allDummyWargaReports();
+        List<Report> dbReports = reportService.getAllReports();
+
+        List<Map<String, Object>> allReports = new ArrayList<>();
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
+        for (Report r : dbReports) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", r.getId().substring(0, Math.min(8, r.getId().length())));
+            map.put("title", r.getTitle());
+            map.put("category", r.getCategory());
+            map.put("status", r.getStatus().toString());
+            map.put("location", r.getLocation());
+            map.put("date", r.getCreatedAt().toLocalDate());
+            map.put("description", r.getDescription());
+            map.put("landmark", r.getLandmark());
+            map.put("rejectionReason", r.getRejectionReason());
+            allReports.add(map);
+        }
 
         List<Map<String, Object>> filtered = new ArrayList<>();
         for (Map<String, Object> r : allReports) {
@@ -1026,10 +1117,10 @@ public class WebController {
             if (matchStatus && matchQuery) filtered.add(r);
         }
 
-        List<String> statusOptions = List.of("Semua","Menunggu","Diproses","Selesai","Ditolak");
+        List<String> statusOptions = List.of("Semua","Menunggu","Diproses","Selesai","Ditolak","Sengketa");
         Map<String, Integer> statusCounts = new HashMap<>();
         statusCounts.put("Semua", allReports.size());
-        for (String s : List.of("Menunggu","Diproses","Selesai","Ditolak"))
+        for (String s : List.of("Menunggu","Diproses","Selesai","Ditolak","Sengketa"))
             statusCounts.put(s, (int) allReports.stream().filter(r -> r.get("status").equals(s)).count());
 
         model.addAttribute("reports",      filtered);
@@ -1047,31 +1138,71 @@ public class WebController {
             @RequestParam(value = "id", required = false) String id
     ) {
         Map<String, Object> report = null;
-        for (Map<String, Object> r : allDummyWargaReports()) {
-            if (r.get("id").equals(id)) { report = r; break; }
+        List<Report> dbReports = reportService.getAllReports();
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm");
+
+        for (Report r : dbReports) {
+            if (r.getId().equals(id) || r.getId().substring(0, Math.min(8, r.getId().length())).equals(id)) {
+                report = new HashMap<>();
+                report.put("id", r.getId().substring(0, Math.min(8, r.getId().length())));
+                report.put("title", r.getTitle());
+                report.put("category", r.getCategory());
+                report.put("status", r.getStatus().toString());
+                report.put("location", r.getLocation());
+                report.put("date", r.getCreatedAt().toLocalDate());
+                report.put("description", r.getDescription());
+                report.put("landmark", r.getLandmark());
+                report.put("rejectionReason", r.getRejectionReason());
+                report.put("createdAt", r.getCreatedAt().format(fmt));
+                report.put("slaDeadline", r.getSlaDeadline() != null ? r.getSlaDeadline().format(fmt) : "-");
+                break;
+            }
         }
         if (report != null) {
-            report.put("photoUrl", null);
-            report.put("landmark", "Dekat Indomaret Sudirman");
-
+            String status = (String) report.get("status");
             List<Map<String, Object>> timeline = new ArrayList<>();
             timeline.add(new HashMap<>(Map.of(
                     "icon","file-text","color","bg-blue-100 text-blue-600",
                     "title","Laporan Diterima","date","20 Apr 2025",
                     "description","Laporan Anda telah berhasil dikirim dan sedang menunggu validasi."
             )));
-            timeline.add(new HashMap<>(Map.of(
-                    "icon","search","color","bg-yellow-100 text-yellow-600",
-                    "title","Validasi Laporan","date","21 Apr 2025",
-                    "description","Admin sedang memvalidasi kelengkapan laporan.",
-                    "note","Estimasi penyelesaian: 3 hari kerja"
-            )));
-            timeline.add(new HashMap<>(Map.of(
-                    "icon","tool","color","bg-orange-100 text-orange-600",
-                    "title","Diproses Dinas","date","22 Apr 2025",
-                    "description","Laporan diteruskan ke Dinas Pekerjaan Umum untuk ditangani.",
-                    "relatedTicket","TKT-2025-042"
-            )));
+            if (!"Menunggu".equals(status) && !"Ditolak".equals(status)) {
+                timeline.add(new HashMap<>(Map.of(
+                        "icon","search","color","bg-yellow-100 text-yellow-600",
+                        "title","Validasi Laporan","date","21 Apr 2025",
+                        "description","Admin telah memvalidasi dan meneruskan laporan ke dinas terkait.",
+                        "note","Estimasi penyelesaian: 3 hari kerja"
+                )));
+            }
+            if ("Diproses".equals(status) || "Sedang Diproses".equals(status)) {
+                timeline.add(new HashMap<>(Map.of(
+                        "icon","tool","color","bg-orange-100 text-orange-600",
+                        "title","Diproses Dinas","date","22 Apr 2025",
+                        "description","Laporan sedang dikerjakan oleh petugas lapangan Dinas Pekerjaan Umum.",
+                        "relatedTicket","TKT-2025-042"
+                )));
+            }
+            if ("Selesai".equals(status)) {
+                timeline.add(new HashMap<>(Map.of(
+                        "icon","tool","color","bg-orange-100 text-orange-600",
+                        "title","Diproses Dinas","date","22 Apr 2025",
+                        "description","Laporan telah dikerjakan oleh petugas lapangan.",
+                        "relatedTicket","TKT-2025-042"
+                )));
+                timeline.add(new HashMap<>(Map.of(
+                        "icon","check-circle","color","bg-green-100 text-green-600",
+                        "title","Penyelesaian","date","25 Apr 2025",
+                        "description","Petugas telah menyelesaikan perbaikan di lokasi. Menunggu konfirmasi Anda."
+                )));
+            }
+            if ("Ditolak".equals(status)) {
+                timeline.add(new HashMap<>(Map.of(
+                        "icon","x-circle","color","bg-red-100 text-red-600",
+                        "title","Laporan Ditolak","date","21 Apr 2025",
+                        "description","Laporan ditolak oleh admin. Silakan revisi sesuai catatan admin.",
+                        "note",(String) report.get("rejectionReason")
+                )));
+            }
             model.addAttribute("timeline", timeline);
         }
         model.addAttribute("report", report);
@@ -1143,7 +1274,23 @@ public class WebController {
 
     /** POST /warga/profile — simpan perubahan profil warga */
     @PostMapping("/warga/profile")
-    public String wargaProfilePost() {
+    public String wargaProfilePost(
+            @RequestParam(value = "name", required = false) String name,
+            @RequestParam(value = "email", required = false) String email,
+            @RequestParam(value = "phone", required = false) String phone,
+            @RequestParam(value = "address", required = false) String address
+    ) {
+        try {
+            User user = userService.getUserByUsername("budi_santoso").orElse(null);
+            if (user != null) {
+                if (name != null) user.setName(name);
+                if (email != null) user.setEmail(email);
+                if (phone != null) user.setPhoneNumber(phone);
+                if (address != null) user.setAddress(address);
+                userService.updateUser(user);
+            }
+        } catch (Exception ignored) {
+        }
         return "redirect:/warga/profile";
     }
 
@@ -1153,8 +1300,18 @@ public class WebController {
 
     /** Dummy data: laporan untuk antrean admin pusat */
     private List<Map<String, Object>> dummyQueueReports() {
-        // Antrean Laporan is functionally identical to Validation list, they share the same cache.
-        return dummyValidationReports();
+        List<Map<String, Object>> list = new ArrayList<>();
+        list.add(buildQueueReport("TKT-2025-001", "Jalan Berlubang Jl. Sudirman", "Infrastruktur Jalan",
+                "Budi Santoso", "Medan Kota", "28 Apr 2025", "Menunggu Verifikasi", "Kritis", "Sisa 6 jam"));
+        list.add(buildQueueReport("TKT-2025-002", "Lampu Jalan Mati Gang Melati", "Penerangan Jalan",
+                "Sari Dewi", "Medan Baru", "27 Apr 2025", "Menunggu Verifikasi", "Sedang", "Sisa 2 hari"));
+        list.add(buildQueueReport("TKT-2025-003", "Saluran Drainase Tersumbat Jl. Gatot Subroto", "Drainase",
+                "Rina Hartati", "Medan Petisah", "26 Apr 2025", "Dalam Peninjauan", "Tinggi", "Sisa 1 hari"));
+        list.add(buildQueueReport("TKT-2025-004", "Trotoar Rusak Jl. Imam Bonjol", "Infrastruktur Jalan",
+                "Hendra Wijaya", "Medan Polonia", "25 Apr 2025", "Menunggu Verifikasi", "Sedang", "Sisa 3 hari"));
+        list.add(buildQueueReport("TKT-2025-005", "Pohon Tumbang Taman Sari", "Taman dan Ruang Publik",
+                "Dewi Lestari", "Medan Maimun", "24 Apr 2025", "Terlambat (SLA)", "Kritis", "Terlambat 1 hari"));
+        return list;
     }
 
     private Map<String, Object> buildQueueReport(String id, String judul, String kategori,
@@ -1173,41 +1330,34 @@ public class WebController {
         return m;
     }
 
-        private static List<Map<String, Object>> cachedValidationReports = null;
-
-        private String dummyReportImage() {
-                return "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='800' viewBox='0 0 1200 800'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop offset='0%25' stop-color='%231d4ed8'/%3E%3Cstop offset='100%25' stop-color='%230f766e'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='1200' height='800' fill='url(%23g)'/%3E%3Crect x='70' y='70' width='1060' height='660' rx='36' fill='white' fill-opacity='0.12'/%3E%3Ctext x='600' y='390' text-anchor='middle' fill='white' font-family='Arial, sans-serif' font-size='64' font-weight='700'%3EAduAja%3C/text%3E%3Ctext x='600' y='460' text-anchor='middle' fill='white' font-family='Arial, sans-serif' font-size='28' fill-opacity='0.9'%3EDummy Report Image%3C/text%3E%3C/svg%3E";
-        }
     /** Dummy data: laporan yang menunggu validasi */
     private List<Map<String, Object>> dummyValidationReports() {
-        if (cachedValidationReports != null) return cachedValidationReports;
         List<Map<String, Object>> list = new ArrayList<>();
         list.add(buildValidationReport("TKT-2025-001", "Jalan Berlubang Jl. Sudirman",
                 "Infrastruktur Jalan", "Budi Santoso", "081234567890",
                 "Jl. Sudirman No. 10, Medan Kota", "3.5952,98.6722",
                 "Dekat Indomaret Sudirman", "28 Apr 2025", "28 Apr 2025 07:30",
                 "Terdapat lubang besar sedalam 15 cm, membahayakan pengendara.",
-                dummyReportImage(), "Menunggu Verifikasi", "Kritis", "Sisa 6 jam"));
+                "/img/laporan1.jpg", "Menunggu Verifikasi", "Kritis"));
         list.add(buildValidationReport("TKT-2025-002", "Lampu Jalan Mati Gang Melati",
                 "Penerangan Jalan", "Sari Dewi", "085678901234",
                 "Gang Melati No. 5, Medan Baru", "3.5870,98.6712",
                 "Depan Warung Bu Tini", "27 Apr 2025", "27 Apr 2025 20:00",
                 "3 titik lampu jalan mati sejak seminggu yang lalu.",
-                dummyReportImage(), "Menunggu Verifikasi", "Sedang", "Sisa 2 hari"));
+                "/img/laporan2.jpg", "Menunggu Verifikasi", "Sedang"));
         list.add(buildValidationReport("TKT-2025-003", "Drainase Tersumbat Jl. Gatot Subroto",
                 "Drainase", "Rina Hartati", "087890123456",
                 "Jl. Gatot Subroto No. 8, Medan Petisah", "3.5931,98.6695",
                 "Samping SPBU Gatot Subroto", "26 Apr 2025", "26 Apr 2025 10:15",
                 "Saluran drainase tersumbat menyebabkan genangan saat hujan.",
-                dummyReportImage(), "Dalam Peninjauan", "Tinggi", "Sisa 1 hari"));
-        cachedValidationReports = list;
+                "/img/laporan3.jpg", "Dalam Peninjauan", "Tinggi"));
         return list;
     }
 
     private Map<String, Object> buildValidationReport(
             String id, String judul, String kategori, String pelapor, String kontakPelapor,
             String wilayah, String koordinatStr, String patokan, String tanggalMasuk,
-            String waktuKejadian, String deskripsi, String foto, String status, String prioritas, String sisaWaktuSLA) {
+            String waktuKejadian, String deskripsi, String foto, String status, String prioritas) {
         Map<String, Object> m = new HashMap<>();
         m.put("id", id);
         m.put("judul", judul);
@@ -1223,14 +1373,11 @@ public class WebController {
         m.put("foto", foto);
         m.put("status", status);
         m.put("prioritas", prioritas);
-        m.put("sisaWaktuSLA", sisaWaktuSLA);
         return m;
     }
 
-    private static List<Map<String, Object>> cachedMergeTickets = null;
     /** Dummy data: tiket yang terdeteksi sebagai duplikat */
     private List<Map<String, Object>> dummyMergeTickets() {
-        if (cachedMergeTickets != null) return cachedMergeTickets;
         List<Map<String, Object>> list = new ArrayList<>();
         list.add(buildMergeTicket("TKT-2025-006", "Jalan Berlubang Sudirman (2)",
                 "Infrastruktur Jalan", "Ahmad Rifai", "28 Apr 2025",
@@ -1244,7 +1391,6 @@ public class WebController {
                 "Penerangan Jalan", "Rudi Kurniawan", "27 Apr 2025",
                 "Gang Melati, Medan Baru",
                 "Lampu jalan di gang melati padam sejak 5 hari.", 85));
-        cachedMergeTickets = list;
         return list;
     }
 
@@ -1259,35 +1405,30 @@ public class WebController {
         m.put("wilayah", wilayah);
         m.put("deskripsi", deskripsi);
         m.put("similarityScore", similarityScore);
-        m.put("foto", dummyReportImage());
+        m.put("foto", "/img/laporan-default.jpg");
         return m;
     }
 
-    private static List<List<Map<String, Object>>> cachedClusters = null;
     /** Dummy data: cluster duplikat */
     private List<List<Map<String, Object>>> dummyClusters() {
-        if (cachedClusters != null) return cachedClusters;
         List<List<Map<String, Object>>> clusters = new ArrayList<>();
 
         List<Map<String, Object>> c1 = new ArrayList<>();
-        c1.add(buildMergeTicket("TKT-2025-001", "Jalan Berlubang Parah", "Infrastruktur Jalan", "Budi S", "20 Apr 2025", "Jl. Sudirman, Medan Kota", "Ada jalan berlubang besar", 100));
-        c1.add(buildMergeTicket("TKT-2025-010", "Lubang di Jl Sudirman", "Infrastruktur Jalan", "Andi", "21 Apr 2025", "Jl. Sudirman, Medan Kota", "Jalanan rusak", 90));
-        c1.add(buildMergeTicket("TKT-2025-011", "Jalan rusak depan toko", "Infrastruktur Jalan", "Citra", "22 Apr 2025", "Jl. Sudirman, Medan Kota", "Bahaya buat motor", 88));
+        c1.add(Map.of("id","TKT-2025-001","kategori","Infrastruktur Jalan","wilayah","Jl. Sudirman, Medan Kota"));
+        c1.add(Map.of("id","TKT-2025-006","kategori","Infrastruktur Jalan","wilayah","Jl. Sudirman, Medan Kota"));
+        c1.add(Map.of("id","TKT-2025-007","kategori","Infrastruktur Jalan","wilayah","Jl. Sudirman, Medan Kota"));
         clusters.add(c1);
 
         List<Map<String, Object>> c2 = new ArrayList<>();
-        c2.add(buildMergeTicket("TKT-2025-002", "Lampu Mati", "Penerangan Jalan", "Sari D", "23 Apr 2025", "Gang Melati, Medan Baru", "Lampu mati gelap", 100));
-        c2.add(buildMergeTicket("TKT-2025-012", "Lampu jalan rusak", "Penerangan Jalan", "Joko", "24 Apr 2025", "Gang Melati, Medan Baru", "Gelap gulita", 95));
+        c2.add(Map.of("id","TKT-2025-002","kategori","Penerangan Jalan","wilayah","Gang Melati, Medan Baru"));
+        c2.add(Map.of("id","TKT-2025-008","kategori","Penerangan Jalan","wilayah","Gang Melati, Medan Baru"));
         clusters.add(c2);
 
-        cachedClusters = clusters;
         return clusters;
     }
 
-    private static List<Map<String, Object>> cachedDisposisiReports = null;
     /** Dummy data: laporan tervalidasi yang siap disposisi */
     private List<Map<String, Object>> dummyDisposisiReports() {
-        if (cachedDisposisiReports != null) return cachedDisposisiReports;
         List<Map<String, Object>> list = new ArrayList<>();
         list.add(buildDisposisiReport("TKT-2025-003", "Saluran Drainase Tersumbat Jl. Gatot Subroto",
                 "Drainase", "Rina Hartati", "Jl. Gatot Subroto, Medan Petisah",
@@ -1298,7 +1439,6 @@ public class WebController {
         list.add(buildDisposisiReport("TKT-2025-009", "Pencemaran Sungai Deli",
                 "Lingkungan Hidup", "Wahyu Nugroho", "Bantaran Sungai Deli, Medan Barat",
                 "Tervalidasi", "Kritis", "Dinas Lingkungan Hidup"));
-        cachedDisposisiReports = list;
         return list;
     }
 
@@ -1313,7 +1453,7 @@ public class WebController {
         m.put("status", status);
         m.put("prioritasSistem", prioritasSistem);
         m.put("dinasRekomendasi", dinasRekomendasi);
-        m.put("foto", dummyReportImage());
+        m.put("foto", "/img/laporan-default.jpg");
         return m;
     }
 
@@ -1347,8 +1487,7 @@ public class WebController {
         d1.put("tanggalSelesai", "28 Apr 2025");
         d1.put("statusSebelum", "Selesai");
         d1.put("alasanSengketa", "Jalan sudah dinyatakan selesai diperbaiki, namun kondisi aspal masih berlubang dan tidak rata. Perbaikan tidak tuntas.");
-        d1.put("fotoBuktiSengketa", dummyReportImage());
-        d1.put("fotoBuktiPerbaikan", dummyReportImage());
+        d1.put("fotoBuktiSengketa", "/img/bukti-sengketa1.jpg");
         d1.put("keteranganDinas", "Pekerjaan perbaikan jalan telah dilakukan sesuai spesifikasi teknis. Kondisi yang dilihat warga adalah bagian lain yang bukan termasuk scope perbaikan.");
         d1.put("dinas", "Dinas PU dan Penataan Ruang");
         list.add(d1);
@@ -1365,8 +1504,7 @@ public class WebController {
         d2.put("tanggalSelesai", "25 Apr 2025");
         d2.put("statusSebelum", "Selesai");
         d2.put("alasanSengketa", "Status tiket sudah ditandai selesai tetapi lampu jalan di Gang Melati masih belum menyala hingga hari ini.");
-        d2.put("fotoBuktiSengketa", dummyReportImage());
-        d2.put("fotoBuktiPerbaikan", dummyReportImage());
+        d2.put("fotoBuktiSengketa", "/img/bukti-sengketa2.jpg");
         d2.put("keteranganDinas", "Penggantian lampu telah dilakukan pada 25 April. Kemungkinan terjadi kerusakan pada kabel jaringan yang perlu pengecekan lebih lanjut.");
         d2.put("dinas", "Dinas ESDM");
         list.add(d2);
@@ -1420,19 +1558,19 @@ public class WebController {
                 "Drainase", "Tinggi", "26 Apr 2025",
                 "Jl. Gatot Subroto, Medan Petisah", "02 Mei 2025 17:00",
                 "Segera tangani sebelum musim hujan. Prioritaskan pembersihan di titik utama.",
-                dummyReportImage()));
+                "/img/laporan3.jpg"));
         list.add(buildIncomingDinasReport("TKT-2025-004",
                 "Trotoar Rusak Jl. Imam Bonjol",
                 "Infrastruktur Jalan", "Sedang", "25 Apr 2025",
                 "Jl. Imam Bonjol, Medan Polonia", "05 Mei 2025 17:00",
                 "Perbaiki area trotoar yang retak dan membahayakan pejalan kaki.",
-                dummyReportImage()));
+                "/img/laporan4.jpg"));
         list.add(buildIncomingDinasReport("TKT-2025-012",
                 "Jembatan Rusak Jl. Setia Budi",
                 "Jembatan", "Kritis", "24 Apr 2025",
                 "Jl. Setia Budi, Medan Sunggal", "30 Apr 2025 17:00",
                 "URGENT: Jembatan dalam kondisi kritis, butuh penanganan segera.",
-                dummyReportImage()));
+                "/img/laporan5.jpg"));
         return list;
     }
 
@@ -1488,7 +1626,7 @@ public class WebController {
         t1.put("prioritas", "Sedang");
         t1.put("pelapor", "Hendra Wijaya");
         t1.put("deadline", "05 Mei 2025 17:00");
-        t1.put("foto", dummyReportImage());
+        t1.put("foto", "/img/laporan4.jpg");
 
         List<Map<String, Object>> ph1 = new ArrayList<>();
         ph1.add(Map.of("tanggal","29 Apr 2025 09:00","petugas","Ahmad Fauzi",
@@ -1507,7 +1645,7 @@ public class WebController {
         t2.put("prioritas", "Tinggi");
         t2.put("pelapor", "Rina Hartati");
         t2.put("deadline", "02 Mei 2025 17:00");
-        t2.put("foto", dummyReportImage());
+        t2.put("foto", "/img/laporan3.jpg");
 
         List<Map<String, Object>> ph2 = new ArrayList<>();
         ph2.add(Map.of("tanggal","28 Apr 2025 14:00","petugas","Rizal Harahap",
@@ -1530,7 +1668,7 @@ public class WebController {
         t1.put("prioritas", "Tinggi");
         t1.put("pelapor", "Sigit Wibowo");
         t1.put("wilayah", "Jl. Sutomo, Medan Timur");
-        t1.put("foto", dummyReportImage());
+        t1.put("foto", "/img/laporan6.jpg");
 
         List<Map<String, Object>> ph1 = new ArrayList<>();
         ph1.add(Map.of("tanggal","25 Apr 2025","keterangan","Survei lokasi dan persiapan material."));
@@ -1546,7 +1684,7 @@ public class WebController {
         t2.put("prioritas", "Sedang");
         t2.put("pelapor", "Lestari Wulandari");
         t2.put("wilayah", "Jl. Asia, Medan Kota");
-        t2.put("foto", dummyReportImage());
+        t2.put("foto", "/img/laporan7.jpg");
 
         List<Map<String, Object>> ph2 = new ArrayList<>();
         ph2.add(Map.of("tanggal","26 Apr 2025","keterangan","Material tutup gorong-gorong tiba."));
@@ -1679,53 +1817,108 @@ public class WebController {
 
     private List<Map<String, Object>> allDummyWargaReports() {
         List<Map<String, Object>> list = new ArrayList<>();
-        list.add(new HashMap<>(Map.of(
-                "id","RPT-001","title","Jalan Berlubang di Jl. Sudirman",
-                "category","Infrastruktur Jalan","status","Diproses",
-                "statusColor","bg-yellow-100 text-yellow-700",
-                "location","Jl. Sudirman, Medan Kota","date",LocalDate.of(2025,4,20),
-                "icon","alert-triangle","iconColor","text-yellow-600"
-        )));
-        list.add(new HashMap<>(Map.of(
-                "id","RPT-002","title","Lampu Jalan Mati di Gang Melati",
-                "category","Listrik Publik","status","Selesai",
-                "statusColor","bg-green-100 text-green-700",
-                "location","Gang Melati, Medan Baru","date",LocalDate.of(2025,4,15),
-                "icon","zap","iconColor","text-green-600"
-        )));
-        list.add(new HashMap<>(Map.of(
-                "id","RPT-003","title","Saluran Drainase Tersumbat",
-                "category","Sistem Drainase","status","Menunggu",
-                "statusColor","bg-gray-100 text-gray-700",
-                "location","Jl. Gatot Subroto, Medan Petisah","date",LocalDate.of(2025,4,28),
-                "icon","droplets","iconColor","text-blue-600"
-        )));
-        list.add(new HashMap<>(Map.of(
-                "id","RPT-004","title","Taman Bermain Rusak di Taman Sari",
-                "category","Taman dan Ruang Publik","status","Ditolak",
-                "statusColor","bg-red-100 text-red-700",
-                "location","Taman Sari, Medan Maimun","date",LocalDate.of(2025,3,10),
-                "icon","tree-pine","iconColor","text-red-600"
-        )));
-        list.add(new HashMap<>(Map.of(
-                "id","RPT-005","title","Trotoar Retak Jl. Imam Bonjol",
-                "category","Infrastruktur Jalan","status","Selesai",
-                "statusColor","bg-green-100 text-green-700",
-                "location","Jl. Imam Bonjol, Medan Polonia","date",LocalDate.of(2025,3,5),
-                "icon","alert-triangle","iconColor","text-green-600"
-        )));
+        LocalDateTime now = LocalDateTime.now();
+
+        list.add(buildReport("RPT-001","Jalan Berlubang di Jl. Sudirman","Infrastruktur Jalan","Diproses",
+                "bg-yellow-100 text-yellow-700","Jl. Sudirman, Medan Kota",LocalDate.of(2025,4,20),
+                "alert-triangle","text-yellow-600",
+                "Jalan berlubang besar diameter ±50cm, kedalaman ±15cm. Sudah terjadi sejak 2 minggu lalu dan semakin membesar.",
+                "Dekat Indomaret Sudirman","3.5891","98.6738",
+                now.minusDays(14), now.plusDays(3), null,
+                "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=800&h=600&fit=crop"));
+
+        list.add(buildReport("RPT-002","Lampu Jalan Mati di Gang Melati","Listrik Publik","Selesai",
+                "bg-green-100 text-green-700","Gang Melati, Medan Baru",LocalDate.of(2025,4,15),
+                "zap","text-green-600",
+                "Tiang lampu nomor 3 dari ujung jalan tidak menyala sejak 1 bulan terakhir.",
+                "Seberang Musholla Al-Ikhlas","3.5823","98.6701",
+                now.minusDays(30), now.minusDays(5), null));
+
+        list.add(buildReport("RPT-003","Saluran Drainase Tersumbat","Sistem Drainase","Menunggu",
+                "bg-gray-100 text-gray-700","Jl. Gatot Subroto, Medan Petisah",LocalDate.of(2025,4,28),
+                "droplets","text-blue-600",
+                "Drainase tersumbat sampah dan lumpur, menyebabkan genangan air saat hujan deras.",
+                "Depan Kantor Pos","3.5912","98.6645",
+                now.minusDays(2), now.plusDays(12), null));
+
+        list.add(buildReport("RPT-004","Taman Bermain Rusak di Taman Sari","Taman dan Ruang Publik","Ditolak",
+                "bg-red-100 text-red-700","Taman Sari, Medan Maimun",LocalDate.of(2025,3,10),
+                "tree-pine","text-red-600",
+                "Perosotan dan ayunan di taman bermain sudah berkarat dan rusak. Berbahaya untuk anak-anak.",
+                "Dalam area Taman Sari","3.5789","98.6812",
+                now.minusDays(25), now.minusDays(10),
+                "Kategori salah. Taman bermain bukan wewenang Dinas PU. Harap laporkan ke Dinas Pariwisata dan Kebudayaan.",
+                "https://images.unsplash.com/photo-1564429238961-bf8b83c3c690?w=800&h=600&fit=crop"));
+
+        list.add(buildReport("RPT-005","Trotoar Retak Jl. Imam Bonjol","Infrastruktur Jalan","Selesai",
+                "bg-green-100 text-green-700","Jl. Imam Bonjol, Medan Polonia",LocalDate.of(2025,3,5),
+                "alert-triangle","text-green-600",
+                "Trotoar sepanjang ±10 meter retak dan naik, menyebabkan pejalan kaki tersandung.",
+                "Dekat RS Columbia Asia","3.5756","98.6889",
+                now.minusDays(40), now.minusDays(15), null));
+
+        list.add(buildReport("RPT-006","Jalan Berlubang di Jl. Sisingamangaraja","Infrastruktur Jalan","Sedang Diproses",
+                "bg-orange-100 text-orange-700","Jl. Sisingamangaraja, Medan Kota",LocalDate.of(2025,5,1),
+                "alert-triangle","text-orange-600",
+                "Lubang jalan besar di tengah ruas jalan utama, sudah menyebabkan beberapa kecelakaan ringan.",
+                "Dekat Bank Sumut","3.5905","98.6755",
+                now.minusDays(3), now.plusDays(4), null));
+
         return list;
+    }
+
+    private Map<String, Object> buildReport(
+            String id, String title, String category, String status, String statusColor,
+            String location, LocalDate date, String icon, String iconColor,
+            String description, String landmark, String latitude, String longitude,
+            LocalDateTime createdDate, LocalDateTime slaDeadline, String rejectionReason
+    ) {
+        return buildReport(id, title, category, status, statusColor, location, date,
+                icon, iconColor, description, landmark, latitude, longitude,
+                createdDate, slaDeadline, rejectionReason, null);
+    }
+
+    private Map<String, Object> buildReport(
+            String id, String title, String category, String status, String statusColor,
+            String location, LocalDate date, String icon, String iconColor,
+            String description, String landmark, String latitude, String longitude,
+            LocalDateTime createdDate, LocalDateTime slaDeadline, String rejectionReason, String photoUrl
+    ) {
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm");
+        Map<String, Object> r = new HashMap<>();
+        r.put("id", id);
+        r.put("title", title);
+        r.put("category", category);
+        r.put("status", status);
+        r.put("statusColor", statusColor);
+        r.put("location", location);
+        r.put("date", date);
+        r.put("icon", icon);
+        r.put("iconColor", iconColor);
+        r.put("description", description);
+        r.put("landmark", landmark);
+        r.put("latitude", latitude);
+        r.put("longitude", longitude);
+        r.put("createdDate", createdDate.format(fmt));
+        r.put("slaDeadline", slaDeadline.format(fmt));
+        r.put("rejectionReason", rejectionReason);
+        r.put("photoUrl", photoUrl);
+        return r;
     }
 
     // ==========================================
     // INNER CLASS: Form object untuk create-report
     // ==========================================
     public static class ReportForm {
+        private String category;
         private String description;
         private String landmark;
         private String latitude;
         private String longitude;
+        private String photoData;
 
+        public String getCategory() { return category; }
+        public void setCategory(String category) { this.category = category; }
         public String getDescription() { return description; }
         public void setDescription(String description) { this.description = description; }
         public String getLandmark() { return landmark; }
@@ -1734,5 +1927,7 @@ public class WebController {
         public void setLatitude(String latitude) { this.latitude = latitude; }
         public String getLongitude() { return longitude; }
         public void setLongitude(String longitude) { this.longitude = longitude; }
+        public String getPhotoData() { return photoData; }
+        public void setPhotoData(String photoData) { this.photoData = photoData; }
     }
 }

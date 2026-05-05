@@ -1,35 +1,517 @@
-<html
-  lang="id"
-  xmlns:th="http://www.thymeleaf.org"
-  xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
-  layout:decorate="~{layouts/master}"
->
-  <th:block layout:fragment="extraHead">
-    <title>AduAja - Sistem Lapor</title>
-  </th:block>
+<!DOCTYPE html>
+<html lang="id" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AduAja - Sistem Pengaduan Infrastruktur Publik Kota Medan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+      [x-cloak] { display: none !important; }
+      .fade-up {
+        opacity: 0;
+        transform: translateY(30px);
+        transition: all 0.8s ease-out;
+      }
+      .fade-up.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .card-hover:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50" x-data="{ mobileMenu: false, scrolled: false }" @scroll.window="scrolled = (window.scrollY > 20)">
 
-  <div layout:fragment="content" class="min-h-screen bg-gray-100 flex items-center justify-center">
-    <div class="bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center">
-      <h2 class="text-3xl font-bold text-blue-600 mb-4">AduAja</h2>
-      <p class="text-gray-600 mb-6">Sistem Lapor Infrastruktur Publik. Halaman React sudah berhasil pindah ke Thymeleaf!</p>
-      <div class="space-y-3">
-        <a
-          th:href="@{/warga/login}"
-          class="block w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
-        >Masuk sebagai Warga</a>
-        <a
-          th:href="@{/admin/login}"
-          class="block w-full border border-blue-500 text-blue-600 hover:bg-blue-50 font-semibold py-2 px-4 rounded-lg transition-colors"
-        >Masuk sebagai Admin</a>
-        <a
-          th:href="@{/admin/dinas/dashboard}"
-          class="block w-full border border-green-500 text-green-600 hover:bg-green-50 font-semibold py-2 px-4 rounded-lg transition-colors"
-        >Masuk sebagai Admin Dinas</a>
-        <a
-          th:href="@{/petugas/login}"
-          class="block w-full border border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold py-2 px-4 rounded-lg transition-colors"
-        >Masuk sebagai Petugas</a>
+    <!-- Navbar -->
+    <nav class="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
+         :class="scrolled ? 'bg-white shadow-sm border-b border-gray-200' : 'bg-white/95 backdrop-blur-sm'">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center h-16">
+          <a href="#" class="flex items-center gap-2">
+            <img th:src="@{/img/Adu Aja Logo.png}" class="w-10 h-10 object-contain" alt="Logo AduAja" />
+            <span class="text-xl font-extrabold text-gray-900 tracking-tight">AduAja</span>
+          </a>
+
+          <div class="hidden md:flex items-center gap-6">
+            <a href="#fitur" class="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">Fitur</a>
+            <a href="#alur" class="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">Alur Kerja</a>
+            <a href="#role" class="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">Pengguna</a>
+            <a href="#kategori" class="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">Kategori</a>
+          </div>
+
+          <div class="hidden md:flex items-center gap-3">
+            <a th:href="@{/warga/login}" class="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Masuk</a>
+            <a th:href="@{/warga/login}" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">Mulai Lapor</a>
+          </div>
+
+          <button @click="mobileMenu = !mobileMenu" class="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100">
+            <i data-lucide="menu" class="w-5 h-5"></i>
+          </button>
+        </div>
       </div>
-    </div>
-  </div>
+
+      <!-- Mobile Menu -->
+      <div x-show="mobileMenu" x-cloak @click.away="mobileMenu = false" class="md:hidden bg-white border-t border-gray-200 shadow-lg">
+        <div class="px-4 py-3 space-y-1">
+          <a href="#fitur" @click="mobileMenu = false" class="block px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg">Fitur</a>
+          <a href="#alur" @click="mobileMenu = false" class="block px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg">Alur Kerja</a>
+          <a href="#role" @click="mobileMenu = false" class="block px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg">Pengguna</a>
+          <a href="#kategori" @click="mobileMenu = false" class="block px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg">Kategori</a>
+          <div class="pt-3 border-t border-gray-200 flex flex-col gap-2">
+            <a th:href="@{/warga/login}" class="block text-center px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg">Masuk</a>
+            <a th:href="@{/warga/login}" class="block text-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg">Mulai Lapor</a>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="bg-blue-600 relative overflow-hidden">
+      <div class="absolute inset-0 opacity-10">
+        <div class="absolute top-10 right-10 w-64 h-64 bg-white rounded-full blur-3xl"></div>
+        <div class="absolute bottom-10 left-10 w-96 h-96 bg-blue-300 rounded-full blur-3xl"></div>
+      </div>
+
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 lg:py-32 relative z-10">
+        <div class="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+          <div class="text-white">
+            <div class="inline-flex items-center gap-2 bg-blue-700 px-3 py-1.5 rounded-lg mb-4">
+              <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+              <span class="text-xs font-medium">Sistem Aktif - Kota Medan</span>
+            </div>
+
+            <h1 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-tight mb-4 sm:mb-6">
+              Lapor Kerusakan Infrastruktur<br class="hidden sm:block" />
+              <span class="text-blue-200">Jadi Lebih Mudah</span>
+            </h1>
+
+            <p class="text-base sm:text-lg text-blue-100 mb-6 sm:mb-8 max-w-lg leading-relaxed">
+              AduAja menghubungkan masyarakat Kota Medan dengan pemerintah untuk penanganan infrastruktur yang lebih cepat, transparan, dan terukur.
+            </p>
+
+            <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-8 sm:mb-12">
+              <a th:href="@{/warga/login}" class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white text-blue-700 rounded-lg font-semibold hover:bg-blue-50 transition-colors shadow-lg">
+                <i data-lucide="camera" class="w-5 h-5"></i>
+                Lapor Sekarang
+              </a>
+              <a href="#fitur" class="inline-flex items-center justify-center gap-2 px-6 py-3 border-2 border-blue-400 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors">
+                <i data-lucide="play-circle" class="w-5 h-5"></i>
+                Pelajari Lebih
+              </a>
+            </div>
+
+            <div class="grid grid-cols-3 gap-4 sm:gap-6">
+              <div>
+                <div class="text-2xl sm:text-3xl font-bold">500+</div>
+                <div class="text-blue-200 text-xs sm:text-sm">Laporan Ditangani</div>
+              </div>
+              <div>
+                <div class="text-2xl sm:text-3xl font-bold">95%</div>
+                <div class="text-blue-200 text-xs sm:text-sm">Tepat Waktu SLA</div>
+              </div>
+              <div>
+                <div class="text-2xl sm:text-3xl font-bold">4</div>
+                <div class="text-blue-200 text-xs sm:text-sm">Dinas Terkait</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="hidden lg:block">
+            <div class="relative">
+              <div class="bg-white rounded-xl p-6 shadow-2xl mb-4">
+                <div class="flex items-center gap-3 mb-4">
+                  <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                    <i data-lucide="alert-triangle" class="w-5 h-5 text-red-600"></i>
+                  </div>
+                  <div>
+                    <div class="font-semibold text-gray-900">Jalan Berlubang</div>
+                    <div class="text-sm text-gray-500">Jl. Sudirman, Medan Kota</div>
+                  </div>
+                  <span class="ml-auto px-3 py-1 bg-yellow-100 text-yellow-700 text-xs font-medium rounded-full">Diproses</span>
+                </div>
+                <div class="bg-gray-100 rounded-lg h-32 flex items-center justify-center mb-3">
+                  <i data-lucide="image" class="w-10 h-10 text-gray-400"></i>
+                </div>
+                <div class="flex items-center gap-4 text-sm text-gray-500">
+                  <span class="flex items-center gap-1"><i data-lucide="map-pin" class="w-4 h-4"></i> GPS Terdeteksi</span>
+                  <span class="flex items-center gap-1"><i data-lucide="clock" class="w-4 h-4"></i> Sisa 2 hari</span>
+                </div>
+              </div>
+
+              <div class="bg-white rounded-lg p-4 shadow-lg">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                    <i data-lucide="check-circle" class="w-5 h-5 text-green-600"></i>
+                  </div>
+                  <div class="flex-1">
+                    <div class="font-semibold text-gray-900 text-sm">Laporan Selesai!</div>
+                    <div class="text-xs text-gray-500">Lampu Jalan Gang Melati telah diperbaiki</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="fitur" class="py-16 sm:py-24 bg-white">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center max-w-3xl mx-auto mb-12 sm:mb-16">
+          <span class="inline-block px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold mb-3">Fitur Unggulan</span>
+          <h2 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-gray-900 mb-3 sm:mb-4">Semua yang Anda Butuhkan dalam Satu Platform</h2>
+          <p class="text-base sm:text-lg text-gray-600">AduAja dirancang untuk membuat pelaporan infrastruktur menjadi mudah, cepat, dan transparan bagi semua pihak.</p>
+        </div>
+
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div class="bg-gray-50 rounded-xl p-6 sm:p-8 border border-gray-100 card-hover transition-all duration-300">
+            <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+              <i data-lucide="camera" class="w-6 h-6 text-blue-600"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Laporan dengan Foto & GPS</h3>
+            <p class="text-sm text-gray-600 leading-relaxed">Ambil foto langsung dari kamera dan dapatkan koordinat GPS otomatis untuk akurasi lokasi.</p>
+          </div>
+
+          <div class="bg-gray-50 rounded-xl p-6 sm:p-8 border border-gray-100 card-hover transition-all duration-300">
+            <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+              <i data-lucide="clock" class="w-6 h-6 text-green-600"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Tracking Real-Time</h3>
+            <p class="text-sm text-gray-600 leading-relaxed">Pantau status laporan Anda secara real-time dari pelaporan hingga penyelesaian.</p>
+          </div>
+
+          <div class="bg-gray-50 rounded-xl p-6 sm:p-8 border border-gray-100 card-hover transition-all duration-300">
+            <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+              <i data-lucide="shield-check" class="w-6 h-6 text-purple-600"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Sistem SLA Terjamin</h3>
+            <p class="text-sm text-gray-600 leading-relaxed">Setiap laporan memiliki batas waktu penanganan berdasarkan tingkat prioritas.</p>
+          </div>
+
+          <div class="bg-gray-50 rounded-xl p-6 sm:p-8 border border-gray-100 card-hover transition-all duration-300">
+            <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4">
+              <i data-lucide="git-merge" class="w-6 h-6 text-orange-600"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Deteksi Duplikat Otomatis</h3>
+            <p class="text-sm text-gray-600 leading-relaxed">Sistem cerdas mendeteksi dan menggabungkan laporan serupa untuk efisiensi.</p>
+          </div>
+
+          <div class="bg-gray-50 rounded-xl p-6 sm:p-8 border border-gray-100 card-hover transition-all duration-300">
+            <div class="w-12 h-12 bg-cyan-100 rounded-lg flex items-center justify-center mb-4">
+              <i data-lucide="bell" class="w-6 h-6 text-cyan-600"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Notifikasi Otomatis</h3>
+            <p class="text-sm text-gray-600 leading-relaxed">Dapatkan pemberitahuan setiap ada perubahan status pada laporan Anda.</p>
+          </div>
+
+          <div class="bg-gray-50 rounded-xl p-6 sm:p-8 border border-gray-100 card-hover transition-all duration-300">
+            <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mb-4">
+              <i data-lucide="scale" class="w-6 h-6 text-red-600"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Sengketa & Banding</h3>
+            <p class="text-sm text-gray-600 leading-relaxed">Ajukan sengketa jika penanganan tidak sesuai dengan bukti foto pendukung.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section id="alur" class="py-16 sm:py-24 bg-gray-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center max-w-3xl mx-auto mb-12 sm:mb-16">
+          <span class="inline-block px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold mb-3">Alur Kerja</span>
+          <h2 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-gray-900 mb-3 sm:mb-4">Bagaimana AduAja Bekerja?</h2>
+          <p class="text-base sm:text-lg text-gray-600">Proses pelaporan yang terstruktur dari masyarakat hingga penyelesaian oleh petugas lapangan.</p>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6">
+          <div class="text-center">
+            <div class="w-14 h-14 bg-blue-600 rounded-lg flex items-center justify-center mx-auto mb-3 shadow">
+              <span class="text-xl font-bold text-white">1</span>
+            </div>
+            <h3 class="font-semibold text-gray-900 mb-1 text-sm sm:text-base">Warga Lapor</h3>
+            <p class="text-xs sm:text-sm text-gray-600">Foto kerusakan + GPS otomatis</p>
+          </div>
+
+          <div class="text-center">
+            <div class="w-14 h-14 bg-green-600 rounded-lg flex items-center justify-center mx-auto mb-3 shadow">
+              <span class="text-xl font-bold text-white">2</span>
+            </div>
+            <h3 class="font-semibold text-gray-900 mb-1 text-sm sm:text-base">Validasi Admin</h3>
+            <p class="text-xs sm:text-sm text-gray-600">Verifikasi & merge duplikat</p>
+          </div>
+
+          <div class="text-center">
+            <div class="w-14 h-14 bg-purple-600 rounded-lg flex items-center justify-center mx-auto mb-3 shadow">
+              <span class="text-xl font-bold text-white">3</span>
+            </div>
+            <h3 class="font-semibold text-gray-900 mb-1 text-sm sm:text-base">Disposisi Dinas</h3>
+            <p class="text-xs sm:text-sm text-gray-600">Diteruskan ke dinas terkait</p>
+          </div>
+
+          <div class="text-center">
+            <div class="w-14 h-14 bg-orange-600 rounded-lg flex items-center justify-center mx-auto mb-3 shadow">
+              <span class="text-xl font-bold text-white">4</span>
+            </div>
+            <h3 class="font-semibold text-gray-900 mb-1 text-sm sm:text-base">Petugas Lapangan</h3>
+            <p class="text-xs sm:text-sm text-gray-600">Pengerjaan + foto before/after</p>
+          </div>
+
+          <div class="text-center col-span-2 sm:col-span-1">
+            <div class="w-14 h-14 bg-red-600 rounded-lg flex items-center justify-center mx-auto mb-3 shadow">
+              <span class="text-xl font-bold text-white">5</span>
+            </div>
+            <h3 class="font-semibold text-gray-900 mb-1 text-sm sm:text-base">Selesai</h3>
+            <p class="text-xs sm:text-sm text-gray-600">Verifikasi & tutup tiket</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- User Roles Section -->
+    <section id="role" class="py-16 sm:py-24 bg-white">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center max-w-3xl mx-auto mb-12 sm:mb-16">
+          <span class="inline-block px-3 py-1.5 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold mb-3">Pengguna Sistem</span>
+          <h2 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-gray-900 mb-3 sm:mb-4">4 Peran dalam Satu Sistem</h2>
+          <p class="text-base sm:text-lg text-gray-600">Setiap peran memiliki fungsi spesifik untuk memastikan laporan ditangani dengan baik.</p>
+        </div>
+
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <!-- Warga -->
+          <div class="bg-gray-50 rounded-xl overflow-hidden border border-gray-100 card-hover transition-all duration-300">
+            <div class="h-1.5 bg-blue-600"></div>
+            <div class="p-5 sm:p-6">
+              <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                <i data-lucide="users" class="w-6 h-6 text-blue-600"></i>
+              </div>
+              <h3 class="text-base font-semibold text-gray-900 mb-2">Warga</h3>
+              <p class="text-sm text-gray-600 mb-4">Masyarakat umum yang melaporkan kerusakan infrastruktur di sekitarnya.</p>
+              <ul class="space-y-2 text-sm text-gray-600">
+                <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-green-500 flex-shrink-0"></i> Buat laporan + foto</li>
+                <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-green-500 flex-shrink-0"></i> Pantau status real-time</li>
+                <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-green-500 flex-shrink-0"></i> Ajukan sengketa</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Admin Pusat -->
+          <div class="bg-gray-50 rounded-xl overflow-hidden border border-gray-100 card-hover transition-all duration-300">
+            <div class="h-1.5 bg-green-600"></div>
+            <div class="p-5 sm:p-6">
+              <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+                <i data-lucide="shield" class="w-6 h-6 text-green-600"></i>
+              </div>
+              <h3 class="text-base font-semibold text-gray-900 mb-2">Admin Pusat</h3>
+              <p class="text-sm text-gray-600 mb-4">Validator dan dispatcher yang mengelola laporan masuk.</p>
+              <ul class="space-y-2 text-sm text-gray-600">
+                <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-green-500 flex-shrink-0"></i> Validasi laporan</li>
+                <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-green-500 flex-shrink-0"></i> Merge tiket duplikat</li>
+                <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-green-500 flex-shrink-0"></i> Disposisi ke dinas</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Admin Dinas -->
+          <div class="bg-gray-50 rounded-xl overflow-hidden border border-gray-100 card-hover transition-all duration-300">
+            <div class="h-1.5 bg-purple-600"></div>
+            <div class="p-5 sm:p-6">
+              <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+                <i data-lucide="building-2" class="w-6 h-6 text-purple-600"></i>
+              </div>
+              <h3 class="text-base font-semibold text-gray-900 mb-2">Admin Dinas</h3>
+              <p class="text-sm text-gray-600 mb-4">Koordinator dinas yang menugaskan dan memonitor pekerjaan.</p>
+              <ul class="space-y-2 text-sm text-gray-600">
+                <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-green-500 flex-shrink-0"></i> Tugaskan petugas</li>
+                <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-green-500 flex-shrink-0"></i> Monitor progress</li>
+                <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-green-500 flex-shrink-0"></i> Tutup tiket</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Petugas -->
+          <div class="bg-gray-50 rounded-xl overflow-hidden border border-gray-100 card-hover transition-all duration-300">
+            <div class="h-1.5 bg-orange-600"></div>
+            <div class="p-5 sm:p-6">
+              <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4">
+                <i data-lucide="wrench" class="w-6 h-6 text-orange-600"></i>
+              </div>
+              <h3 class="text-base font-semibold text-gray-900 mb-2">Petugas</h3>
+              <p class="text-sm text-gray-600 mb-4">Petugas lapangan yang menangani laporan secara langsung.</p>
+              <ul class="space-y-2 text-sm text-gray-600">
+                <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-green-500 flex-shrink-0"></i> Absensi check-in/out</li>
+                <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-green-500 flex-shrink-0"></i> Pengerjaan tugas</li>
+                <li class="flex items-center gap-2"><i data-lucide="check" class="w-4 h-4 text-green-500 flex-shrink-0"></i> Foto before/after</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Categories Section -->
+    <section id="kategori" class="py-16 sm:py-24 bg-gray-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center max-w-3xl mx-auto mb-12 sm:mb-16">
+          <span class="inline-block px-3 py-1.5 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold mb-3">Kategori Laporan</span>
+          <h2 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-gray-900 mb-3 sm:mb-4">Apa Saja yang Bisa Dilaporkan?</h2>
+          <p class="text-base sm:text-lg text-gray-600">Berbagai kategori infrastruktur publik yang bisa Anda laporkan kerusakannya.</p>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div class="bg-white rounded-xl p-4 sm:p-6 text-center border border-gray-100 hover:shadow-lg transition-all">
+            <i data-lucide="route" class="w-8 h-8 text-blue-600 mx-auto mb-3"></i>
+            <span class="font-medium text-gray-900 text-sm sm:text-base">Infrastruktur Jalan</span>
+          </div>
+          <div class="bg-white rounded-xl p-4 sm:p-6 text-center border border-gray-100 hover:shadow-lg transition-all">
+            <i data-lucide="lightbulb" class="w-8 h-8 text-yellow-600 mx-auto mb-3"></i>
+            <span class="font-medium text-gray-900 text-sm sm:text-base">Penerangan Jalan</span>
+          </div>
+          <div class="bg-white rounded-xl p-4 sm:p-6 text-center border border-gray-100 hover:shadow-lg transition-all">
+            <i data-lucide="waves" class="w-8 h-8 text-cyan-600 mx-auto mb-3"></i>
+            <span class="font-medium text-gray-900 text-sm sm:text-base">Sistem Drainase</span>
+          </div>
+          <div class="bg-white rounded-xl p-4 sm:p-6 text-center border border-gray-100 hover:shadow-lg transition-all">
+            <i data-lucide="trees" class="w-8 h-8 text-green-600 mx-auto mb-3"></i>
+            <span class="font-medium text-gray-900 text-sm sm:text-base">Taman & Ruang Publik</span>
+          </div>
+          <div class="bg-white rounded-xl p-4 sm:p-6 text-center border border-gray-100 hover:shadow-lg transition-all">
+            <i data-lucide="zap" class="w-8 h-8 text-purple-600 mx-auto mb-3"></i>
+            <span class="font-medium text-gray-900 text-sm sm:text-base">Listrik Publik</span>
+          </div>
+          <div class="bg-white rounded-xl p-4 sm:p-6 text-center border border-gray-100 hover:shadow-lg transition-all">
+            <i data-lucide="triangle-alert" class="w-8 h-8 text-red-600 mx-auto mb-3"></i>
+            <span class="font-medium text-gray-900 text-sm sm:text-base">Jembatan</span>
+          </div>
+          <div class="bg-white rounded-xl p-4 sm:p-6 text-center border border-gray-100 hover:shadow-lg transition-all">
+            <i data-lucide="signpost" class="w-8 h-8 text-orange-600 mx-auto mb-3"></i>
+            <span class="font-medium text-gray-900 text-sm sm:text-base">Rambu Lalu Lintas</span>
+          </div>
+          <div class="bg-white rounded-xl p-4 sm:p-6 text-center border border-gray-100 hover:shadow-lg transition-all">
+            <i data-lucide="leaf" class="w-8 h-8 text-emerald-600 mx-auto mb-3"></i>
+            <span class="font-medium text-gray-900 text-sm sm:text-base">Lingkungan Hidup</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Statistics Section -->
+    <section id="statistik" class="py-16 sm:py-24 bg-blue-600 relative">
+      <div class="absolute inset-0 opacity-10">
+        <div class="absolute top-10 right-20 w-48 h-48 bg-white rounded-full blur-3xl"></div>
+        <div class="absolute bottom-10 left-20 w-64 h-64 bg-blue-300 rounded-full blur-3xl"></div>
+      </div>
+
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div class="text-center max-w-3xl mx-auto mb-10 sm:mb-16">
+          <h2 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white mb-3 sm:mb-4">Dampak AduAja untuk Kota Medan</h2>
+          <p class="text-base sm:text-lg text-blue-100">Data penanganan infrastruktur publik secara real-time.</p>
+        </div>
+
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
+          <div class="text-center">
+            <div class="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-2">500+</div>
+            <div class="text-blue-200 text-sm font-medium">Laporan Masuk</div>
+          </div>
+          <div class="text-center">
+            <div class="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-2">450+</div>
+            <div class="text-blue-200 text-sm font-medium">Laporan Selesai</div>
+          </div>
+          <div class="text-center">
+            <div class="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-2">95%</div>
+            <div class="text-blue-200 text-sm font-medium">Tepat Waktu SLA</div>
+          </div>
+          <div class="text-center">
+            <div class="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-2">21</div>
+            <div class="text-blue-200 text-sm font-medium">Kecamatan Terjangkau</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-16 sm:py-24 bg-white">
+      <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="bg-blue-600 rounded-xl p-8 sm:p-12 shadow-lg relative overflow-hidden">
+          <div class="absolute top-0 right-0 w-48 h-48 bg-blue-500 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+          <div class="absolute bottom-0 left-0 w-32 h-32 bg-blue-700 rounded-full translate-y-1/2 -translate-x-1/2"></div>
+
+          <div class="relative z-10 text-center">
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-3 sm:mb-4">Lihat Kerusakan? Langsung Lapor!</h2>
+            <p class="text-base sm:text-lg text-blue-100 mb-6 sm:mb-8 max-w-2xl mx-auto">Jadilah bagian dari perubahan. Setiap laporan Anda membantu memperbaiki infrastruktur Kota Medan.</p>
+
+            <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
+              <a th:href="@{/warga/login}" class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white text-blue-700 rounded-lg font-semibold hover:bg-blue-50 transition-colors shadow">
+                <i data-lucide="camera" class="w-5 h-5"></i>
+                Mulai Lapor Sekarang
+              </a>
+              <a th:href="@{/petugas/login}" class="inline-flex items-center justify-center gap-2 px-6 py-3 border-2 border-blue-400 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors">
+                <i data-lucide="user" class="w-5 h-5"></i>
+                Portal Petugas
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-gray-400 py-12 sm:py-16">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-10 sm:mb-12">
+          <div>
+            <div class="flex items-center gap-2 mb-4">
+              <img th:src="@{/img/Adu Aja Logo.png}" class="w-8 h-8 object-contain" alt="Logo AduAja" />
+              <span class="text-lg font-extrabold text-white">AduAja</span>
+            </div>
+            <p class="text-sm leading-relaxed">Sistem Pengaduan Infrastruktur Publik Kota Medan. Menghubungkan masyarakat dengan pemerintah untuk pelayanan yang lebih baik.</p>
+          </div>
+
+          <div>
+            <h4 class="text-white font-semibold mb-3 sm:mb-4">Akses Cepat</h4>
+            <ul class="space-y-2 text-sm">
+              <li><a href="#fitur" class="hover:text-white transition-colors">Fitur</a></li>
+              <li><a href="#alur" class="hover:text-white transition-colors">Alur Kerja</a></li>
+              <li><a href="#role" class="hover:text-white transition-colors">Pengguna</a></li>
+              <li><a href="#statistik" class="hover:text-white transition-colors">Statistik</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 class="text-white font-semibold mb-3 sm:mb-4">Portal Login</h4>
+            <ul class="space-y-2 text-sm">
+              <li><a th:href="@{/warga/login}" class="hover:text-white transition-colors">Warga</a></li>
+              <li><a th:href="@{/admin/login}" class="hover:text-white transition-colors">Admin Pusat</a></li>
+              <li><a th:href="@{/admin/dinas/dashboard}" class="hover:text-white transition-colors">Admin Dinas</a></li>
+              <li><a th:href="@{/petugas/login}" class="hover:text-white transition-colors">Petugas</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 class="text-white font-semibold mb-3 sm:mb-4">Kontak</h4>
+            <ul class="space-y-2 text-sm">
+              <li class="flex items-center gap-2"><i data-lucide="map-pin" class="w-4 h-4 flex-shrink-0"></i> Kota Medan, Sumatera Utara</li>
+              <li class="flex items-center gap-2"><i data-lucide="mail" class="w-4 h-4 flex-shrink-0"></i> aduaja@pemkomedan.go.id</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="border-t border-gray-800 pt-6 sm:pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <p class="text-sm">(c) 2026 AduAja - Kelompok PLR. Kota Medan.</p>
+          <p class="text-sm">Dibangun dengan Spring Boot & Thymeleaf</p>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      if (window.lucide) {
+        lucide.createIcons();
+      }
+    </script>
+  </body>
 </html>
