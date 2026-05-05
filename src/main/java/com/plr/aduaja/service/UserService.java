@@ -22,26 +22,15 @@ public class UserService {
         return userRepository.findById(id);
     }
 
-    public Optional<User> getUserByUsername(String username) {
-        return userRepository.findByUsername(username);
-    }
-
     public Optional<User> getUserByEmail(String email) {
         return userRepository.findByEmail(email);
     }
 
     public List<User> getUsersByRole(User.Role role) {
-        return userRepository.findByRoleAndIsActiveTrue(role);
-    }
-
-    public List<User> getPetugasByDinas(String dinasId) {
-        return userRepository.findByDinasIdAndRole(dinasId, User.Role.PETUGAS);
+        return userRepository.findByRole(role);
     }
 
     public User createUser(User user) {
-        if (userRepository.existsByUsername(user.getUsername())) {
-            throw new RuntimeException("Username already exists");
-        }
         if (userRepository.existsByEmail(user.getEmail())) {
             throw new RuntimeException("Email already exists");
         }
@@ -53,6 +42,6 @@ public class UserService {
     }
 
     public long countByRole(User.Role role) {
-        return userRepository.findByRoleAndIsActiveTrue(role).size();
+        return userRepository.findByRole(role).size();
     }
 }

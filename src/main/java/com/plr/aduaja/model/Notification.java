@@ -9,69 +9,52 @@ public class Notification {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private String id;
+    @Column(name = "notification_id")
+    private String notificationId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @JoinColumn(name = "recipient_id", nullable = false)
+    private User recipient;
 
-    @Column(nullable = false)
-    private String title;
-
-    @Column(nullable = false, columnDefinition = "TEXT")
-    private String message;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "report_id")
+    private Report report;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private Type type;
+    @Column(name = "notification_type", nullable = false)
+    private NotificationType notificationType;
 
-    @Column(name = "is_read")
+    @Column(name = "message_text", columnDefinition = "TEXT", nullable = false)
+    private String messageText;
+
+    @Column(name = "is_read", nullable = false)
     private Boolean isRead = false;
 
-    @Column(name = "related_report_id")
-    private String relatedReportId;
+    @Column(name = "sent_at", nullable = false)
+    private LocalDateTime sentAt = LocalDateTime.now();
 
-    @Column(name = "related_ticket_id")
-    private String relatedTicketId;
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt = LocalDateTime.now();
-
-    @Column(name = "read_at")
-    private LocalDateTime readAt;
-
-    public enum Type {
-        LAPORAN_DITERIMA, LAPORAN_DIPROSES, LAPORAN_SELESAI, LAPORAN_DITOLAK,
-        TUGAS_BARU, TUGAS_UPDATE, SENGKETA, ESKALASI, SYSTEM
+    public enum NotificationType {
+        STATUS_BERUBAH, SENGKETA_MASUK, SENGKETA_DIPUTUS, TUGAS_BARU, SLA_WARNING, SELESAI_OTOMATIS
     }
 
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
+    public String getNotificationId() { return notificationId; }
+    public void setNotificationId(String notificationId) { this.notificationId = notificationId; }
 
-    public User getUser() { return user; }
-    public void setUser(User user) { this.user = user; }
+    public User getRecipient() { return recipient; }
+    public void setRecipient(User recipient) { this.recipient = recipient; }
 
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
+    public Report getReport() { return report; }
+    public void setReport(Report report) { this.report = report; }
 
-    public String getMessage() { return message; }
-    public void setMessage(String message) { this.message = message; }
+    public NotificationType getNotificationType() { return notificationType; }
+    public void setNotificationType(NotificationType notificationType) { this.notificationType = notificationType; }
 
-    public Type getType() { return type; }
-    public void setType(Type type) { this.type = type; }
+    public String getMessageText() { return messageText; }
+    public void setMessageText(String messageText) { this.messageText = messageText; }
 
     public Boolean getIsRead() { return isRead; }
     public void setIsRead(Boolean isRead) { this.isRead = isRead; }
 
-    public String getRelatedReportId() { return relatedReportId; }
-    public void setRelatedReportId(String relatedReportId) { this.relatedReportId = relatedReportId; }
-
-    public String getRelatedTicketId() { return relatedTicketId; }
-    public void setRelatedTicketId(String relatedTicketId) { this.relatedTicketId = relatedTicketId; }
-
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-
-    public LocalDateTime getReadAt() { return readAt; }
-    public void setReadAt(LocalDateTime readAt) { this.readAt = readAt; }
+    public LocalDateTime getSentAt() { return sentAt; }
+    public void setSentAt(LocalDateTime sentAt) { this.sentAt = sentAt; }
 }

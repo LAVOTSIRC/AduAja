@@ -1,0 +1,5 @@
+$kind: http-request
+name: Get Report Count by Status
+method: GET
+url: '{{baseUrl}}/reports/count'
+order: 2000

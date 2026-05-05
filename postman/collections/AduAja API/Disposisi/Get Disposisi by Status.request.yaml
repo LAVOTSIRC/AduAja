@@ -1,0 +1,8 @@
+$kind: http-request
+name: Get Disposisi by Status
+method: GET
+url: '{{baseUrl}}/disposisi/status/:status'
+order: 3000
+pathVariables:
+  - key: status
+    value: MENUNGGU

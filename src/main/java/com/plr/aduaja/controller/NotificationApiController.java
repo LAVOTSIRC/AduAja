@@ -1,6 +1,7 @@
 package com.plr.aduaja.controller;
 
 import com.plr.aduaja.model.Notification;
+import com.plr.aduaja.model.Notification.NotificationType;
 import com.plr.aduaja.service.NotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -33,12 +34,11 @@ public class NotificationApiController {
 
     @PostMapping
     public ResponseEntity<Notification> createNotification(@RequestParam String userId,
-                                                            @RequestParam String title,
                                                             @RequestParam String message,
-                                                            @RequestParam Notification.Type type) {
+                                                            @RequestParam NotificationType type) {
         try {
             return ResponseEntity.status(HttpStatus.CREATED).body(
-                    notificationService.createNotification(userId, title, message, type));
+                    notificationService.createNotification(userId, message, type));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }

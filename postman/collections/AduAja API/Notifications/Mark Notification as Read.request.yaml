@@ -1,0 +1,8 @@
+$kind: http-request
+name: Mark Notification as Read
+method: POST
+url: '{{baseUrl}}/notifications/:id/read'
+order: 5000
+pathVariables:
+  - key: id
+    value: '1'

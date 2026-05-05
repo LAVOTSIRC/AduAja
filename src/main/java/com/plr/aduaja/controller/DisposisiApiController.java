@@ -1,14 +1,14 @@
 package com.plr.aduaja.controller;
 
-import com.plr.aduaja.model.Disposisi;
-import com.plr.aduaja.model.Dinas;
-import com.plr.aduaja.service.DisposisiService;
+import com.plr.aduaja.model.Agency;
+import com.plr.aduaja.model.Disposition;
+import com.plr.aduaja.service.DispositionService;
+import com.plr.aduaja.service.AgencyService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,61 +17,55 @@ import java.util.Optional;
 public class DisposisiApiController {
 
     @Autowired
-    private DisposisiService disposisiService;
+    private DispositionService dispositionService;
+
+    @Autowired
+    private AgencyService agencyService;
 
     @GetMapping
-    public ResponseEntity<List<Disposisi>> getAllDisposisi() {
-        return ResponseEntity.ok(disposisiService.getAllDisposisi());
+    public ResponseEntity<List<Disposition>> getAllDispositions() {
+        return ResponseEntity.ok(dispositionService.getAllDispositions());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Disposisi> getDisposisiById(@PathVariable String id) {
-        Optional<Disposisi> disposisi = disposisiService.getDisposisiById(id);
-        return disposisi.map(ResponseEntity::ok)
+    public ResponseEntity<Disposition> getDispositionById(@PathVariable String id) {
+        Optional<Disposition> disposition = dispositionService.getDispositionById(id);
+        return disposition.map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @GetMapping("/status/{status}")
-    public ResponseEntity<List<Disposisi>> getDisposisiByStatus(@PathVariable Disposisi.Status status) {
-        return ResponseEntity.ok(disposisiService.getDisposisiByStatus(status));
+    @GetMapping("/report/{reportId}")
+    public ResponseEntity<Disposition> getDispositionByReportId(@PathVariable String reportId) {
+        Optional<Disposition> disposition = dispositionService.getDispositionByReportId(reportId);
+        return disposition.map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
-    @GetMapping("/dinas/{dinasId}")
-    public ResponseEntity<List<Disposisi>> getDisposisiByDinas(@PathVariable String dinasId) {
-        return ResponseEntity.ok(disposisiService.getDisposisiByDinas(dinasId));
+    @GetMapping("/agency/{agencyId}")
+    public ResponseEntity<List<Disposition>> getDispositionsByAgency(@PathVariable String agencyId) {
+        return ResponseEntity.ok(dispositionService.getDispositionsByAgency(agencyId));
     }
 
     @PostMapping
-    public ResponseEntity<Disposisi> createDisposisi(@RequestParam String reportId,
-                                                      @RequestParam String dinasId,
-                                                      @RequestParam String assignedById,
-                                                      @RequestParam(required = false) String catatan,
-                                                      @RequestParam(required = false) LocalDateTime deadline) {
+    public ResponseEntity<Disposition> createDisposition(@RequestParam String reportId,
+                                                          @RequestParam String dispatchedById,
+                                                          @RequestParam String targetAgencyId,
+                                                          @RequestParam(required = false) String notes) {
         try {
-            Disposisi disposisi = disposisiService.createDisposisi(reportId, dinasId, assignedById, catatan, deadline);
-            return ResponseEntity.status(HttpStatus.CREATED).body(disposisi);
+            Disposition disposition = dispositionService.createDisposition(reportId, dispatchedById, targetAgencyId, notes);
+            return ResponseEntity.status(HttpStatus.CREATED).body(disposition);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
     }
 
-    @PatchMapping("/{id}/status")
-    public ResponseEntity<Disposisi> updateStatus(@PathVariable String id,
-                                                   @RequestParam Disposisi.Status status) {
-        try {
-            return ResponseEntity.ok(disposisiService.updateStatus(id, status));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
-        }
+    @GetMapping("/agencies")
+    public ResponseEntity<List<Agency>> getAllAgencies() {
+        return ResponseEntity.ok(agencyService.getActiveAgencies());
     }
 
-    @GetMapping("/dinas")
-    public ResponseEntity<List<Dinas>> getAllDinas() {
-        return ResponseEntity.ok(disposisiService.getAllDinas());
-    }
-
-    @GetMapping("/dinas/search")
-    public ResponseEntity<List<Dinas>> getDinasByCategory(@RequestParam String category) {
-        return ResponseEntity.ok(disposisiService.getDinasByCategory(category));
+    @GetMapping("/agencies/region/{regionId}")
+    public ResponseEntity<List<Agency>> getAgenciesByRegion(@PathVariable String regionId) {
+        return ResponseEntity.ok(agencyService.getActiveAgenciesByRegion(regionId));
     }
 }

@@ -1,6 +1,7 @@
 package com.plr.aduaja.controller;
 
 import com.plr.aduaja.model.Report;
+import com.plr.aduaja.model.Report.ReportStatus;
 import com.plr.aduaja.service.ReportService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -30,8 +31,15 @@ public class ReportApiController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/ticket/{ticketNumber}")
+    public ResponseEntity<Report> getReportByTicketNumber(@PathVariable String ticketNumber) {
+        Optional<Report> report = reportService.getReportByTicketNumber(ticketNumber);
+        return report.map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @GetMapping("/status/{status}")
-    public ResponseEntity<List<Report>> getReportsByStatus(@PathVariable Report.Status status) {
+    public ResponseEntity<List<Report>> getReportsByStatus(@PathVariable ReportStatus status) {
         return ResponseEntity.ok(reportService.getReportsByStatus(status));
     }
 
@@ -61,22 +69,9 @@ public class ReportApiController {
         }
     }
 
-    @PostMapping("/validate/{id}")
-    public ResponseEntity<Report> validateReport(@PathVariable String id,
-                                                  @RequestParam boolean approved,
-                                                  @RequestParam(required = false) String rejectionReason,
-                                                  @RequestParam String validatedBy) {
-        try {
-            Report report = reportService.validateReport(id, approved, rejectionReason, validatedBy);
-            return ResponseEntity.ok(report);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
-        }
-    }
-
     @PatchMapping("/{id}/status")
     public ResponseEntity<Report> updateStatus(@PathVariable String id,
-                                                @RequestParam Report.Status status) {
+                                                @RequestParam ReportStatus status) {
         try {
             Report report = reportService.updateStatus(id, status);
             return ResponseEntity.ok(report);
@@ -85,62 +80,15 @@ public class ReportApiController {
         }
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteReport(@PathVariable String id) {
-        try {
-            reportService.updateStatus(id, Report.Status.DITOLAK);
-            return ResponseEntity.noContent().build();
-        } catch (Exception e) {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
     @GetMapping("/count")
     public ResponseEntity<Map<String, Long>> getReportCounts() {
         Map<String, Long> counts = Map.of(
-                "menunggu", reportService.countByStatus(Report.Status.MENUNGGU),
-                "divalidasi", reportService.countByStatus(Report.Status.DIVALIDASI),
-                "diproses", reportService.countByStatus(Report.Status.DIPROSES),
-                "selesai", reportService.countByStatus(Report.Status.SELESAI),
-                "ditolak", reportService.countByStatus(Report.Status.DITOLAK)
+                "menunggu_validasi", reportService.countByStatus(ReportStatus.MENUNGGU_VALIDASI),
+                "divalidasi", reportService.countByStatus(ReportStatus.DIVALIDASI),
+                "ditugaskan", reportService.countByStatus(ReportStatus.DITUGASKAN),
+                "selesai", reportService.countByStatus(ReportStatus.SELESAI),
+                "sengketa", reportService.countByStatus(ReportStatus.SENGKETA)
         );
         return ResponseEntity.ok(counts);
-    }
-
-    @PostMapping("/{id}/confirm")
-    public ResponseEntity<Report> confirmCompletion(@PathVariable String id,
-                                                     @RequestParam String confirmedBy) {
-        try {
-            Report report = reportService.updateStatus(id, Report.Status.SELESAI);
-            return ResponseEntity.ok(report);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
-        }
-    }
-
-    @PostMapping("/{id}/dispute")
-    public ResponseEntity<Report> fileDispute(@PathVariable String id,
-                                               @RequestParam String disputedBy) {
-        try {
-            Report report = reportService.updateStatus(id, Report.Status.SENGKETA);
-            return ResponseEntity.ok(report);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
-        }
-    }
-
-    @PostMapping("/{id}/revisions")
-    public ResponseEntity<Report> submitRevision(@PathVariable String id,
-                                                  @RequestParam String description) {
-        try {
-            Report report = reportService.getReportById(id)
-                    .orElseThrow(() -> new RuntimeException("Report not found"));
-            report.setDescription(description);
-            report.setStatus(Report.Status.DIVALIDASI);
-            reportService.updateStatus(id, Report.Status.DIVALIDASI);
-            return ResponseEntity.ok(report);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
-        }
     }
 }

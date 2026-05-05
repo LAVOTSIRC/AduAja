@@ -1,15 +1,15 @@
 package com.plr.aduaja.service;
 
-import com.plr.aduaja.model.Report;
-import com.plr.aduaja.model.User;
-import com.plr.aduaja.repository.ReportRepository;
-import com.plr.aduaja.repository.UserRepository;
+import com.plr.aduaja.model.*;
+import com.plr.aduaja.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 public class ReportService {
@@ -20,69 +20,76 @@ public class ReportService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private ReportCategoryRepository categoryRepository;
+
+    @Autowired
+    private RegionRepository regionRepository;
+
+    private final AtomicInteger ticketCounter = new AtomicInteger(1);
+
     public List<Report> getAllReports() {
         return reportRepository.findAll();
     }
 
-    public List<Report> getReportsByStatus(Report.Status status) {
-        return reportRepository.findByStatusOrderByCreatedAtDesc(status);
+    public List<Report> getReportsByStatus(Report.ReportStatus status) {
+        return reportRepository.findByStatusOrderBySubmittedAtDesc(status);
     }
 
     public List<Report> getReportsByUser(String userId) {
-        return reportRepository.findByReporterId(userId);
+        return reportRepository.findByReporterUserId(userId);
     }
 
     public Optional<Report> getReportById(String id) {
         return reportRepository.findById(id);
     }
 
+    public Optional<Report> getReportByTicketNumber(String ticketNumber) {
+        return reportRepository.findByTicketNumber(ticketNumber);
+    }
+
     public Report createReport(Report report, String userId) {
         User reporter = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         report.setReporter(reporter);
-        report.setCreatedAt(LocalDateTime.now());
-        report.setStatus(Report.Status.MENUNGGU);
+        report.setSubmittedAt(LocalDateTime.now());
+        report.setUpdatedAt(LocalDateTime.now());
+        report.setStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
+        report.setTicketNumber(generateTicketNumber());
         return reportRepository.save(report);
     }
 
-    public Report validateReport(String id, boolean approved, String rejectionReason, String validatedByUserId) {
-        Report report = reportRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Report not found"));
-
-        User validator = userRepository.findById(validatedByUserId)
-                .orElseThrow(() -> new RuntimeException("Validator not found"));
-
-        report.setValidatedAt(LocalDateTime.now());
-        report.setValidatedBy(validator);
-
-        if (approved) {
-            report.setStatus(Report.Status.DIVALIDASI);
-        } else {
-            report.setStatus(Report.Status.DITOLAK);
-            report.setRejectionReason(rejectionReason);
-        }
-
-        return reportRepository.save(report);
-    }
-
-    public Report updateStatus(String id, Report.Status status) {
+    public Report updateStatus(String id, Report.ReportStatus status) {
         Report report = reportRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Report not found"));
         report.setStatus(status);
+        report.setUpdatedAt(LocalDateTime.now());
         return reportRepository.save(report);
     }
 
-    public long countByStatus(Report.Status status) {
+    public long countByStatus(Report.ReportStatus status) {
         return reportRepository.countByStatus(status);
     }
 
     public List<Report> searchReports(String query) {
-        return reportRepository.findByTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCase(query, query);
+        return reportRepository.findByDescriptionContainingIgnoreCase(query);
     }
 
     public List<Report> getReportsForDisposisi() {
-        return reportRepository.findByDisposisiIsNullAndStatusIn(
-                List.of(Report.Status.DIVALIDASI)
-        );
+        return reportRepository.findByStatus(Report.ReportStatus.DIVALIDASI);
+    }
+
+    public List<Report> getReportsByRegion(String regionId) {
+        return reportRepository.findByRegionRegionId(regionId);
+    }
+
+    public List<Report> getReportsByCategory(String categoryId) {
+        return reportRepository.findByCategoryCategoryId(categoryId);
+    }
+
+    private String generateTicketNumber() {
+        String year = String.valueOf(LocalDateTime.now().getYear());
+        int number = ticketCounter.getAndIncrement();
+        return String.format("ADJ-%s-%05d", year, number);
     }
 }

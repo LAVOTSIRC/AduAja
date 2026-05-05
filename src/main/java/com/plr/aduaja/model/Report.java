@@ -1,6 +1,7 @@
 package com.plr.aduaja.model;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -11,121 +12,158 @@ public class Report {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private String id;
+    @Column(name = "report_id")
+    private String reportId;
 
-    @Column(nullable = false)
-    private String title;
-
-    @Column(nullable = false, columnDefinition = "TEXT")
-    private String description;
-
-    @Column(nullable = false)
-    private String category;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private Status status = Status.MENUNGGU;
+    @Column(name = "ticket_number", nullable = false, unique = true, length = 20)
+    private String ticketNumber;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reporter_id", nullable = false)
     private User reporter;
 
-    private String location;
-    private String latitude;
-    private String longitude;
-    private String landmark;
-
-    @OneToMany(mappedBy = "report", cascade = CascadeType.ALL)
-    private List<PhotoEvidence> photos = new ArrayList<>();
-
-    @OneToOne(mappedBy = "report", cascade = CascadeType.ALL)
-    private Disposisi disposisi;
-
-    @OneToMany(mappedBy = "report", cascade = CascadeType.ALL)
-    private List<Ticket> tickets = new ArrayList<>();
-
-    @OneToMany(mappedBy = "parentReport", cascade = CascadeType.ALL)
-    private List<MergeCluster> mergeClusters = new ArrayList<>();
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt = LocalDateTime.now();
-
-    @Column(name = "sla_deadline")
-    private LocalDateTime slaDeadline;
-
-    @Column(name = "validated_at")
-    private LocalDateTime validatedAt;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private ReportCategory category;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "validated_by")
-    private User validatedBy;
+    @JoinColumn(name = "region_id")
+    private Region region;
 
-    private String rejectionReason;
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String description;
 
-    @Column(name = "similarity_score")
-    private Integer similarityScore;
+    @Column(name = "location_hint", length = 255)
+    private String locationHint;
 
-    public enum Status {
-        MENUNGGU, DIVALIDASI, DITOLAK, DIPROSES, SELESAI, SENGKETA
+    @Column(precision = 10, scale = 8)
+    private BigDecimal latitude;
+
+    @Column(precision = 11, scale = 8)
+    private BigDecimal longitude;
+
+    @Column(name = "photo_url")
+    private String photoUrl;
+
+    @Column(name = "photo_taken_at")
+    private LocalDateTime photoTakenAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ReportStatus status = ReportStatus.MENUNGGU_VALIDASI;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_report_id")
+    private Report parentReport;
+
+    @Column(name = "submitted_at")
+    private LocalDateTime submittedAt = LocalDateTime.now();
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt = LocalDateTime.now();
+
+    @OneToMany(mappedBy = "report", cascade = CascadeType.ALL)
+    private List<ReportRevision> revisions = new ArrayList<>();
+
+    @OneToOne(mappedBy = "report", cascade = CascadeType.ALL)
+    private SlaRecord slaRecord;
+
+    @OneToMany(mappedBy = "report", cascade = CascadeType.ALL)
+    private List<ValidationDecision> validationDecisions = new ArrayList<>();
+
+    @OneToMany(mappedBy = "parentReport")
+    private List<MergeRecord> childMergeRecords = new ArrayList<>();
+
+    @OneToMany(mappedBy = "childReport")
+    private List<MergeRecord> parentMergeRecords = new ArrayList<>();
+
+    @OneToOne(mappedBy = "report", cascade = CascadeType.ALL)
+    private Disposition disposition;
+
+    @OneToMany(mappedBy = "report", cascade = CascadeType.ALL)
+    private List<FieldTask> fieldTasks = new ArrayList<>();
+
+    @OneToOne(mappedBy = "report", cascade = CascadeType.ALL)
+    private ConfirmationRequest confirmationRequest;
+
+    @OneToOne(mappedBy = "report", cascade = CascadeType.ALL)
+    private DisputeRecord disputeRecord;
+
+    public enum ReportStatus {
+        MENUNGGU_VALIDASI, PERLU_REVISI, DITOLAK, DIVALIDASI,
+        DIDISPOSISI, DITUGASKAN, SEDANG_DIKERJAKAN, TERTUNDA,
+        MENUNGGU_KONFIRMASI, SELESAI, SENGKETA, DITUTUP
     }
 
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
+    public String getReportId() { return reportId; }
+    public void setReportId(String reportId) { this.reportId = reportId; }
 
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
-
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
-
-    public String getCategory() { return category; }
-    public void setCategory(String category) { this.category = category; }
-
-    public Status getStatus() { return status; }
-    public void setStatus(Status status) { this.status = status; }
+    public String getTicketNumber() { return ticketNumber; }
+    public void setTicketNumber(String ticketNumber) { this.ticketNumber = ticketNumber; }
 
     public User getReporter() { return reporter; }
     public void setReporter(User reporter) { this.reporter = reporter; }
 
-    public String getLocation() { return location; }
-    public void setLocation(String location) { this.location = location; }
+    public ReportCategory getCategory() { return category; }
+    public void setCategory(ReportCategory category) { this.category = category; }
 
-    public String getLatitude() { return latitude; }
-    public void setLatitude(String latitude) { this.latitude = latitude; }
+    public Region getRegion() { return region; }
+    public void setRegion(Region region) { this.region = region; }
 
-    public String getLongitude() { return longitude; }
-    public void setLongitude(String longitude) { this.longitude = longitude; }
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
 
-    public String getLandmark() { return landmark; }
-    public void setLandmark(String landmark) { this.landmark = landmark; }
+    public String getLocationHint() { return locationHint; }
+    public void setLocationHint(String locationHint) { this.locationHint = locationHint; }
 
-    public List<PhotoEvidence> getPhotos() { return photos; }
-    public void setPhotos(List<PhotoEvidence> photos) { this.photos = photos; }
+    public BigDecimal getLatitude() { return latitude; }
+    public void setLatitude(BigDecimal latitude) { this.latitude = latitude; }
 
-    public Disposisi getDisposisi() { return disposisi; }
-    public void setDisposisi(Disposisi disposisi) { this.disposisi = disposisi; }
+    public BigDecimal getLongitude() { return longitude; }
+    public void setLongitude(BigDecimal longitude) { this.longitude = longitude; }
 
-    public List<Ticket> getTickets() { return tickets; }
-    public void setTickets(List<Ticket> tickets) { this.tickets = tickets; }
+    public String getPhotoUrl() { return photoUrl; }
+    public void setPhotoUrl(String photoUrl) { this.photoUrl = photoUrl; }
 
-    public List<MergeCluster> getMergeClusters() { return mergeClusters; }
-    public void setMergeClusters(List<MergeCluster> mergeClusters) { this.mergeClusters = mergeClusters; }
+    public LocalDateTime getPhotoTakenAt() { return photoTakenAt; }
+    public void setPhotoTakenAt(LocalDateTime photoTakenAt) { this.photoTakenAt = photoTakenAt; }
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public ReportStatus getStatus() { return status; }
+    public void setStatus(ReportStatus status) { this.status = status; }
 
-    public LocalDateTime getSlaDeadline() { return slaDeadline; }
-    public void setSlaDeadline(LocalDateTime slaDeadline) { this.slaDeadline = slaDeadline; }
+    public Report getParentReport() { return parentReport; }
+    public void setParentReport(Report parentReport) { this.parentReport = parentReport; }
 
-    public LocalDateTime getValidatedAt() { return validatedAt; }
-    public void setValidatedAt(LocalDateTime validatedAt) { this.validatedAt = validatedAt; }
+    public LocalDateTime getSubmittedAt() { return submittedAt; }
+    public void setSubmittedAt(LocalDateTime submittedAt) { this.submittedAt = submittedAt; }
 
-    public User getValidatedBy() { return validatedBy; }
-    public void setValidatedBy(User validatedBy) { this.validatedBy = validatedBy; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 
-    public String getRejectionReason() { return rejectionReason; }
-    public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
+    public List<ReportRevision> getRevisions() { return revisions; }
+    public void setRevisions(List<ReportRevision> revisions) { this.revisions = revisions; }
 
-    public Integer getSimilarityScore() { return similarityScore; }
-    public void setSimilarityScore(Integer similarityScore) { this.similarityScore = similarityScore; }
+    public SlaRecord getSlaRecord() { return slaRecord; }
+    public void setSlaRecord(SlaRecord slaRecord) { this.slaRecord = slaRecord; }
+
+    public List<ValidationDecision> getValidationDecisions() { return validationDecisions; }
+    public void setValidationDecisions(List<ValidationDecision> validationDecisions) { this.validationDecisions = validationDecisions; }
+
+    public List<MergeRecord> getChildMergeRecords() { return childMergeRecords; }
+    public void setChildMergeRecords(List<MergeRecord> childMergeRecords) { this.childMergeRecords = childMergeRecords; }
+
+    public List<MergeRecord> getParentMergeRecords() { return parentMergeRecords; }
+    public void setParentMergeRecords(List<MergeRecord> parentMergeRecords) { this.parentMergeRecords = parentMergeRecords; }
+
+    public Disposition getDisposition() { return disposition; }
+    public void setDisposition(Disposition disposition) { this.disposition = disposition; }
+
+    public List<FieldTask> getFieldTasks() { return fieldTasks; }
+    public void setFieldTasks(List<FieldTask> fieldTasks) { this.fieldTasks = fieldTasks; }
+
+    public ConfirmationRequest getConfirmationRequest() { return confirmationRequest; }
+    public void setConfirmationRequest(ConfirmationRequest confirmationRequest) { this.confirmationRequest = confirmationRequest; }
+
+    public DisputeRecord getDisputeRecord() { return disputeRecord; }
+    public void setDisputeRecord(DisputeRecord disputeRecord) { this.disputeRecord = disputeRecord; }
 }

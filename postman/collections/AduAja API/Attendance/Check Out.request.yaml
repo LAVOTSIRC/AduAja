@@ -1,0 +1,15 @@
+$kind: http-request
+name: Check Out
+method: POST
+url: '{{baseUrl}}/attendance/checkout/:attendanceId'
+order: 5000
+pathVariables:
+  - key: attendanceId
+    value: '1'
+queryParams:
+  - key: latitude
+    value: ''
+  - key: longitude
+    value: ''
+  - key: address
+    value: ''

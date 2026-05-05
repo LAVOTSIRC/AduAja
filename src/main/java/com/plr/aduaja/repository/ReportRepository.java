@@ -8,35 +8,35 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ReportRepository extends JpaRepository<Report, String> {
 
-    List<Report> findByStatus(Report.Status status);
+    Optional<Report> findByTicketNumber(String ticketNumber);
 
-    List<Report> findByReporterId(String reporterId);
+    List<Report> findByStatus(Report.ReportStatus status);
 
-    List<Report> findByCategory(String category);
+    List<Report> findByReporterUserId(String reporterId);
 
-    List<Report> findByStatusOrderByCreatedAtDesc(Report.Status status);
+    List<Report> findByStatusOrderBySubmittedAtDesc(Report.ReportStatus status);
 
-    List<Report> findByTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCase(String title, String description);
+    List<Report> findByDescriptionContainingIgnoreCase(String description);
 
-    @Query("SELECT r FROM Report r WHERE r.status = :status AND r.createdAt BETWEEN :start AND :end")
+    @Query("SELECT r FROM Report r WHERE r.status = :status AND r.submittedAt BETWEEN :start AND :end")
     List<Report> findByStatusAndDateRange(
-            @Param("status") Report.Status status,
+            @Param("status") Report.ReportStatus status,
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end
     );
 
-    long countByStatus(Report.Status status);
+    long countByStatus(Report.ReportStatus status);
 
-    long countByReporterId(String reporterId);
+    long countByReporterUserId(String reporterId);
 
-    List<Report> findByDisposisiIsNullAndStatusIn(List<Report.Status> statuses);
+    List<Report> findByParentReportIsNull();
 
-    List<Report> findBySimilarityScoreGreaterThan(int score);
+    List<Report> findByRegionRegionId(String regionId);
 
-    @Query("SELECT r FROM Report r JOIN r.disposisi d WHERE d.targetDinas.id = :dinasId")
-    List<Report> findByDisposisiDinasId(@Param("dinasId") String dinasId);
+    List<Report> findByCategoryCategoryId(String categoryId);
 }

@@ -1,0 +1,8 @@
+$kind: http-request
+name: Escalate Ticket
+method: POST
+url: '{{baseUrl}}/tickets/:id/escalate'
+order: 16000
+pathVariables:
+  - key: id
+    value: '1'

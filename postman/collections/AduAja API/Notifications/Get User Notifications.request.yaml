@@ -1,0 +1,8 @@
+$kind: http-request
+name: Get User Notifications
+method: GET
+url: '{{baseUrl}}/notifications/user/:userId'
+order: 1000
+pathVariables:
+  - key: userId
+    value: '1'

@@ -11,64 +11,60 @@ public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private String id;
+    @Column(name = "user_id")
+    private String userId;
 
-    @Column(nullable = false, unique = true)
-    private String username;
+    @Column(name = "full_name", nullable = false, length = 100)
+    private String fullName;
 
-    @Column(nullable = false)
-    private String password;
-
-    @Column(nullable = false)
-    private String name;
-
-    @Column(unique = true)
+    @Column(nullable = false, unique = true, length = 150)
     private String email;
 
-    @Column(name = "phone_number")
+    @Column(name = "phone_number", unique = true, length = 20)
     private String phoneNumber;
 
-    @Column(unique = true)
-    private String nik;
+    @Column(name = "password_hash", nullable = false)
+    private String passwordHash;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
 
-    private String address;
-    private String kelurahan;
-    private String kecamatan;
-    private String kota;
-    private String provinsi;
-
-    @ManyToOne
-    @JoinColumn(name = "dinas_id")
-    private Dinas dinas;
-
-    @OneToMany(mappedBy = "reporter", cascade = CascadeType.ALL)
-    private List<Report> reports = new ArrayList<>();
+    @Enumerated(EnumType.STRING)
+    @Column(name = "account_status", nullable = false)
+    private AccountStatus accountStatus = AccountStatus.PENDING;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    @Column(name = "is_active")
-    private Boolean isActive = true;
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt = LocalDateTime.now();
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    private UserProfile userProfile;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    private List<OtpVerification> otpVerifications = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    private List<ActiveSession> activeSessions = new ArrayList<>();
+
+    @OneToMany(mappedBy = "reporter", cascade = CascadeType.ALL)
+    private List<Report> reports = new ArrayList<>();
 
     public enum Role {
         WARGA, ADMIN_PUSAT, ADMIN_DINAS, PETUGAS
     }
 
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
+    public enum AccountStatus {
+        PENDING, ACTIVE, SUSPENDED
+    }
 
-    public String getUsername() { return username; }
-    public void setUsername(String username) { this.username = username; }
+    public String getUserId() { return userId; }
+    public void setUserId(String userId) { this.userId = userId; }
 
-    public String getPassword() { return password; }
-    public void setPassword(String password) { this.password = password; }
-
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+    public String getFullName() { return fullName; }
+    public void setFullName(String fullName) { this.fullName = fullName; }
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
@@ -76,36 +72,30 @@ public class User {
     public String getPhoneNumber() { return phoneNumber; }
     public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
 
-    public String getNik() { return nik; }
-    public void setNik(String nik) { this.nik = nik; }
+    public String getPasswordHash() { return passwordHash; }
+    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
 
     public Role getRole() { return role; }
     public void setRole(Role role) { this.role = role; }
 
-    public String getAddress() { return address; }
-    public void setAddress(String address) { this.address = address; }
-
-    public String getKelurahan() { return kelurahan; }
-    public void setKelurahan(String kelurahan) { this.kelurahan = kelurahan; }
-
-    public String getKecamatan() { return kecamatan; }
-    public void setKecamatan(String kecamatan) { this.kecamatan = kecamatan; }
-
-    public String getKota() { return kota; }
-    public void setKota(String kota) { this.kota = kota; }
-
-    public String getProvinsi() { return provinsi; }
-    public void setProvinsi(String provinsi) { this.provinsi = provinsi; }
-
-    public Dinas getDinas() { return dinas; }
-    public void setDinas(Dinas dinas) { this.dinas = dinas; }
-
-    public List<Report> getReports() { return reports; }
-    public void setReports(List<Report> reports) { this.reports = reports; }
+    public AccountStatus getAccountStatus() { return accountStatus; }
+    public void setAccountStatus(AccountStatus accountStatus) { this.accountStatus = accountStatus; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
-    public Boolean getIsActive() { return isActive; }
-    public void setIsActive(Boolean isActive) { this.isActive = isActive; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public UserProfile getUserProfile() { return userProfile; }
+    public void setUserProfile(UserProfile userProfile) { this.userProfile = userProfile; }
+
+    public List<OtpVerification> getOtpVerifications() { return otpVerifications; }
+    public void setOtpVerifications(List<OtpVerification> otpVerifications) { this.otpVerifications = otpVerifications; }
+
+    public List<ActiveSession> getActiveSessions() { return activeSessions; }
+    public void setActiveSessions(List<ActiveSession> activeSessions) { this.activeSessions = activeSessions; }
+
+    public List<Report> getReports() { return reports; }
+    public void setReports(List<Report> reports) { this.reports = reports; }
 }

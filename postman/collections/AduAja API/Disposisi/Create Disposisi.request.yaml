@@ -1,0 +1,16 @@
+$kind: http-request
+name: Create Disposisi
+method: POST
+url: '{{baseUrl}}/disposisi'
+order: 7000
+queryParams:
+  - key: reportId
+    value: ''
+  - key: dinasId
+    value: ''
+  - key: assignedById
+    value: ''
+  - key: catatan
+    value: ''
+  - key: deadline
+    value: ''

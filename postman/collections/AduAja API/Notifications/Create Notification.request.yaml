@@ -1,0 +1,14 @@
+$kind: http-request
+name: Create Notification
+method: POST
+url: '{{baseUrl}}/notifications'
+order: 4000
+queryParams:
+  - key: userId
+    value: ''
+  - key: title
+    value: ''
+  - key: message
+    value: ''
+  - key: type
+    value: ''

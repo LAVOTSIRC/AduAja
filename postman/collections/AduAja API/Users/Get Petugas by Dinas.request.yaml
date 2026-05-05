@@ -1,0 +1,8 @@
+$kind: http-request
+name: Get Petugas by Dinas
+method: GET
+url: '{{baseUrl}}/users/dinas/:dinasId/petugas'
+order: 5000
+pathVariables:
+  - key: dinasId
+    value: '1'

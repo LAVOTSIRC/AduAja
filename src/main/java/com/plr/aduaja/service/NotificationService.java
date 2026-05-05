@@ -1,6 +1,8 @@
 package com.plr.aduaja.service;
 
 import com.plr.aduaja.model.Notification;
+import com.plr.aduaja.model.Notification.NotificationType;
+import com.plr.aduaja.model.Report;
 import com.plr.aduaja.model.User;
 import com.plr.aduaja.repository.NotificationRepository;
 import com.plr.aduaja.repository.UserRepository;
@@ -21,28 +23,42 @@ public class NotificationService {
     private UserRepository userRepository;
 
     public List<Notification> getNotificationsByUser(String userId) {
-        return notificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
+        return notificationRepository.findByRecipientUserIdOrderBySentAtDesc(userId);
     }
 
     public List<Notification> getUnreadNotifications(String userId) {
-        return notificationRepository.findByUserIdAndIsReadFalse(userId);
+        return notificationRepository.findByRecipientUserIdAndIsReadFalse(userId);
     }
 
     public long getUnreadCount(String userId) {
-        return notificationRepository.countByUserIdAndIsReadFalse(userId);
+        return notificationRepository.countByRecipientUserIdAndIsReadFalse(userId);
     }
 
-    public Notification createNotification(String userId, String title, String message, Notification.Type type) {
+    public Notification createNotification(String userId, String message, NotificationType type) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         Notification notification = new Notification();
-        notification.setUser(user);
-        notification.setTitle(title);
-        notification.setMessage(message);
-        notification.setType(type);
+        notification.setRecipient(user);
+        notification.setMessageText(message);
+        notification.setNotificationType(type);
         notification.setIsRead(false);
-        notification.setCreatedAt(LocalDateTime.now());
+        notification.setSentAt(LocalDateTime.now());
+
+        return notificationRepository.save(notification);
+    }
+
+    public Notification createNotificationForReport(String userId, Report report, String message, NotificationType type) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Notification notification = new Notification();
+        notification.setRecipient(user);
+        notification.setReport(report);
+        notification.setMessageText(message);
+        notification.setNotificationType(type);
+        notification.setIsRead(false);
+        notification.setSentAt(LocalDateTime.now());
 
         return notificationRepository.save(notification);
     }
@@ -52,16 +68,14 @@ public class NotificationService {
                 .orElseThrow(() -> new RuntimeException("Notification not found"));
 
         notification.setIsRead(true);
-        notification.setReadAt(LocalDateTime.now());
 
         return notificationRepository.save(notification);
     }
 
     public void markAllAsRead(String userId) {
-        List<Notification> unread = notificationRepository.findByUserIdAndIsReadFalse(userId);
+        List<Notification> unread = notificationRepository.findByRecipientUserIdAndIsReadFalse(userId);
         for (Notification notification : unread) {
             notification.setIsRead(true);
-            notification.setReadAt(LocalDateTime.now());
         }
         notificationRepository.saveAll(unread);
     }

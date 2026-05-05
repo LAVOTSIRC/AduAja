@@ -29,9 +29,9 @@ public class UserApiController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @GetMapping("/username/{username}")
-    public ResponseEntity<User> getUserByUsername(@PathVariable String username) {
-        Optional<User> user = userService.getUserByUsername(username);
+    @GetMapping("/email/{email}")
+    public ResponseEntity<User> getUserByEmail(@PathVariable String email) {
+        Optional<User> user = userService.getUserByEmail(email);
         return user.map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -39,11 +39,6 @@ public class UserApiController {
     @GetMapping("/role/{role}")
     public ResponseEntity<List<User>> getUsersByRole(@PathVariable User.Role role) {
         return ResponseEntity.ok(userService.getUsersByRole(role));
-    }
-
-    @GetMapping("/dinas/{dinasId}/petugas")
-    public ResponseEntity<List<User>> getPetugasByDinas(@PathVariable String dinasId) {
-        return ResponseEntity.ok(userService.getPetugasByDinas(dinasId));
     }
 
     @PostMapping
@@ -58,7 +53,7 @@ public class UserApiController {
     @PutMapping("/{id}")
     public ResponseEntity<User> updateUser(@PathVariable String id, @RequestBody User user) {
         try {
-            user.setId(id);
+            user.setUserId(id);
             return ResponseEntity.ok(userService.updateUser(user));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
