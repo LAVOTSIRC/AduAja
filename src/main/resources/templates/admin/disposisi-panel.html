@@ -16,13 +16,17 @@
   <div layout:fragment="content" class="min-h-screen bg-gray-50">
     <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="bg-white rounded-xl border border-gray-100 shadow-sm lg:col-span-1">
+        <div
+          class="bg-white rounded-xl border border-gray-100 shadow-sm lg:col-span-1"
+        >
           <div class="px-6 pt-6 pb-4">
             <h2 class="text-lg font-semibold text-gray-900">Siap Disposisi</h2>
             <p
               class="text-sm text-gray-600"
-              th:text="|${pendingCount} laporan tervalidasi perlu disposisi ke dinas (FR-DSP-01)|"
-            >0 laporan</p>
+              th:text="|${pendingCount} laporan tervalidasi perlu disposisi ke dinas|"
+            >
+              0 laporan
+            </p>
           </div>
           <div class="px-6 pb-6">
             <div class="relative mb-4">
@@ -70,11 +74,15 @@
                     <h4
                       class="font-medium text-sm mb-1"
                       th:text="${report.judul}"
-                    >Judul</h4>
+                    >
+                      Judul
+                    </h4>
                     <p
                       class="text-xs text-gray-500 mb-2"
                       th:text="${report.kategori}"
-                    >Kategori</p>
+                    >
+                      Kategori
+                    </p>
                     <div class="flex items-center gap-1 text-xs text-gray-600">
                       <i
                         data-lucide="building-2"
@@ -93,11 +101,13 @@
           </div>
         </div>
 
-        <div class="bg-white rounded-xl border border-gray-100 shadow-sm lg:col-span-2">
+        <div
+          class="bg-white rounded-xl border border-gray-100 shadow-sm lg:col-span-2"
+        >
           <div class="px-6 pt-6 pb-4">
             <h2 class="text-lg font-semibold text-gray-900">Form Disposisi</h2>
             <p class="text-sm text-gray-600">
-              Disposisikan laporan ke dinas terkait dengan instruksi yang jelas (FR-DSP-02 sampai FR-DSP-06)
+              Disposisikan laporan ke dinas terkait dengan instruksi yang jelas
             </p>
           </div>
           <div class="px-6 pb-6">
@@ -117,15 +127,21 @@
                   <p
                     class="font-mono font-semibold"
                     th:text="${selectedReport.id}"
-                  >ID</p>
+                  >
+                    ID
+                  </p>
                 </div>
                 <div>
                   <p class="text-xs text-gray-600">Pelapor</p>
-                  <p class="font-medium" th:text="${selectedReport.pelapor}">Pelapor</p>
+                  <p class="font-medium" th:text="${selectedReport.pelapor}">
+                    Pelapor
+                  </p>
                 </div>
                 <div class="col-span-2">
                   <p class="text-xs text-gray-600">Judul Laporan</p>
-                  <p class="font-medium" th:text="${selectedReport.judul}">Judul</p>
+                  <p class="font-medium" th:text="${selectedReport.judul}">
+                    Judul
+                  </p>
                 </div>
                 <div>
                   <p class="text-xs text-gray-600">Kategori</p>
@@ -137,13 +153,15 @@
                 </div>
                 <div>
                   <p class="text-xs text-gray-600">Wilayah</p>
-                  <p class="text-sm" th:text="${selectedReport.wilayah}">Wilayah</p>
+                  <p class="text-sm" th:text="${selectedReport.wilayah}">
+                    Wilayah
+                  </p>
                 </div>
               </div>
 
               <form
-                th:action="@{/admin/home}"
-                method="get"
+                th:action="@{/admin/disposisi}"
+                method="post"
                 class="space-y-4"
               >
                 <input
@@ -175,61 +193,43 @@
                           <p
                             class="font-medium text-sm"
                             th:text="${dinas.name}"
-                          >Nama Dinas</p>
+                          >
+                            Nama Dinas
+                          </p>
                         </div>
                         <p
                           class="text-xs text-gray-500 mt-1"
                           th:text="|Menangani: ${#strings.listJoin(dinas.kategori, ', ')}|"
-                        >Kategori</p>
+                        >
+                          Kategori
+                        </p>
                       </div>
                     </label>
                   </div>
                 </div>
 
-                <div>
-                  <label class="mb-2 block text-sm text-gray-900"
-                    >Tingkat Prioritas
-                    <span class="text-red-500">*</span></label
-                  >
-                  <div class="grid grid-cols-4 gap-3">
-                    <label
-                      class="flex items-center justify-center border border-gray-300 rounded-md py-2 hover:bg-gray-50"
-                      ><input
-                        type="radio"
-                        name="priority"
-                        value="Kritis"
-                        class="mr-2"
-                      />Kritis</label
-                    >
-                    <label
-                      class="flex items-center justify-center border border-gray-300 rounded-md py-2 hover:bg-gray-50"
-                      ><input
-                        type="radio"
-                        name="priority"
-                        value="Tinggi"
-                        class="mr-2"
-                      />Tinggi</label
-                    >
-                    <label
-                      class="flex items-center justify-center border border-gray-300 rounded-md py-2 hover:bg-gray-50"
-                      ><input
-                        type="radio"
-                        name="priority"
-                        value="Sedang"
-                        class="mr-2"
-                      />Sedang</label
-                    >
-                    <label
-                      class="flex items-center justify-center border border-gray-300 rounded-md py-2 hover:bg-gray-50"
-                      ><input
-                        type="radio"
-                        name="priority"
-                        value="Rendah"
-                        class="mr-2"
-                      />Rendah</label
-                    >
+                  <div>
+                    <label class="mb-2 block text-sm text-gray-900">Tingkat Prioritas
+                      <span class="text-red-500">*</span></label>
+                    <div class="grid grid-cols-4 gap-3">
+                      <label class="flex items-center justify-center border border-gray-300 rounded-md py-2 hover:bg-gray-50">
+                        <input type="radio" name="priority" value="Rendah" class="mr-2" />
+                        Rendah
+                      </label>
+                      <label class="flex items-center justify-center border border-gray-300 rounded-md py-2 hover:bg-gray-50">
+                        <input type="radio" name="priority" value="Sedang" class="mr-2" />
+                        Sedang
+                      </label>
+                      <label class="flex items-center justify-center border border-gray-300 rounded-md py-2 hover:bg-gray-50">
+                        <input type="radio" name="priority" value="Tinggi" class="mr-2" />
+                        Tinggi
+                      </label>
+                      <label class="flex items-center justify-center border border-gray-300 rounded-md py-2 hover:bg-gray-50">
+                        <input type="radio" name="priority" value="Kritis" class="mr-2" />
+                        Kritis
+                      </label>
+                    </div>
                   </div>
-                </div>
 
                 <div>
                   <label for="deadline" class="mb-2 block text-sm text-gray-900"
@@ -245,7 +245,9 @@
                 </div>
 
                 <div>
-                  <label for="instructions" class="mb-2 block text-sm text-gray-900"
+                  <label
+                    for="instructions"
+                    class="mb-2 block text-sm text-gray-900"
                     >Instruksi dan Catatan
                     <span class="text-red-500">*</span></label
                   >
@@ -261,9 +263,14 @@
                 <div class="flex gap-3 pt-4 border-t border-gray-200">
                   <button
                     type="submit"
-                    class="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700"
-                  >Kirim Disposisi</button>
-                  <button type="button" class="flex-1 border border-gray-300 py-2 rounded-md hover:bg-gray-50">
+                    class="flex-1 bg-green-600 text-white py-2 rounded-md hover:bg-green-700"
+                  >
+                    Kirim Disposisi
+                  </button>
+                  <button
+                    type="button"
+                    class="flex-1 border border-gray-300 py-2 rounded-md hover:bg-gray-50"
+                  >
                     Batal
                   </button>
                 </div>

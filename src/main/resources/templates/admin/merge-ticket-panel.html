@@ -13,7 +13,7 @@
     </style>
   </th:block>
 
-  <div layout:fragment="content" class="min-h-screen bg-gray-50">
+  <div layout:fragment="content" class="min-h-screen bg-gray-50" x-data="{ showMergeConfirm: false, searchMergeQuery: '' }">
     <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="bg-white rounded-xl border border-gray-100 shadow-sm lg:col-span-2">
@@ -21,15 +21,15 @@
             <div>
               <h2 class="text-lg font-semibold text-gray-900">Deteksi Tiket Duplikat</h2>
               <p class="text-sm text-gray-600">
-                Sistem otomatis mendeteksi tiket dengan lokasi, kategori, dan waktu serupa (FR-ADM-11, FR-ADM-12)
+                Sistem otomatis mendeteksi tiket dengan lokasi, kategori, dan waktu serupa
               </p>
             </div>
-            <button
-              type="button"
-              x-on:click="showMergeConfirm = true"
-              class="bg-blue-600 text-white px-3 py-2 rounded-md text-sm hover:bg-blue-700"
-            >Gabungkan</button>
-          </div>
+            <form th:action="@{/admin/merge}" method="post">
+              <button
+                type="submit"
+                class="bg-blue-600 text-white px-3 py-2 rounded-md text-sm hover:bg-blue-700"
+              >Gabungkan</button>
+            </div>
           <div class="px-6 pb-6">
             <div class="relative mb-4">
               <i
@@ -38,6 +38,7 @@
               ></i>
               <input
                 type="text"
+                x-model="searchMergeQuery"
                 class="w-full pl-10 px-3 py-2 border border-gray-300 rounded-md"
                 placeholder="Cari berdasarkan ID, judul, atau lokasi..."
               />
@@ -46,11 +47,13 @@
             <div class="space-y-3 max-h-[700px] overflow-y-auto">
               <div
                 th:each="ticket : ${mergeTickets}"
+                th:attr="data-id=${ticket.id}, data-judul=${ticket.judul}, data-lokasi=${ticket.wilayah}"
+                x-show="searchMergeQuery === '' || $el.dataset.id.toLowerCase().includes(searchMergeQuery.toLowerCase()) || $el.dataset.judul.toLowerCase().includes(searchMergeQuery.toLowerCase()) || $el.dataset.lokasi.toLowerCase().includes(searchMergeQuery.toLowerCase())"
                 class="p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
               >
                 <div class="flex gap-4">
                   <div class="flex items-start">
-                    <input type="checkbox" class="mt-1 w-4 h-4" />
+                    <input type="checkbox" name="selectedTickets" th:value="${ticket.id}" class="mt-1 w-4 h-4" />
                   </div>
                   <div class="flex-shrink-0">
                     <img
@@ -107,6 +110,8 @@
                 </div>
               </div>
             </div>
+            </div>
+            </form>
           </div>
         </div>
 
@@ -116,7 +121,7 @@
               <i data-lucide="link-2" class="w-5 h-5"></i>Cluster Terdeteksi
             </h2>
             <p class="text-sm text-gray-600">
-              Kelompok tiket dengan kesamaan tinggi (FR-ADM-13)
+              Kelompok tiket dengan kesamaan tinggi
             </p>
           </div>
           <div class="px-6 pb-6">
@@ -153,17 +158,23 @@
                   class="text-xs text-gray-600 mb-2"
                   th:text="${cluster[0].wilayah}"
                 >Wilayah</p>
-                <div class="space-y-1">
+                <div class="space-y-2">
                   <div
                     th:each="ticket : ${cluster}"
-                    class="text-xs font-mono bg-white px-2 py-1 rounded border border-gray-200"
-                    th:text="${ticket.id}"
-                  >ID</div>
+                    class="text-xs bg-white p-2 rounded border border-gray-200"
+                  >
+                    <div class="font-mono font-bold text-blue-600" th:text="${ticket.id}">ID</div>
+                    <div class="font-medium mt-1" th:text="${ticket.judul}">Judul</div>
+                    <div class="text-gray-500 mt-1" th:text="${ticket.pelapor}">Pelapor</div>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  class="w-full mt-3 text-xs border border-gray-300 px-2 py-1 rounded hover:bg-gray-50"
-                >Gabungkan Cluster</button>
+                <form th:action="@{/admin/merge}" method="post">
+                  <input type="hidden" name="clusterIndex" th:value="${iter.index}" />
+                  <button
+                    type="submit"
+                    class="w-full mt-3 text-xs border border-gray-300 px-2 py-1 rounded hover:bg-red-50 text-red-600 font-medium"
+                  >Pisahkan Cluster</button>
+                </form>
               </div>
             </div>
           </div>
@@ -180,7 +191,7 @@
             <i data-lucide="git-merge" class="w-5 h-5"></i>Konfirmasi Penggabungan Tiket
           </h3>
           <p class="text-sm text-gray-600">
-            Gabungkan tiket menjadi satu tiket utama (FR-ADM-14, FR-ADM-15)
+            Gabungkan tiket menjadi satu tiket utama
           </p>
         </div>
         <div class="px-6 pb-6 pt-4">
