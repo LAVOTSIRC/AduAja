@@ -3,14 +3,19 @@ package com.plr.aduaja.controller;
 import com.plr.aduaja.model.*;
 import com.plr.aduaja.model.Report.ReportStatus;
 import com.plr.aduaja.model.FieldTask.TaskStatus;
+import com.plr.aduaja.repository.UserProfileRepository;
+import com.plr.aduaja.repository.UserRepository;
 import com.plr.aduaja.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import jakarta.servlet.http.HttpSession;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -20,6 +25,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Controller
 public class WebController {
@@ -48,12 +54,133 @@ public class WebController {
     @Autowired
     private MergeRecordService mergeRecordService;
 
+    @Autowired
+    private UserProfileRepository userProfileRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     // ==========================================
     // ROOT REDIRECT
     // ==========================================
     @GetMapping("/")
     public String rootRedirect() {
         return "index";
+    }
+
+    // ==========================================
+    // WARGA ROUTES - REGISTRATION & LOGIN
+    // ==========================================
+
+    /** POST /warga/register - proses registrasi warga */
+    @PostMapping("/warga/register")
+    public String wargaRegister(
+            @RequestParam("name") String fullName,
+            @RequestParam("nik") String nik,
+            @RequestParam("phone") String phoneNumber,
+            @RequestParam("email") String email,
+            @RequestParam("password") String password,
+            RedirectAttributes redirectAttributes
+    ) {
+        try {
+            // Validasi NIK (16 digit)
+            if (nik == null || !nik.matches("\\d{16}")) {
+                redirectAttributes.addFlashAttribute("error", "NIK harus 16 digit angka");
+                return "redirect:/warga/login?register=true";
+            }
+
+            // Cek email sudah terdaftar
+            if (userRepository.existsByEmail(email)) {
+                redirectAttributes.addFlashAttribute("error", "Email sudah terdaftar");
+                return "redirect:/warga/login?register=true";
+            }
+
+            // Cek NIK sudah terdaftar
+            if (userProfileRepository.existsByNik(nik)) {
+                redirectAttributes.addFlashAttribute("error", "NIK sudah terdaftar");
+                return "redirect:/warga/login?register=true";
+            }
+
+            // Cek nomor HP sudah terdaftar
+            if (userRepository.existsByPhoneNumber(phoneNumber)) {
+                redirectAttributes.addFlashAttribute("error", "Nomor HP sudah terdaftar");
+                return "redirect:/warga/login?register=true";
+            }
+
+            // Buat user baru
+            User newUser = new User();
+            newUser.setFullName(fullName);
+            newUser.setEmail(email);
+            newUser.setPhoneNumber(phoneNumber);
+            newUser.setPasswordHash(passwordEncoder.encode(password));
+            newUser.setRole(User.Role.WARGA);
+            newUser.setAccountStatus(User.AccountStatus.ACTIVE);
+            newUser = userRepository.save(newUser);
+
+            // Buat user profile dengan NIK
+            UserProfile profile = new UserProfile();
+            profile.setUser(newUser);
+            profile.setNik(nik);
+            userProfileRepository.save(profile);
+
+            redirectAttributes.addFlashAttribute("success", "Registrasi berhasil! Silakan login.");
+            return "redirect:/warga/login";
+
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Terjadi kesalahan: " + e.getMessage());
+            return "redirect:/warga/login?register=true";
+        }
+    }
+
+    /** POST /warga/login - proses login warga */
+    @PostMapping("/warga/login")
+    public String wargaLogin(
+            @RequestParam("email") String email,
+            @RequestParam("password") String password,
+            RedirectAttributes redirectAttributes,
+            HttpSession session
+    ) {
+        try {
+            Optional<User> userOpt = userRepository.findByEmail(email);
+
+            if (userOpt.isEmpty()) {
+                redirectAttributes.addFlashAttribute("error", "Email atau password salah");
+                return "redirect:/warga/login";
+            }
+
+            User user = userOpt.get();
+
+            // Cek role harus WARGA
+            if (user.getRole() != User.Role.WARGA) {
+                redirectAttributes.addFlashAttribute("error", "Akun ini bukan akun warga");
+                return "redirect:/warga/login";
+            }
+
+            // Cek status akun
+            if (user.getAccountStatus() != User.AccountStatus.ACTIVE) {
+                redirectAttributes.addFlashAttribute("error", "Akun belum aktif atau ditangguhkan");
+                return "redirect:/warga/login";
+            }
+
+            // Verifikasi password
+            if (!passwordEncoder.matches(password, user.getPasswordHash())) {
+                redirectAttributes.addFlashAttribute("error", "Email atau password salah");
+                return "redirect:/warga/login";
+            }
+
+            // Simpan user ID di session
+            session.setAttribute("userId", user.getUserId());
+            session.setAttribute("userName", user.getFullName());
+            session.setAttribute("userRole", "WARGA");
+            return "redirect:/warga/dashboard";
+
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Terjadi kesalahan saat login");
+            return "redirect:/warga/login";
+        }
     }
 
     // ==========================================
@@ -1254,22 +1381,40 @@ public String adminSengketaPanelAliasPost(
     // ==========================================
 
     @GetMapping("/warga/login")
-    public String wargaLogin() { return "warga/login"; }
-
-    /** POST /warga/login — proses login warga */
-    @PostMapping("/warga/login")
-    public String wargaLoginPost() {
-        return "redirect:/warga/dashboard";
+    public String wargaLoginPage(
+            @RequestParam(value = "register", required = false) String register,
+            Model model
+    ) {
+        if ("true".equals(register)) {
+            model.addAttribute("isRegister", true);
+        }
+        return "warga/login";
     }
 
     @GetMapping("/warga/module")
     public String wargaModule() { return "warga/module"; }
 
     @GetMapping("/warga/dashboard")
-    public String wargaDashboard(Model model) {
-        Map<String, Object> user = new HashMap<>();
-        user.put("name", "Budi Santoso");
-        model.addAttribute("user", user);
+    public String wargaDashboard(Model model, HttpSession session) {
+        // Cek session
+        String userId = (String) session.getAttribute("userId");
+        if (userId == null) {
+            return "redirect:/warga/login";
+        }
+
+        // Ambil data user dari database
+        Optional<User> userOpt = userRepository.findById(userId);
+        if (userOpt.isEmpty()) {
+            session.invalidate();
+            return "redirect:/warga/login";
+        }
+
+        User user = userOpt.get();
+        Map<String, Object> userMap = new HashMap<>();
+        userMap.put("name", user.getFullName());
+        userMap.put("email", user.getEmail());
+        userMap.put("id", user.getUserId());
+        model.addAttribute("user", userMap);
 
         List<Report> dbReports = reportService.getAllReports();
         long total = dbReports.size();

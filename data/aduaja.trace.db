@@ -1,0 +1,21 @@
+2026-05-06 22:55:30.716722+07:00 jdbc[8]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Syntax error in SQL statement "SELECT * FROM DISPOSITIONS ACTIVE_SESSIONS [*]AGENCIES USERS"; SQL statement:
+SELECT * FROM DISPOSITIONS ACTIVE_SESSIONS AGENCIES USERS [42000-240]
+2026-05-06 22:56:49.396374+07:00 jdbc[8]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Syntax error in SQL statement "SELECT * [*]USERS"; SQL statement:
+SELECT * USERS [42000-240]
+2026-05-06 22:56:56.011328+07:00 jdbc[8]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Syntax error in SQL statement "SELECT * [*]USERS"; SQL statement:
+SELECT * USERS [42000-240]
+2026-05-06 22:56:57.724308+07:00 jdbc[8]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Syntax error in SQL statement "SELECT * [*]USERS"; SQL statement:
+SELECT * USERS [42000-240]
+2026-05-06 22:56:57.939322+07:00 jdbc[8]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Syntax error in SQL statement "SELECT * [*]USERS"; SQL statement:
+SELECT * USERS [42000-240]
+2026-05-06 22:56:58.139397+07:00 jdbc[8]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Syntax error in SQL statement "SELECT * [*]USERS"; SQL statement:
+SELECT * USERS [42000-240]
+2026-05-06 22:56:58.699182+07:00 jdbc[8]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Syntax error in SQL statement "SELECT * [*]USERS"; SQL statement:
+SELECT * USERS [42000-240]
