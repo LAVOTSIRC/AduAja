@@ -224,24 +224,7 @@
               <form th:action="@{/admin/dinas/sengketa}" method="post" class="space-y-6">
                 <input type="hidden" name="id" th:value="${selectedDispute['id']}" />
 
-                <div>
-                  <p class="font-semibold mb-3 text-gray-900">Pilih Keputusan</p>
-                  <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <button type="button" x-on:click="showReassignModal = true" class="aduaja-btn-primary bg-green-600 hover:bg-green-700 flex items-center justify-center gap-2 py-3">
-                      <i data-lucide="check" class="w-4 h-4"></i>
-                      <span>Sengketa Diterima - Perbaiki Ulang</span>
-                    </button>
-                    <button name="keputusan" value="ditolak" type="submit" class="aduaja-btn-primary bg-red-600 hover:bg-red-700 flex items-center justify-center gap-2 py-3">
-                      <i data-lucide="x" class="w-4 h-4"></i>
-                      <span>Sengketa Ditolak - Tiket Selesai</span>
-                    </button>
-                    <button name="keputusan" value="review" type="submit" class="aduaja-btn-primary bg-yellow-600 hover:bg-yellow-700 flex items-center justify-center gap-2 py-3">
-                      <i data-lucide="eye" class="w-4 h-4"></i>
-                      <span>Perlu Tinjauan Lanjutan</span>
-                    </button>
-                  </div>
-                </div>
-
+                <!-- Catatan Resolusi (DI ATAS) -->
                 <div>
                   <label for="catatanResolusi" class="block text-sm font-semibold mb-2 text-gray-900">
                     Catatan Resolusi <span class="text-red-500">*</span>
@@ -259,6 +242,25 @@
                       <strong>FR-RSL-12 - Notifikasi Otomatis:</strong>
                       Setelah keputusan dibuat, sistem akan otomatis mengirim notifikasi kepada warga mengenai hasil evaluasi sengketa mereka.
                     </div>
+                  </div>
+                </div>
+
+                <!-- Tombol Keputusan (PALING BAWAH) -->
+                <div>
+                  <p class="font-semibold mb-3 text-gray-900">Pilih Keputusan</p>
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <button type="button" x-on:click="showReassignModal = true" class="aduaja-btn-primary bg-green-600 hover:bg-green-700 flex items-center justify-center gap-2 py-3">
+                      <i data-lucide="check" class="w-4 h-4"></i>
+                      <span>Sengketa Diterima - Perbaiki Ulang</span>
+                    </button>
+                    <button name="keputusan" value="ditolak" type="submit" class="aduaja-btn-primary bg-red-600 hover:bg-red-700 flex items-center justify-center gap-2 py-3">
+                      <i data-lucide="x" class="w-4 h-4"></i>
+                      <span>Sengketa Ditolak - Tiket Selesai</span>
+                    </button>
+                    <button name="keputusan" value="review" type="submit" class="aduaja-btn-primary bg-yellow-600 hover:bg-yellow-700 flex items-center justify-center gap-2 py-3">
+                      <i data-lucide="eye" class="w-4 h-4"></i>
+                      <span>Perlu Tinjauan Lanjutan</span>
+                    </button>
                   </div>
                 </div>
               </form>

@@ -8,6 +8,9 @@
     <title>AduAja - Dashboard Admin</title>
     <style>
       [x-cloak] { display: none !important; }
+      .sortable-col:hover { background: #f3f4f6 !important; }
+      .sort-icon { opacity: 0.4; font-size: 0.75em; margin-left: 4px; }
+      .sortable-col:hover .sort-icon { opacity: 0.8; }
 
       .badge-kritis { background: linear-gradient(135deg, #fef2f2, #fee2e2); color: #dc2626; border: 1px solid #fecaca; }
       .badge-tinggi { background: linear-gradient(135deg, #fff7ed, #ffedd5); color: #ea580c; border: 1px solid #fed7aa; }
@@ -167,7 +170,7 @@
           </div>
         </div>
 
-        <section x-show="activeTab === 'queue'" x-cloak class="space-y-4" x-data="{ showFilters: false }">
+        <section x-show="activeTab === 'queue'" x-cloak class="space-y-4">
           <div class="aduaja-panel">
             <div class="aduaja-card-header">
               <div class="flex items-center justify-between">
@@ -177,57 +180,100 @@
                     Antrean Laporan Masuk
                   </h2>
                   <p class="aduaja-card-subtitle">
-                    Daftar laporan yang perlu divalidasi dan diproses
+                    Klik header kolom untuk mengurutkan · Default: FIFO (terlama di atas)
                   </p>
                 </div>
-                <div th:if="${selectedReport != null}" class="aduaja-modal-overlay">
+              </div>
+            </div>
+
+            <!-- Tabel Dokumentasi UI Antrean Laporan -->
+            <div class="px-6 py-4 border-b">
+              <div x-data="{ showDocTable: false }">
+                <button
+                  type="button"
+                  @click="showDocTable = !showDocTable"
+                  class="flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors"
+                >
+                  <i data-lucide="info" class="w-4 h-4"></i>
+                  <span x-text="showDocTable ? 'Sembunyikan Dokumentasi UI' : 'Tampilkan Dokumentasi UI'"></span>
+                </button>
+
+                <div x-show="showDocTable" x-cloak class="mt-4 overflow-x-auto">
+                  <table class="min-w-full border border-gray-200 rounded-lg overflow-hidden text-sm">
+                    <thead class="bg-blue-50">
+                      <tr>
+                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase border-b">Objek Layar</th>
+                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase border-b">Tindakan</th>
+                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase border-b">Deskripsi & Respons Sistem</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                      <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 font-medium text-gray-900">Tabel Antrean Laporan</td>
+                        <td class="px-4 py-3 text-gray-600">Klik pada baris / tombol "Detail"</td>
+                        <td class="px-4 py-3 text-gray-600">Mengarahkan ke halaman detail laporan untuk validasi. Sistem menampilkan foto, lokasi GPS, dan deskripsi lengkap laporan.</td>
+                      </tr>
+                      <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 font-medium text-gray-900">Header Kolom (ID, Judul, Pelapor, dll)</td>
+                        <td class="px-4 py-3 text-gray-600">Klik pada header kolom</td>
+                        <td class="px-4 py-3 text-gray-600">Mengurutkan data berdasarkan kolom tersebut (ascending/descending). Default: FIFO berdasarkan Tanggal Masuk.</td>
+                      </tr>
+                      <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 font-medium text-gray-900">Input Pencarian</td>
+                        <td class="px-4 py-3 text-gray-600">Ketik ID, Nama Pelapor, atau Wilayah</td>
+                        <td class="px-4 py-3 text-gray-600">Sistem memfilter tabel secara real-time. Jika tidak ada hasil, sistem menampilkan pesan "Tidak ada laporan yang sesuai".</td>
+                      </tr>
+                      <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 font-medium text-gray-900">Dropdown Filter Status</td>
+                        <td class="px-4 py-3 text-gray-600">Pilih status (Diterima/Ditolak/Revisi/dll)</td>
+                        <td class="px-4 py-3 text-gray-600">Sistem memfilter tabel untuk menampilkan hanya laporan dengan status terpilih. Bisa dikombinasikan dengan pencarian teks.</td>
+                      </tr>
+                      <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 font-medium text-gray-900">Badge Prioritas (Kritis/Tinggi/Sedang)</td>
+                        <td class="px-4 py-3 text-gray-600">Read-only (tidak bisa diklik)</td>
+                        <td class="px-4 py-3 text-gray-600">Menampilkan tingkat prioritas laporan. Warna: Merah (Kritis), Oranye (Tinggi), Kuning (Sedang), Hijau (Rendah).</td>
+                      </tr>
+                      <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 font-medium text-gray-900">Badge Status</td>
+                        <td class="px-4 py-3 text-gray-600">Read-only (tidak bisa diklik)</td>
+                        <td class="px-4 py-3 text-gray-600">Menampilkan status validasi laporan. Hijau (Diterima), Kuning (Dalam Peninjauan/Revisi), Merah (Ditolak).</td>
+                      </tr>
+                      <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 font-medium text-gray-900">Tombol "Detail" (Aksi)</td>
+                        <td class="px-4 py-3 text-gray-600">Klik / Tap</td>
+                        <td class="px-4 py-3 text-gray-600">Mengarahkan ke halaman <code>/admin/dashboard/detail?id=[ID]</code> untuk melihat detail lengkap dan melakukan validasi (Terima/Tolak/Revisi).</td>
+                      </tr>
+                      <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 font-medium text-gray-900">Teks SLA (Sisa Waktu)</td>
+                        <td class="px-4 py-3 text-gray-600">Read-only</td>
+                        <td class="px-4 py-3 text-gray-600">Menampilkan sisa waktu SLA (Service Level Agreement). Jika "Sisa 6 jam" = warna oranye, "-" (melebihi batas) = warna merah.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <p class="mt-3 text-xs text-gray-500 italic">
+                    *Tabel ini merupakan dokumentasi UI untuk fitur FR-ADM-01 s/d FR-ADM-04 (Antrean & Validasi Laporan)
+                  </p>
                 </div>
+              </div>
             </div>
 
             <div class="px-6 py-6 space-y-4">
-              <div x-show="showFilters" x-cloak class="grid grid-cols-1 gap-3 md:grid-cols-3 p-4 bg-gray-50 rounded-lg">
-                <div>
-                  <label class="text-xs text-gray-600 mb-2 block font-semibold">Prioritas</label>
-                  <select class="aduaja-input">
-                    <option>Semua Prioritas</option>
-                    <option>Kritis</option>
-                    <option>Tinggi</option>
-                    <option>Sedang</option>
-                    <option>Rendah</option>
-                  </select>
-                </div>
-                <div>
-                  <label class="text-xs text-gray-600 mb-2 block font-semibold">Urutkan</label>
-                  <select class="aduaja-input">
-                    <option>Tanggal Masuk</option>
-                    <option>Prioritas</option>
-                    <option>Status</option>
-                  </select>
-                </div>
-                <div>
-                  <label class="text-xs text-gray-600 mb-2 block font-semibold">Arah</label>
-                  <select class="aduaja-input">
-                    <option>Terbaru / Tertinggi</option>
-                    <option>Terlama / Terendah</option>
-                  </select>
-                </div>
-              </div>
-
               <div class="flex flex-col gap-3 sm:flex-row">
                 <div class="relative flex-1">
                   <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
                   <input
                     type="text"
-                    x-model="searchQuery"
+                    id="dashSearchInput"
                     class="aduaja-input pl-10"
-                    placeholder="Cari berdasarkan ID, Judul, atau Kategori..."
+                    placeholder="Cari berdasarkan ID, Nama, atau Wilayah..."
                   />
                 </div>
-                <select class="aduaja-input sm:w-40">
-                  <option>Semua Status</option>
-                  <option>Menunggu Verifikasi</option>
-                  <option>Dalam Peninjauan</option>
-                  <option>Terlambat (SLA)</option>
+                <select id="dashFilterStatus" class="aduaja-input sm:w-40">
+                  <option value="">Semua Status</option>
+                  <option value="Diterima">Diterima</option>
+                  <option value="Dalam Peninjauan">Dalam Peninjauan</option>
+                  <option value="Ditolak">Ditolak</option>
+                  <option value="Revisi">Revisi</option>
                 </select>
               </div>
 
@@ -236,21 +282,29 @@
                   <table class="aduaja-table">
                     <thead>
                       <tr>
-                        <th>ID Tiket</th>
-                        <th>Judul dan Kategori</th>
-                        <th>Pelapor</th>
-                        <th>Wilayah</th>
-                        <th>Tanggal Masuk</th>
-                        <th>Status</th>
-                        <th>SLA</th>
+                        <th class="sortable-col" data-sort="id" style="cursor:pointer;user-select:none;">ID Tiket <span class="sort-icon"></span></th>
+                        <th class="sortable-col" data-sort="judul" style="cursor:pointer;user-select:none;">Judul dan Kategori <span class="sort-icon"></span></th>
+                        <th class="sortable-col" data-sort="pelapor" style="cursor:pointer;user-select:none;">Pelapor <span class="sort-icon"></span></th>
+                        <th class="sortable-col" data-sort="wilayah" style="cursor:pointer;user-select:none;">Wilayah <span class="sort-icon"></span></th>
+                        <th class="sortable-col" data-sort="tanggalMasuk" style="cursor:pointer;user-select:none;">Tanggal Masuk <span class="sort-icon"></span></th>
+                        <th class="sortable-col" data-sort="status" style="cursor:pointer;user-select:none;">Status <span class="sort-icon"></span></th>
+                        <th class="sortable-col" data-sort="prioritas" style="cursor:pointer;user-select:none;">Prioritas (SLA) <span class="sort-icon"></span></th>
                         <th>Aksi</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="dashQueueBody">
                       <tr
                         th:each="laporan : ${queueReports}"
-                        th:attr="data-id=${laporan.id}, data-judul=${laporan.judul}, data-kategori=${laporan.kategori}"
-                        x-show="searchQuery === '' || $el.dataset.id.toLowerCase().includes(searchQuery.toLowerCase()) || $el.dataset.judul.toLowerCase().includes(searchQuery.toLowerCase()) || $el.dataset.kategori.toLowerCase().includes(searchQuery.toLowerCase())"
+                        class="dash-queue-row"
+                        th:data-id="${laporan.id}"
+                        th:data-prioritas="${laporan.prioritas}"
+                        th:data-tanggal="${laporan.tanggalMasuk}"
+                        th:data-status="${laporan.status}"
+                        th:data-pelapor="${laporan.pelapor}"
+                        th:data-wilayah="${laporan.wilayah}"
+                        th:data-judul="${laporan.judul}"
+                        th:data-kategori="${laporan.kategori}"
+                        th:data-priority-weight="${laporan.prioritas == 'Kritis' ? 4 : (laporan.prioritas == 'Tinggi' ? 3 : (laporan.prioritas == 'Sedang' ? 2 : (laporan.prioritas == 'Rendah' ? 1 : 0)))}"
                       >
                         <td>
                           <div class="flex items-center gap-2">
@@ -301,15 +355,19 @@
                   </table>
                 </div>
               </div>
+
+              <div id="dashNoResults" class="hidden py-8 text-center text-gray-500">
+                Tidak ada laporan yang sesuai dengan filter/pencarian.
+              </div>
             </div>
           </div>
         </section>
 
-        <section x-show="activeTab === 'merge'" x-cloak class="space-y-4" x-data="{ showReviewModal: false, reviewTickets: [], reviewReason: '' }">
+        <section x-show="activeTab === 'merge'" x-cloak class="space-y-4" x-data="{ showReviewModal: false, reviewTickets: [], reviewReason: '', parentTicketId: '' }">
           <div th:if="${param.merged}" class="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
             <i data-lucide="check-circle" class="w-5 h-5 text-green-600 flex-shrink-0"></i>
             <div class="text-sm text-green-800">
-              <strong>Berhasil!</strong> Tiket-tiket yang dipilih telah digabung menjadi satu cluster.
+              <strong>Berhasil!</strong> Tiket-tiket yang dipilih telah digabung. Child ticket disembunyikan dari antrean utama.
             </div>
           </div>
           <div th:if="${param.separated}" class="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
@@ -318,6 +376,113 @@
               <strong>Cluster Dipisahkan.</strong> Tiket-tiket dikembalikan ke daftar untuk direview ulang.
             </div>
           </div>
+          <div th:if="${param.mergeError == 'blocked'}" class="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
+            <i data-lucide="alert-circle" class="w-5 h-5 text-red-600 flex-shrink-0"></i>
+            <div class="text-sm text-red-800">
+              <strong>Penggabungan Ditolak!</strong> Salah satu atau lebih tiket sudah berada dalam tahap disposisi atau sedang dikerjakan.
+              <span th:if="${param.blocked}" class="font-mono font-bold" th:text="' (Tiket: ' + ${param.blocked} + ')'"></span>
+            </div>
+          </div>
+          <div th:if="${param.mergeError == 'noParent'}" class="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
+            <i data-lucide="alert-circle" class="w-5 h-5 text-red-600 flex-shrink-0"></i>
+            <div class="text-sm text-red-800">
+              <strong>Gagal!</strong> Anda harus memilih satu tiket sebagai Parent Ticket (tiket utama).
+            </div>
+          </div>
+          <div th:if="${param.mergeError == 'invalidParent'}" class="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
+            <i data-lucide="alert-circle" class="w-5 h-5 text-red-600 flex-shrink-0"></i>
+            <div class="text-sm text-red-800">
+              <strong>Gagal!</strong> Parent Ticket yang dipilih tidak ada dalam daftar tiket yang digabung.
+            </div>
+          </div>
+
+          <!-- Tabel Dokumentasi UI Merge Tiket -->
+          <div class="aduaja-panel" x-data="{ showMergeDoc: false }">
+            <div class="aduaja-card-header flex items-center justify-between">
+              <div>
+                <h2 class="aduaja-card-title">
+                  <i data-lucide="info" class="w-5 h-5"></i>
+                  Dokumentasi UI Merge Tiket
+                </h2>
+                <p class="aduaja-card-subtitle">
+                  Penjelasan komponen dan aksi pada fitur penggabungan tiket duplikat
+                </p>
+              </div>
+              <button
+                type="button"
+                @click="showMergeDoc = !showMergeDoc"
+                class="aduaja-btn-secondary text-xs px-3 py-1.5"
+              >
+                <i data-lucide="chevron-down" class="w-3 h-3" :class="showMergeDoc ? 'rotate-180' : ''"></i>
+                <span x-text="showMergeDoc ? 'Sembunyikan' : 'Tampilkan'"></span>
+              </button>
+            </div>
+
+            <div x-show="showMergeDoc" x-cloak class="px-6 py-4 border-t">
+              <div class="overflow-x-auto">
+                <table class="min-w-full border border-gray-200 rounded-lg overflow-hidden text-sm">
+                  <thead class="bg-purple-50">
+                    <tr>
+                      <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase border-b">Objek Layar</th>
+                      <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase border-b">Tindakan</th>
+                      <th class="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase border-b">Deskripsi & Respons Sistem</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200">
+                    <tr class="hover:bg-gray-50">
+                      <td class="px-4 py-3 font-medium text-gray-900">Tabel Daftar Tiket Duplikat</td>
+                      <td class="px-4 py-3 text-gray-600">Klik checkbox pada tiket</td>
+                      <td class="px-4 py-3 text-gray-600">Memilih tiket yang akan digabungkan. Sistem menampilkan foto, similarity score (%), dan status tiket.</td>
+                    </tr>
+                    <tr class="hover:bg-gray-50">
+                      <td class="px-4 py-3 font-medium text-gray-900">Input Pencarian (Merge)</td>
+                      <td class="px-4 py-3 text-gray-600">Ketik ID, Judul, atau Lokasi</td>
+                      <td class="px-4 py-3 text-gray-600">Sistem memfilter daftar tiket secara real-time. Tiket yang tidak cocok akan disembunyikan.</td>
+                    </tr>
+                    <tr class="hover:bg-gray-50">
+                      <td class="px-4 py-3 font-medium text-gray-900">Badge Similarity Score</td>
+                      <td class="px-4 py-3 text-gray-600">Read-only</td>
+                      <td class="px-4 py-3 text-gray-600">Menampilkan persentase kemiripan (68%, 72%, dll). Warna: Merah (>85%), Oranye (70-85%), Kuning (60-70%), Hijau (<60%).</td>
+                    </tr>
+                    <tr class="hover:bg-gray-50">
+                      <td class="px-4 py-3 font-medium text-gray-700">Status Badge (Disposisi/Dikerjakan)</td>
+                      <td class="px-4 py-3 text-gray-600">Read-only</td>
+                      <td class="px-4 py-3 text-gray-600">Ungu = Disposisi (tidak bisa digabung), Kuning = Sedang Dikerjakan (tidak bisa digabung), Abu-abu = Menunggu (bisa digabung).</td>
+                    </tr>
+                    <tr class="hover:bg-gray-50">
+                      <td class="px-4 py-3 font-medium text-gray-900">Tombol "Review Terpilih"</td>
+                      <td class="px-4 py-3 text-gray-600">Klik setelah memilih ≥2 tiket</td>
+                      <td class="px-4 py-3 text-gray-600">Membuka modal review untuk memilih Parent Ticket (tiket utama) dan mengisi alasan penggabungan.</td>
+                    </tr>
+                    <tr class="hover:bg-gray-50">
+                      <td class="px-4 py-3 font-medium text-gray-900">Modal Review & Merge</td>
+                      <td class="px-4 py-3 text-gray-600">Pilih Parent Ticket & isi alasan</td>
+                      <td class="px-4 py-3 text-gray-600">Parent Ticket adalah tiket yang akan menjadi utama. Child tickets akan disembunyikan dari antrean. Alasan minimal 10 karakter.</td>
+                    </tr>
+                    <tr class="hover:bg-gray-50">
+                      <td class="px-4 py-3 font-medium text-gray-900">Cluster Tiket (Kanan)</td>
+                      <td class="px-4 py-3 text-gray-600">Klik "Pisahkan" pada cluster</td>
+                      <td class="px-4 py-3 text-gray-600">Menampilkan tiket yang sudah digabung dalam kelompok. Tombol "Pisahkan" mengembalikan tiket ke daftar utama.</td>
+                    </tr>
+                    <tr class="hover:bg-gray-50">
+                      <td class="px-4 py-3 font-medium text-gray-900">Foto Bukti Tiket</td>
+                      <td class="px-4 py-3 text-gray-600">Read-only (tidak bisa diklik)</td>
+                      <td class="px-4 py-3 text-gray-600">Menampilkan foto laporan dari warga sebagai referensi kemiripan visual antar tiket.</td>
+                    </tr>
+                    <tr class="hover:bg-gray-50">
+                      <td class="px-4 py-3 font-medium text-gray-900">Alert Messages</td>
+                      <td class="px-4 py-3 text-gray-600">Read-only (auto-hide setelah refresh)</td>
+                      <td class="px-4 py-3 text-gray-600">Hijau = Berhasil digabung, Biru = Berhasil dipisahkan, Merah = Error (tiket sudah disposisi/dikerjakan, belum pilih parent, dll).</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <p class="mt-3 text-xs text-gray-500 italic">
+                  *Tabel ini merupakan dokumentasi UI untuk fitur FR-ADM-11 s/d FR-ADM-18 (Merge Tiket Duplikat)
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- Ticket List -->
             <div class="lg:col-span-2 aduaja-panel">
@@ -328,7 +493,7 @@
                     Deteksi Tiket Duplikat
                   </h2>
                   <p class="aduaja-card-subtitle">
-                    Pilih tiket yang terindikasi sama, lalu review sebelum digabung
+                    Pilih minimal 2 tiket yang terindikasi sama, lalu review sebelum digabung
                   </p>
                 </div>
                 <button
@@ -336,9 +501,10 @@
                   x-on:click="
                     const checked = Array.from(document.querySelectorAll('input[name=selectedTickets]:checked')).map(cb => {
                       const row = cb.closest('[data-id]');
-                      return row ? { id: row.dataset.id, judul: row.dataset.judul, lokasi: row.dataset.lokasi, pelapor: row.dataset.pelapor, kategori: row.dataset.kategori, deskripsi: row.dataset.deskripsi, similarity: row.dataset.similarity } : null;
+                      return row ? { id: row.dataset.id, judul: row.dataset.judul, lokasi: row.dataset.lokasi, pelapor: row.dataset.pelapor, kategori: row.dataset.kategori, deskripsi: row.dataset.deskripsi, similarity: row.dataset.similarity, status: row.dataset.ticketStatus, mergeable: row.dataset.mergeable === 'true' } : null;
                     }).filter(Boolean);
                     reviewTickets = checked;
+                    parentTicketId = checked.length > 0 ? checked[0].id : '';
                     showReviewModal = checked.length >= 2;
                   "
                   class="aduaja-btn-primary bg-orange-600 hover:bg-orange-700 flex items-center gap-2 text-sm"
@@ -362,12 +528,15 @@
                 <div class="space-y-3 max-h-[600px] overflow-y-auto">
                   <div
                     th:each="ticket : ${mergeTickets}"
-                    th:attr="data-id=${ticket.id}, data-judul=${ticket.judul}, data-lokasi=${ticket.wilayah}, data-pelapor=${ticket.pelapor}, data-kategori=${ticket.kategori}, data-deskripsi=${ticket.deskripsi}, data-similarity=${ticket.similarityScore}"
+                    th:attr="data-id=${ticket.id}, data-judul=${ticket.judul}, data-lokasi=${ticket.wilayah}, data-pelapor=${ticket.pelapor}, data-kategori=${ticket.kategori}, data-deskripsi=${ticket.deskripsi}, data-similarity=${ticket.similarityScore}, data-ticketStatus=${ticket.ticketStatus}, data-mergeable=${ticket.isMergeable}"
                     x-show="searchMergeQuery === '' || $el.dataset.id.toLowerCase().includes(searchMergeQuery.toLowerCase()) || $el.dataset.judul.toLowerCase().includes(searchMergeQuery.toLowerCase()) || $el.dataset.lokasi.toLowerCase().includes(searchMergeQuery.toLowerCase())"
-                    class="p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                    class="p-4 border rounded-lg transition-colors"
+                    th:classappend="${ticket.isMergeable} ? 'hover:bg-gray-50' : 'bg-gray-50 opacity-75'"
                   >
                     <div class="flex gap-4">
-                      <input type="checkbox" name="selectedTickets" th:value="${ticket.id}" class="mt-1 w-4 h-4 cursor-pointer" />
+                      <input type="checkbox" name="selectedTickets" th:value="${ticket.id}"
+                             class="mt-1 w-4 h-4 cursor-pointer"
+                             th:disabled="${!ticket.isMergeable}" />
                       <img th:src="${ticket.foto}" alt="Foto laporan" class="w-20 h-20 object-cover rounded border" />
                       <div class="flex-1 min-w-0">
                         <div class="flex items-start justify-between mb-2">
@@ -375,10 +544,18 @@
                             <span class="font-mono text-sm font-semibold text-blue-600" th:text="${ticket.id}"></span>
                             <h4 class="font-medium text-sm mt-1" th:text="${ticket.judul}"></h4>
                           </div>
-                          <span class="text-xs px-2.5 py-1 rounded-full font-semibold"
-                            th:class="${ticket.similarityScore >= 90 ? 'badge-similarity-high' : (ticket.similarityScore >= 80 ? 'badge-similarity-medium' : 'badge-similarity-low')}"
-                            th:text="|Mirip ${ticket.similarityScore}%|"
-                          ></span>
+                          <div class="flex items-center gap-1">
+                            <span class="text-xs px-2 py-1 rounded font-semibold"
+                                  th:if="${ticket.ticketStatus == 'disposisi'}"
+                                  th:class="'bg-purple-100 text-purple-700 border border-purple-200'">
+                              Disposisi
+                            </span>
+                            <span class="text-xs px-2 py-1 rounded font-semibold"
+                                  th:if="${ticket.ticketStatus == 'in-progress'}"
+                                  th:class="'bg-yellow-100 text-yellow-700 border border-yellow-200'">
+                              Dikerjakan
+                            </span>
+                          </div>
                         </div>
                         <p class="text-xs text-gray-600 mb-2" th:text="${ticket.deskripsi}"></p>
                         <div class="grid grid-cols-2 gap-2 text-xs text-gray-500">
@@ -401,6 +578,10 @@
                             ></span>
                           </div>
                         </div>
+                        <div th:if="${!ticket.isMergeable}" class="mt-2 flex items-center gap-1 text-xs text-red-600 font-medium">
+                          <i data-lucide="lock" class="w-3 h-3"></i>
+                          <span>Tidak dapat digabung — tiket sudah diproses</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -413,23 +594,35 @@
               <div class="aduaja-card-header">
                 <h2 class="aduaja-card-title">
                   <i data-lucide="link-2" class="w-5 h-5"></i>
-                  Cluster Terdeteksi
+                  Cluster & Riwayat Merge
                 </h2>
                 <p class="aduaja-card-subtitle">
-                  Kelompok tiket dengan kesamaan tinggi
+                  Kelompok tiket duplikat & child ticket tersembunyi
                 </p>
               </div>
 
               <div class="px-6 py-6">
+                <div th:if="${hiddenChildCount > 0}" class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div class="flex items-center gap-2 text-green-800">
+                    <i data-lucide="eye-off" class="w-4 h-4"></i>
+                    <span class="text-sm font-medium" th:text="${hiddenChildCount} + ' child ticket tersembunyi dari antrean'"></span>
+                  </div>
+                </div>
+
                 <div th:if="${clusters == null or #lists.isEmpty(clusters)}" class="text-center py-8 text-gray-400">
                   <i data-lucide="link-2" class="w-12 h-12 mx-auto mb-3"></i>
-                  <p class="text-sm">Tidak ada cluster duplikat terdeteksi</p>
+                  <p class="text-sm">Belum ada cluster duplikat</p>
                 </div>
 
                 <div th:if="${clusters != null and !#lists.isEmpty(clusters)}" class="space-y-4">
                   <div th:each="cluster, iter : ${clusters}" class="p-4 border border-orange-200 rounded-lg bg-orange-50 hover:border-orange-300 transition-colors">
                     <div class="flex items-center justify-between mb-3 pb-3 border-b border-orange-200">
-                      <span class="text-xs px-2 py-1 rounded bg-orange-600 text-white font-semibold" th:text="|Cluster ${iter.index + 1}|"></span>
+                      <div class="flex items-center gap-2">
+                        <span class="text-xs px-2 py-1 rounded bg-orange-600 text-white font-semibold" th:text="|Cluster ${iter.index + 1}|"></span>
+                        <span class="text-xs px-2 py-1 rounded font-semibold"
+                              th:class="${cluster[0].similarityScore >= 90 ? 'badge-similarity-high' : (cluster[0].similarityScore >= 80 ? 'badge-similarity-medium' : 'badge-similarity-low')}"
+                              th:text="|Mirip ${cluster[0].similarityScore}%|"></span>
+                      </div>
                       <span class="text-xs font-semibold text-orange-700" th:text="|${#lists.size(cluster)} Tiket|"></span>
                     </div>
 
@@ -438,7 +631,11 @@
 
                     <div class="space-y-2 mb-3">
                       <div th:each="ticket : ${cluster}" class="text-xs bg-white p-2 rounded border border-orange-100">
-                        <div class="font-mono font-bold text-blue-600" th:text="${ticket.id}"></div>
+                        <div class="flex items-center gap-1">
+                          <div class="font-mono font-bold text-blue-600" th:text="${ticket.id}"></div>
+                          <span th:if="${iter.index == 0}" class="text-xs px-1 py-0.5 rounded bg-green-100 text-green-700">Parent</span>
+                          <span th:unless="${iter.index == 0}" class="text-xs px-1 py-0.5 rounded bg-gray-100 text-gray-600">Child</span>
+                        </div>
                         <div class="font-medium mt-1 text-gray-900" th:text="${ticket.judul}"></div>
                         <div class="text-gray-500 mt-1" th:text="${ticket.pelapor}"></div>
                       </div>
@@ -465,16 +662,26 @@
                   <i data-lucide="eye" class="w-5 h-5"></i>
                   Review Penggabungan Tiket
                 </h3>
-                <p class="text-orange-100 text-sm mt-1">Pastikan tiket-tiket ini benar-benar kasus yang sama sebelum digabung</p>
+                <p class="text-orange-100 text-sm mt-1">Pastikan tiket-tiket ini benar-benar kasus yang sama. Pilih satu sebagai Parent Ticket.</p>
               </div>
 
               <div class="p-6 space-y-4">
                 <!-- Ticket comparison -->
                 <div class="space-y-3">
+                  <p class="text-sm font-semibold text-gray-900">Perbandingan Tiket Terpilih:</p>
                   <template x-for="ticket in reviewTickets" :key="ticket.id">
                     <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
                       <div class="flex items-center justify-between mb-2">
-                        <span class="font-mono font-semibold text-blue-600" x-text="ticket.id"></span>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                          <input type="radio" name="parentTicket" :value="ticket.id" x-model="parentTicketId" class="w-4 h-4 text-orange-600" />
+                          <span class="font-mono font-semibold text-blue-600" x-text="ticket.id"></span>
+                          <span class="text-xs px-2 py-1 rounded bg-green-100 text-green-700 border border-green-200" x-show="parentTicketId === ticket.id">
+                            Parent Ticket
+                          </span>
+                          <span class="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600 border border-gray-200" x-show="parentTicketId !== ticket.id">
+                            Child Ticket
+                          </span>
+                        </label>
                         <span
                           class="text-xs px-2 py-1 rounded font-semibold"
                           :class="parseInt(ticket.similarity) >= 90 ? 'bg-red-600 text-white' : (parseInt(ticket.similarity) >= 80 ? 'bg-orange-500 text-white' : 'bg-yellow-500 text-white')"
@@ -487,6 +694,9 @@
                         <div>Pelapor: <span class="font-medium" x-text="ticket.pelapor"></span></div>
                         <div>Lokasi: <span class="font-medium" x-text="ticket.lokasi"></span></div>
                         <div>Kategori: <span class="font-medium" x-text="ticket.kategori"></span></div>
+                        <div>Status:
+                          <span class="font-medium" :class="ticket.status === 'menunggu' ? 'text-green-600' : 'text-red-600'" x-text="ticket.status"></span>
+                        </div>
                       </div>
                     </div>
                   </template>
@@ -495,9 +705,14 @@
                 <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
                   <div class="flex items-start gap-2">
                     <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0"></i>
-                    <p class="text-sm text-amber-800">
-                      <strong>Perhatian:</strong> Penggabungan tidak dapat dibatalkan. Pastikan semua tiket melaporkan masalah yang sama di lokasi yang sama.
-                    </p>
+                    <div class="text-sm text-amber-800">
+                      <strong>Perhatian:</strong>
+                      <ul class="list-disc ml-4 mt-1 space-y-1">
+                        <li>Penggabungan tidak dapat dibatalkan.</li>
+                        <li>Child Ticket akan <strong>disembunyikan</strong> dari antrean tugas utama.</li>
+                        <li>Data Child Ticket tetap tersimpan dalam riwayat sistem.</li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
 
@@ -505,6 +720,7 @@
                   <template x-for="ticket in reviewTickets" :key="ticket.id">
                     <input type="hidden" name="selectedTickets" :value="ticket.id" />
                   </template>
+                  <input type="hidden" name="primaryTicket" :value="parentTicketId" />
                   <div>
                     <label class="block text-sm font-semibold mb-2 text-gray-900">
                       Alasan Penggabungan <span class="text-red-500">*</span>
@@ -526,8 +742,8 @@
                     <button
                       type="submit"
                       class="flex-1 px-4 py-3 bg-orange-600 text-white rounded-lg font-semibold hover:bg-orange-700 flex items-center justify-center gap-2"
-                      :disabled="reviewTickets.length < 2 || reviewReason.length < 10"
-                      :class="reviewTickets.length < 2 || reviewReason.length < 10 ? 'opacity-50 cursor-not-allowed' : ''"
+                      :disabled="reviewTickets.length < 2 || reviewReason.length < 10 || !parentTicketId"
+                      :class="reviewTickets.length < 2 || reviewReason.length < 10 || !parentTicketId ? 'opacity-50 cursor-not-allowed' : ''"
                     >
                       <i data-lucide="git-merge" class="w-4 h-4"></i>
                       Gabungkan Tiket
@@ -771,4 +987,129 @@
       </div>
     </main>
   </div>
+
+  <th:block layout:fragment="extraScripts">
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const dashSearch = document.getElementById('dashSearchInput');
+        const dashFilterStatus = document.getElementById('dashFilterStatus');
+        const dashBody = document.getElementById('dashQueueBody');
+        const dashNoResults = document.getElementById('dashNoResults');
+
+        let currentSortField = 'tanggalMasuk';
+        let currentSortDir = 'asc';
+        let allDashRows = [];
+
+        if (dashBody) {
+          allDashRows = Array.from(dashBody.querySelectorAll('tr.dash-queue-row'));
+        }
+
+        const priorityWeights = { 'Kritis': 4, 'Tinggi': 3, 'Sedang': 2, 'Rendah': 1 };
+
+        function parseDashDate(dateStr) {
+          if (!dateStr) return new Date(0);
+          const months = { 'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'Mei': 4, 'Jun': 5, 'Jul': 6, 'Agu': 7, 'Ags': 7, 'Sep': 8, 'Okt': 9, 'Nov': 10, 'Des': 11 };
+          const parts = dateStr.split(' ');
+          if (parts.length !== 3) return new Date(0);
+          return new Date(parseInt(parts[2]), months[parts[1]] || 0, parseInt(parts[0]));
+        }
+
+        function updateSortIcons() {
+          document.querySelectorAll('.sortable-col').forEach(function(th) {
+            const icon = th.querySelector('.sort-icon');
+            if (!icon) return;
+            if (th.dataset.sort === currentSortField) {
+              icon.innerHTML = currentSortDir === 'asc' ? ' &#9650;' : ' &#9660;';
+              th.classList.add('bg-gray-100');
+            } else {
+              icon.innerHTML = ' &#8597;';
+              th.classList.remove('bg-gray-100');
+            }
+          });
+        }
+
+        function applyDashFilters() {
+          const term = dashSearch ? dashSearch.value.toLowerCase().trim() : '';
+          const staVal = dashFilterStatus ? dashFilterStatus.value : '';
+
+          const visible = allDashRows.filter(function(row) {
+            if (term) {
+              const match = (row.dataset.id || '').toLowerCase().includes(term) ||
+                            (row.dataset.pelapor || '').toLowerCase().includes(term) ||
+                            (row.dataset.wilayah || '').toLowerCase().includes(term) ||
+                            (row.dataset.judul || '').toLowerCase().includes(term);
+              if (!match) return false;
+            }
+            if (staVal && row.dataset.status !== staVal) return false;
+            return true;
+          });
+
+          visible.sort(function(a, b) {
+            let valA, valB;
+            if (currentSortField === 'prioritas') {
+              valA = priorityWeights[a.dataset.prioritas] || 0;
+              valB = priorityWeights[b.dataset.prioritas] || 0;
+            } else if (currentSortField === 'tanggalMasuk') {
+              valA = parseDashDate(a.dataset.tanggal).getTime();
+              valB = parseDashDate(b.dataset.tanggal).getTime();
+            } else if (currentSortField === 'id') {
+              valA = a.dataset.id || '';
+              valB = b.dataset.id || '';
+            } else if (currentSortField === 'judul') {
+              valA = (a.dataset.judul || '').toLowerCase();
+              valB = (b.dataset.judul || '').toLowerCase();
+            } else if (currentSortField === 'pelapor') {
+              valA = (a.dataset.pelapor || '').toLowerCase();
+              valB = (b.dataset.pelapor || '').toLowerCase();
+            } else if (currentSortField === 'wilayah') {
+              valA = (a.dataset.wilayah || '').toLowerCase();
+              valB = (b.dataset.wilayah || '').toLowerCase();
+            } else if (currentSortField === 'status') {
+              valA = a.dataset.status || '';
+              valB = b.dataset.status || '';
+            } else {
+              valA = a.dataset.id || '';
+              valB = b.dataset.id || '';
+            }
+
+            if (currentSortDir === 'desc') {
+              return valA > valB ? -1 : valA < valB ? 1 : 0;
+            } else {
+              return valA < valB ? -1 : valA > valB ? 1 : 0;
+            }
+          });
+
+          allDashRows.forEach(function(row) { row.remove(); });
+          visible.forEach(function(row) { dashBody.appendChild(row); });
+
+          if (dashNoResults) {
+            if (visible.length === 0) dashNoResults.classList.remove('hidden');
+            else dashNoResults.classList.add('hidden');
+          }
+
+          updateSortIcons();
+        }
+
+        document.querySelectorAll('.sortable-col').forEach(function(th) {
+          th.addEventListener('click', function() {
+            const field = this.dataset.sort;
+            if (currentSortField === field) {
+              currentSortDir = currentSortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+              currentSortField = field;
+              currentSortDir = 'asc';
+            }
+            applyDashFilters();
+          });
+        });
+
+        if (dashSearch) dashSearch.addEventListener('input', applyDashFilters);
+        if (dashFilterStatus) dashFilterStatus.addEventListener('change', applyDashFilters);
+
+        applyDashFilters();
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+      });
+    </script>
+  </th:block>
 </html>

@@ -287,67 +287,99 @@
                       th:value="${selectedReport['id']}"
                     />
 
-                    <div class="space-y-3">
-                      <label
-                        th:each="petugas : ${petugasList}"
-                        class="flex items-start gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all hover:bg-green-50"
-                        th:classappend="${petugas['statusKetersediaan'] == 'Tersedia'} ? 'border-gray-200 hover:border-green-300' : 'border-gray-200 opacity-60 cursor-not-allowed'"
-                      >
-                        <input
-                          type="radio"
-                          name="petugasId"
-                          th:value="${petugas['id']}"
-                          class="mt-1 w-4 h-4 text-blue-600"
-                          th:disabled="${petugas['statusKetersediaan'] != 'Tersedia'}"
-                          required
-                        />
-                        <div class="flex-1">
-                          <div class="flex items-start justify-between mb-2">
-                            <div>
-                              <p
-                                class="font-semibold text-gray-900"
-                                th:text="${petugas['nama']}"
-                              ></p>
-                              <p
-                                class="text-xs text-gray-500"
-                                th:text="|NIP: ${petugas['nip']}|"
-                              ></p>
-                            </div>
-                            <span
-                              class="text-xs px-3 py-1 rounded-full font-semibold"
-                              th:classappend="${petugas['statusKetersediaan'] == 'Tersedia'} ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'"
-                              th:text="${petugas['statusKetersediaan']}"
-                            ></span>
-                          </div>
-                          <div
-                            class="grid grid-cols-2 gap-3 text-xs text-gray-600 mt-3"
-                          >
-                            <div class="flex items-center gap-2">
-                              <i
-                                data-lucide="map-pin"
-                                class="w-3 h-3 text-gray-400"
-                              ></i>
-                              <span th:text="${petugas['wilayahTugas']}"></span>
-                            </div>
-                            <div class="flex items-center gap-2">
-                              <i
-                                data-lucide="briefcase"
-                                class="w-3 h-3 text-gray-400"
-                              ></i>
+                    <div x-data="{
+                      searchPetugas: '',
+                      showPetugas(el) {
+                        if (this.searchPetugas === '') return true;
+                        const s = this.searchPetugas.toLowerCase();
+                        const nama = el.dataset.nama?.toLowerCase() || '';
+                        const nip = el.dataset.nip?.toLowerCase() || '';
+                        const wilayah = el.dataset.wilayah?.toLowerCase() || '';
+                        const kontak = el.dataset.kontak?.toLowerCase() || '';
+                        return nama.includes(s) || nip.includes(s) || wilayah.includes(s) || kontak.includes(s);
+                      }
+                    }">
+                      <!-- Search Input -->
+                      <div class="mb-4">
+                        <div class="relative">
+                          <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+                          <input
+                            type="text"
+                            x-model="searchPetugas"
+                            placeholder="Cari petugas (nama, NIP, wilayah, kontak)..."
+                            class="aduaja-input w-full pl-10"
+                          />
+                        </div>
+                      </div>
+
+                      <!-- Scrollable Petugas List -->
+                      <div class="space-y-3 max-h-96 overflow-y-auto pr-2">
+                        <label
+                          th:each="petugas : ${petugasList}"
+                          class="flex items-start gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all hover:bg-green-50"
+                          th:classappend="${petugas['statusKetersediaan'] == 'Tersedia'} ? 'border-gray-200 hover:border-green-300' : 'border-gray-200 opacity-60 cursor-not-allowed'"
+                          th:data-nama="${petugas['nama']}"
+                          th:data-nip="${petugas['nip']}"
+                          th:data-wilayah="${petugas['wilayahTugas']}"
+                          th:data-kontak="${petugas['kontak']}"
+                          x-show="showPetugas($el)"
+                        >
+                          <input
+                            type="radio"
+                            name="petugasId"
+                            th:value="${petugas['id']}"
+                            class="mt-1 w-4 h-4 text-blue-600"
+                            th:disabled="${petugas['statusKetersediaan'] != 'Tersedia'}"
+                            required
+                          />
+                          <div class="flex-1">
+                            <div class="flex items-start justify-between mb-2">
+                              <div>
+                                <p
+                                  class="font-semibold text-gray-900"
+                                  th:text="${petugas['nama']}"
+                                ></p>
+                                <p
+                                  class="text-xs text-gray-500"
+                                  th:text="|NIP: ${petugas['nip']}|"
+                                ></p>
+                              </div>
                               <span
-                                th:text="|Tugas Aktif: ${petugas['tugasAktif']}|"
+                                class="text-xs px-3 py-1 rounded-full font-semibold"
+                                th:classappend="${petugas['statusKetersediaan'] == 'Tersedia'} ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'"
+                                th:text="${petugas['statusKetersediaan']}"
                               ></span>
                             </div>
-                            <div class="flex items-center gap-2">
-                              <i
-                                data-lucide="phone"
-                                class="w-3 h-3 text-gray-400"
-                              ></i>
-                              <span th:text="${petugas['kontak']}"></span>
+                            <div
+                              class="grid grid-cols-2 gap-3 text-xs text-gray-600 mt-3"
+                            >
+                              <div class="flex items-center gap-2">
+                                <i
+                                  data-lucide="map-pin"
+                                  class="w-3 h-3 text-gray-400"
+                                ></i>
+                                <span th:text="${petugas['wilayahTugas']}"></span>
+                              </div>
+                              <div class="flex items-center gap-2">
+                                <i
+                                  data-lucide="briefcase"
+                                  class="w-3 h-3 text-gray-400"
+                                ></i>
+                                <span
+                                  th:text="|Tugas Aktif: ${petugas['tugasAktif']}|"
+                                ></span>
+                              </div>
+                              <div class="flex items-center gap-2">
+                                <i
+                                  data-lucide="phone"
+                                  class="w-3 h-3 text-gray-400"
+                                ></i>
+                                <span th:text="${petugas['kontak']}"></span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </label>
+                        </label>
+                      </div>
                     </div>
 
                     <!-- Warning Box -->

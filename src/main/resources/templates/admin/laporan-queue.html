@@ -7,9 +7,9 @@
   <th:block layout:fragment="extraHead">
     <title>AduAja - Antrean Laporan</title>
     <style>
-      [x-cloak] {
-        display: none !important;
-      }
+      .sortable-col:hover { background: #f3f4f6 !important; }
+      .sort-icon { opacity: 0.4; font-size: 0.75em; margin-left: 4px; }
+      .sortable-col:hover .sort-icon { opacity: 0.8; }
     </style>
   </th:block>
 
@@ -18,80 +18,28 @@
       <div class="bg-white rounded-xl border border-gray-100 shadow-sm">
         <div class="px-6 pt-6 pb-4 flex items-center justify-between">
           <div>
-            <h2 class="text-lg font-semibold text-gray-900">
-              Antrean Laporan Masuk
-            </h2>
-            <p class="text-sm text-gray-600">
-              Daftar laporan yang perlu divalidasi dan diproses
-            </p>
+            <h2 class="text-lg font-semibold text-gray-900">Antrean Laporan Masuk</h2>
+            <p class="text-sm text-gray-600">Klik header kolom untuk mengurutkan · Default: FIFO (terlama di atas)</p>
           </div>
-          <button
-            type="button"
-            x-on:click="showFilters = !showFilters"
-            class="flex items-center gap-2 border border-gray-300 px-3 py-2 rounded-md text-sm hover:bg-gray-50"
-          >
-            <i data-lucide="filter" class="w-4 h-4"></i>
-            <span
-              x-text="showFilters ? 'Tutup Filter' : 'Filter dan Sortir'"
-            ></span>
-          </button>
         </div>
-        <div class="px-6 pb-6">
-          <div
-            x-show="showFilters"
-            x-cloak
-            class="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3"
-          >
-            <div>
-              <label class="text-xs text-gray-600 mb-1 block">Prioritas</label>
-              <select
-                class="w-full px-3 py-2 border border-gray-300 rounded-md"
-              >
-                <option>Semua Prioritas</option>
-                <option>Kritis</option>
-                <option>Tinggi</option>
-                <option>Sedang</option>
-                <option>Rendah</option>
-              </select>
-            </div>
-            <div>
-              <label class="text-xs text-gray-600 mb-1 block">Urutkan</label>
-              <select
-                class="w-full px-3 py-2 border border-gray-300 rounded-md"
-              >
-                <option>Tanggal Masuk</option>
-                <option>Prioritas</option>
-                <option>Status</option>
-              </select>
-            </div>
-            <div>
-              <label class="text-xs text-gray-600 mb-1 block">Arah</label>
-              <select
-                class="w-full px-3 py-2 border border-gray-300 rounded-md"
-              >
-                <option>Terbaru / Tertinggi</option>
-                <option>Terlama / Terendah</option>
-              </select>
-            </div>
-          </div>
 
+        <div class="px-6 pb-6">
           <div class="mb-4 flex gap-3">
             <div class="relative flex-1">
-              <i
-                data-lucide="search"
-                class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
-              ></i>
+              <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
               <input
                 type="text"
+                id="searchInput"
                 class="w-full pl-10 px-3 py-2 border border-gray-300 rounded-md"
                 placeholder="Cari berdasarkan ID Tiket, Nama Pelapor, atau Wilayah..."
               />
             </div>
-            <select class="px-3 py-2 border border-gray-300 rounded-md">
-              <option>Semua Status</option>
-              <option>Menunggu Verifikasi</option>
-              <option>Dalam Peninjauan</option>
-              <option>Terlambat (SLA)</option>
+            <select id="filterStatus" class="px-3 py-2 border border-gray-300 rounded-md">
+              <option value="">Semua Status</option>
+              <option value="Diterima">Diterima</option>
+              <option value="Dalam Peninjauan">Dalam Peninjauan</option>
+              <option value="Ditolak">Ditolak</option>
+              <option value="Revisi">Revisi</option>
             </select>
           </div>
 
@@ -100,123 +48,74 @@
               <table class="w-full">
                 <thead class="bg-gray-50">
                   <tr>
-                    <th
-                      class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase"
-                    >
-                      ID Tiket
-                    </th>
-                    <th
-                      class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase"
-                    >
-                      Judul dan Kategori
-                    </th>
-                    <th
-                      class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase"
-                    >
-                      Pelapor
-                    </th>
-                    <th
-                      class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase"
-                    >
-                      Wilayah
-                    </th>
-                    <th
-                      class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase"
-                    >
-                      Tanggal Masuk
-                    </th>
-                    <th
-                      class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase"
-                    >
-                      Status
-                    </th>
-                    <th
-                      class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase"
-                    >
-                      SLA
-                    </th>
-                    <th
-                      class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase"
-                    >
-                      Aksi
-                    </th>
+                    <th class="sortable-col px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase" data-sort="id" style="cursor:pointer;user-select:none;">ID Tiket <span class="sort-icon"></span></th>
+                    <th class="sortable-col px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase" data-sort="judul" style="cursor:pointer;user-select:none;">Judul dan Kategori <span class="sort-icon"></span></th>
+                    <th class="sortable-col px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase" data-sort="pelapor" style="cursor:pointer;user-select:none;">Pelapor <span class="sort-icon"></span></th>
+                    <th class="sortable-col px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase" data-sort="wilayah" style="cursor:pointer;user-select:none;">Wilayah <span class="sort-icon"></span></th>
+                    <th class="sortable-col px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase" data-sort="tanggalMasuk" style="cursor:pointer;user-select:none;">Tanggal Masuk <span class="sort-icon"></span></th>
+                    <th class="sortable-col px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase" data-sort="status" style="cursor:pointer;user-select:none;">Status <span class="sort-icon"></span></th>
+                    <th class="sortable-col px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase" data-sort="prioritas" style="cursor:pointer;user-select:none;">Prioritas (SLA) <span class="sort-icon"></span></th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase">Aksi</th>
                   </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200">
-                  <tr
-                    th:each="laporan : ${queueReports}"
-                    class="hover:bg-gray-50"
+                <tbody id="queueTableBody" class="divide-y divide-gray-200">
+                  <tr th:each="laporan : ${queueReports}" 
+                      class="queue-row hover:bg-gray-50"
+                      th:data-id="${laporan.id}"
+                      th:data-prioritas="${laporan.prioritas}"
+                      th:data-tanggal="${laporan.tanggalMasuk}"
+                      th:data-status="${laporan.status}"
+                      th:data-pelapor="${laporan.pelapor}"
+                      th:data-wilayah="${laporan.wilayah}"
+                      th:data-judul="${laporan.judul}"
+                      th:data-priority-weight="${laporan.prioritas == 'Kritis' ? 4 : (laporan.prioritas == 'Tinggi' ? 3 : (laporan.prioritas == 'Sedang' ? 2 : (laporan.prioritas == 'Rendah' ? 1 : 0)))}"
                   >
                     <td class="px-4 py-3">
                       <div class="flex items-center gap-2">
-                        <span
-                          class="font-mono text-sm font-semibold"
-                          th:text="${laporan.id}"
-                          >ID</span
-                        >
-                        <span
-                          class="text-xs px-2 py-0.5 rounded bg-gray-100"
-                          th:text="${laporan.prioritas}"
-                          >Prioritas</span
-                        >
+                        <span class="font-mono text-sm font-semibold" th:text="${laporan.id}">ID</span>
+                        <span class="text-xs px-2 py-0.5 rounded font-medium"
+                              th:classappend="${laporan.prioritas == 'Kritis' ? 'bg-red-50 text-red-700 border border-red-200' : 
+                                              (laporan.prioritas == 'Tinggi' ? 'bg-orange-50 text-orange-700 border border-orange-200' : 
+                                              (laporan.prioritas == 'Sedang' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' : 
+                                              (laporan.prioritas == 'Rendah' ? 'bg-green-50 text-green-700 border border-green-200' : 
+                                              'bg-gray-100 text-gray-700')))}"
+                              th:text="${laporan.prioritas}">Prioritas</span>
                       </div>
                     </td>
                     <td class="px-4 py-3">
                       <div>
-                        <p
-                          class="font-medium text-sm"
-                          th:text="${laporan.judul}"
-                        >
-                          Judul
-                        </p>
-                        <p
-                          class="text-xs text-gray-500"
-                          th:text="${laporan.kategori}"
-                        >
-                          Kategori
-                        </p>
+                        <p class="font-medium text-sm" th:text="${laporan.judul}">Judul</p>
+                        <p class="text-xs text-gray-500" th:text="${laporan.kategori}">Kategori</p>
                       </div>
                     </td>
-                    <td class="px-4 py-3 text-sm" th:text="${laporan.pelapor}">
-                      Pelapor
-                    </td>
+                    <td class="px-4 py-3 text-sm" th:text="${laporan.pelapor}">Pelapor</td>
                     <td class="px-4 py-3">
                       <div class="flex items-center gap-1 text-sm">
-                        <i
-                          data-lucide="map-pin"
-                          class="w-3 h-3 text-gray-400"
-                        ></i>
+                        <i data-lucide="map-pin" class="w-3 h-3 text-gray-400"></i>
                         <span th:text="${laporan.wilayah}">Wilayah</span>
                       </div>
                     </td>
                     <td class="px-4 py-3">
                       <div class="flex items-center gap-1 text-sm">
-                        <i
-                          data-lucide="clock"
-                          class="w-3 h-3 text-gray-400"
-                        ></i>
+                        <i data-lucide="clock" class="w-3 h-3 text-gray-400"></i>
                         <span th:text="${laporan.tanggalMasuk}">Tanggal</span>
                       </div>
                     </td>
                     <td class="px-4 py-3">
-                      <span
-                        class="text-xs px-2 py-1 rounded bg-gray-100"
-                        th:text="${laporan.status}"
-                        >Status</span
-                      >
+                      <span class="text-xs px-2 py-1 rounded font-medium"
+                            th:classappend="${laporan.status == 'Diterima' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 
+                                            (laporan.status == 'Dalam Peninjauan' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' : 
+                                            (laporan.status == 'Ditolak' ? 'bg-red-50 text-red-700 border border-red-200' : 
+                                            (laporan.status == 'Revisi' ? 'bg-purple-50 text-purple-700 border border-purple-200' : 
+                                            'bg-gray-100 text-gray-700')))}"
+                            th:text="${laporan.status}">Status</span>
                     </td>
                     <td class="px-4 py-3">
-                      <span
-                        class="text-sm font-medium"
-                        th:text="${laporan.sisaWaktuSLA}"
-                        >SLA</span
-                      >
+                      <span class="text-sm font-medium" th:text="${laporan.sisaWaktuSLA}">SLA</span>
                     </td>
                     <td class="px-4 py-3">
-                      <a
-                        th:href="@{/admin/validation(id=${laporan.id})}"
-                        class="inline-flex items-center gap-1 border border-gray-300 px-2 py-1 rounded text-sm hover:bg-gray-50"
-                      >
+                      <a th:href="@{/admin/validation(id=${laporan.id})}"
+                         class="inline-flex items-center gap-1 border border-gray-300 px-2 py-1 rounded text-sm hover:bg-gray-50">
                         <i data-lucide="eye" class="w-4 h-4"></i>
                         Detail
                       </a>
@@ -226,8 +125,133 @@
               </table>
             </div>
           </div>
+
+          <div id="noResults" class="hidden py-8 text-center text-gray-500">
+            Tidak ada laporan yang sesuai dengan filter/pencarian.
+          </div>
         </div>
       </div>
     </main>
   </div>
+
+  <th:block layout:fragment="extraScripts">
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('searchInput');
+        const filterStatus = document.getElementById('filterStatus');
+        const tableBody = document.getElementById('queueTableBody');
+        const noResults = document.getElementById('noResults');
+
+        let currentSortField = 'tanggalMasuk';
+        let currentSortDir = 'asc';
+        let allQueueRows = [];
+
+        if (tableBody) {
+          allQueueRows = Array.from(tableBody.querySelectorAll('tr.queue-row'));
+        }
+
+        const priorityWeights = { 'Kritis': 4, 'Tinggi': 3, 'Sedang': 2, 'Rendah': 1 };
+
+        function parseDate(dateStr) {
+          if (!dateStr) return new Date(0);
+          const months = { 'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'Mei': 4, 'Jun': 5, 'Jul': 6, 'Agu': 7, 'Ags': 7, 'Sep': 8, 'Okt': 9, 'Nov': 10, 'Des': 11 };
+          const parts = dateStr.split(' ');
+          if (parts.length !== 3) return new Date(0);
+          return new Date(parseInt(parts[2]), months[parts[1]] || 0, parseInt(parts[0]));
+        }
+
+        function updateSortIcons() {
+          document.querySelectorAll('.sortable-col').forEach(function(th) {
+            const icon = th.querySelector('.sort-icon');
+            if (!icon) return;
+            if (th.dataset.sort === currentSortField) {
+              icon.innerHTML = currentSortDir === 'asc' ? ' &#9650;' : ' &#9660;';
+              th.classList.add('bg-gray-100');
+            } else {
+              icon.innerHTML = ' &#8597;';
+              th.classList.remove('bg-gray-100');
+            }
+          });
+        }
+
+        function applyFilters() {
+          const term = searchInput ? searchInput.value.toLowerCase().trim() : '';
+          const staVal = filterStatus ? filterStatus.value : '';
+
+          const visible = allQueueRows.filter(function(row) {
+            if (term) {
+              const match = (row.dataset.id || '').toLowerCase().includes(term) ||
+                            (row.dataset.pelapor || '').toLowerCase().includes(term) ||
+                            (row.dataset.wilayah || '').toLowerCase().includes(term) ||
+                            (row.dataset.judul || '').toLowerCase().includes(term);
+              if (!match) return false;
+            }
+            if (staVal && row.dataset.status !== staVal) return false;
+            return true;
+          });
+
+          visible.sort(function(a, b) {
+            let valA, valB;
+            if (currentSortField === 'prioritas') {
+              valA = priorityWeights[a.dataset.prioritas] || 0;
+              valB = priorityWeights[b.dataset.prioritas] || 0;
+            } else if (currentSortField === 'tanggalMasuk') {
+              valA = parseDate(a.dataset.tanggal).getTime();
+              valB = parseDate(b.dataset.tanggal).getTime();
+            } else if (currentSortField === 'id') {
+              valA = a.dataset.id || '';
+              valB = b.dataset.id || '';
+            } else if (currentSortField === 'judul') {
+              valA = (a.dataset.judul || '').toLowerCase();
+              valB = (b.dataset.judul || '').toLowerCase();
+            } else if (currentSortField === 'pelapor') {
+              valA = (a.dataset.pelapor || '').toLowerCase();
+              valB = (b.dataset.pelapor || '').toLowerCase();
+            } else if (currentSortField === 'wilayah') {
+              valA = (a.dataset.wilayah || '').toLowerCase();
+              valB = (b.dataset.wilayah || '').toLowerCase();
+            } else if (currentSortField === 'status') {
+              valA = a.dataset.status || '';
+              valB = b.dataset.status || '';
+            } else {
+              valA = a.dataset.id || '';
+              valB = b.dataset.id || '';
+            }
+
+            return currentSortDir === 'desc' ? (valA > valB ? -1 : valA < valB ? 1 : 0) : (valA < valB ? -1 : valA > valB ? 1 : 0);
+          });
+
+          allQueueRows.forEach(function(row) { row.remove(); });
+          visible.forEach(function(row) { tableBody.appendChild(row); });
+
+          if (noResults) {
+            if (visible.length === 0) noResults.classList.remove('hidden');
+            else noResults.classList.add('hidden');
+          }
+
+          updateSortIcons();
+        }
+
+        document.querySelectorAll('.sortable-col').forEach(function(th) {
+          th.addEventListener('click', function() {
+            const field = this.dataset.sort;
+            if (currentSortField === field) {
+              currentSortDir = currentSortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+              currentSortField = field;
+              currentSortDir = 'asc';
+            }
+            applyFilters();
+          });
+        });
+
+        if (searchInput) searchInput.addEventListener('input', applyFilters);
+        if (filterStatus) filterStatus.addEventListener('change', applyFilters);
+
+        applyFilters();
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+      });
+    </script>
+  </th:block>
 </html>

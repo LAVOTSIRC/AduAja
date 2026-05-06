@@ -12,6 +12,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -144,8 +145,12 @@ public class WebController {
         ));
         model.addAttribute("panels", panels);
 
-        // Queue reports (for "Antrean Laporan" tab)
-        model.addAttribute("queueReports", dummyQueueReports());
+        // Queue reports (for "Antrean Laporan" tab) — sorted FIFO, exclude merged child tickets
+        List<Map<String, Object>> queueReports = new ArrayList<>(dummyQueueReports());
+        queueReports.removeIf(r -> mergedTicketMap.containsKey(r.get("id")));
+        DateTimeFormatter queueFmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
+        queueReports.sort(Comparator.comparing(r -> LocalDate.parse((String) r.get("tanggalMasuk"), queueFmt)));
+        model.addAttribute("queueReports", queueReports);
 
         // Reports for validation tab (now merged into queue)
         List<Map<String, Object>> validationReports = dummyValidationReports();
@@ -163,6 +168,7 @@ public class WebController {
         model.addAttribute("mergeTickets", dummyMergeTickets());
         model.addAttribute("clusters", dummyClusters());
         model.addAttribute("selectedTickets", new ArrayList<>());
+        model.addAttribute("hiddenChildCount", mergedTicketMap.size());
 
         // Disposisi
                 List<Map<String, Object>> disposisiReports = dummyDisposisiReports();
@@ -252,7 +258,11 @@ public class WebController {
     /** GET /admin/laporan-queue — antrean laporan masuk */
     @GetMapping("/admin/laporan-queue")
     public String adminLaporanQueue(Model model) {
-        model.addAttribute("queueReports", dummyQueueReports());
+        List<Map<String, Object>> reports = new ArrayList<>(dummyQueueReports());
+        // Sort FIFO: laporan paling lama (tanggal masuk paling awal) di atas
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
+        reports.sort(Comparator.comparing(r -> LocalDate.parse((String) r.get("tanggalMasuk"), fmt)));
+        model.addAttribute("queueReports", reports);
         return "admin/laporan-queue";
     }
 
@@ -356,7 +366,33 @@ public class WebController {
             @RequestParam(value = "primaryTicket", required = false) String primaryTicket,
             @RequestParam(value = "mergeReason", required = false) String mergeReason
     ) {
+        // Merge selected tickets
         if (selectedTickets != null && selectedTickets.size() >= 2 && mergeReason != null && !mergeReason.trim().isEmpty()) {
+            // Validate merge reason length
+            if (mergeReason.trim().length() < 10) {
+                return "redirect:/admin/dashboard?tab=merge&mergeError=shortReason";
+            }
+            // Check: no ticket can be in disposisi or in-progress
+            List<String> blockedTickets = new ArrayList<>();
+            for (String tid : selectedTickets) {
+                String status = ticketLifecycleStatus.get(tid);
+                if ("disposisi".equals(status) || "in-progress".equals(status)) {
+                    blockedTickets.add(tid);
+                }
+            }
+            if (!blockedTickets.isEmpty()) {
+                // Reject merge: some tickets are already being processed
+                return "redirect:/admin/dashboard?tab=merge&mergeError=blocked&blocked=" + String.join(",", blockedTickets);
+            }
+
+            // Validate primaryTicket is selected
+            if (primaryTicket == null || primaryTicket.trim().isEmpty()) {
+                return "redirect:/admin/dashboard?tab=merge&mergeError=noParent";
+            }
+            if (!selectedTickets.contains(primaryTicket)) {
+                return "redirect:/admin/dashboard?tab=merge&mergeError=invalidParent";
+            }
+
             List<Map<String, Object>> newCluster = new ArrayList<>();
             if (cachedMergeTickets != null) {
                 for (String tid : selectedTickets) {
@@ -364,6 +400,10 @@ public class WebController {
                             .filter(r -> tid.equals(r.get("id"))).findFirst().orElse(null);
                     if (t != null) {
                         cachedMergeTickets.remove(t);
+                        // Mark child tickets (not the primary) as merged/hidden
+                        if (!tid.equals(primaryTicket)) {
+                            mergedTicketMap.put(tid, primaryTicket);
+                        }
                         newCluster.add(t);
                     }
                 }
@@ -374,10 +414,15 @@ public class WebController {
             return "redirect:/admin/dashboard?tab=merge&merged=true";
         }
 
+        // Separate a cluster
         if (clusterIndex != null && cachedClusters != null && clusterIndex >= 0 && clusterIndex < cachedClusters.size()) {
             List<Map<String, Object>> separated = cachedClusters.remove((int) clusterIndex);
             if (cachedMergeTickets != null) {
-                cachedMergeTickets.addAll(separated);
+                for (Map<String, Object> t : separated) {
+                    String tid = (String) t.get("id");
+                    mergedTicketMap.remove(tid); // un-hide from queue
+                    cachedMergeTickets.add(t);
+                }
             }
             return "redirect:/admin/dashboard?tab=merge&separated=true";
         }
@@ -1407,28 +1452,47 @@ public class WebController {
     }
 
     private static List<Map<String, Object>> cachedMergeTickets = null;
+    private static List<List<Map<String, Object>>> cachedClusters = null;
+    // Track which tickets have been merged (child tickets hidden from main queue)
+    private static Map<String, String> mergedTicketMap = new HashMap<>(); // childId -> parentId
+    // Track ticket lifecycle status for merge blocking
+    private static Map<String, String> ticketLifecycleStatus = new HashMap<>();
+
+    /** Initialize lifecycle statuses: some tickets are already in disposisi/in-progress */
+    private void initTicketLifecycleStatus() {
+        if (!ticketLifecycleStatus.isEmpty()) return;
+        // Tickets that are already in disposisi or in-progress — cannot be merged
+        ticketLifecycleStatus.put("TKT-2025-006", "disposisi");    // sudah didisposisikan
+        ticketLifecycleStatus.put("TKT-2025-008", "in-progress");  // sedang dikerjakan petugas
+    }
+
     /** Dummy data: tiket yang terdeteksi sebagai duplikat */
     private List<Map<String, Object>> dummyMergeTickets() {
         if (cachedMergeTickets != null) return cachedMergeTickets;
+        initTicketLifecycleStatus();
         List<Map<String, Object>> list = new ArrayList<>();
         list.add(buildMergeTicket("TKT-2025-006", "Jalan Berlubang Sudirman (2)",
                 "Infrastruktur Jalan", "Ahmad Rifai", "28 Apr 2025",
                 "Jl. Sudirman, Medan Kota",
-                "Lubang jalan di depan kantor pos Sudirman.", 92));
+                "Lubang jalan di depan kantor pos Sudirman.", 92, "disposisi"));
         list.add(buildMergeTicket("TKT-2025-007", "Lubang Jalan Jl. Sudirman Tengah",
                 "Infrastruktur Jalan", "Nina Sari", "27 Apr 2025",
                 "Jl. Sudirman, Medan Kota",
-                "Ada lubang besar di tengah jalan Sudirman.", 87));
+                "Ada lubang besar di tengah jalan Sudirman.", 87, "menunggu"));
         list.add(buildMergeTicket("TKT-2025-008", "Lampu Jalan Padam Gang Melati",
                 "Penerangan Jalan", "Rudi Kurniawan", "27 Apr 2025",
                 "Gang Melati, Medan Baru",
-                "Lampu jalan di gang melati padam sejak 5 hari.", 85));
+                "Lampu jalan di gang melati padam sejak 5 hari.", 85, "in-progress"));
+        list.add(buildMergeTicket("TKT-2025-013", "Lubang Jalan Sudirman Utara",
+                "Infrastruktur Jalan", "Dimas Pratama", "29 Apr 2025",
+                "Jl. Sudirman, Medan Kota",
+                "Lubang di persimpangan Sudirman Utara, sudah ada 2 laporan serupa.", 90, "menunggu"));
         cachedMergeTickets = list;
         return list;
     }
 
     private Map<String, Object> buildMergeTicket(String id, String judul, String kategori,
-                                                 String pelapor, String tanggalMasuk, String wilayah, String deskripsi, int similarityScore) {
+                                                 String pelapor, String tanggalMasuk, String wilayah, String deskripsi, int similarityScore, String ticketStatus) {
         Map<String, Object> m = new HashMap<>();
         m.put("id", id);
         m.put("judul", judul);
@@ -1439,25 +1503,43 @@ public class WebController {
         m.put("deskripsi", deskripsi);
         m.put("similarityScore", similarityScore);
         m.put("foto", dummyReportImage());
+        m.put("ticketStatus", ticketStatus); // "menunggu", "disposisi", "in-progress"
+        m.put("isMergeable", !"disposisi".equals(ticketStatus) && !"in-progress".equals(ticketStatus));
         return m;
     }
 
-    private static List<List<Map<String, Object>>> cachedClusters = null;
-    /** Dummy data: cluster duplikat */
+    /** Dummy data: cluster duplikat — grouped by similarity */
     private List<List<Map<String, Object>>> dummyClusters() {
         if (cachedClusters != null) return cachedClusters;
+        initTicketLifecycleStatus();
         List<List<Map<String, Object>>> clusters = new ArrayList<>();
 
+        // Cluster 1: Jalan Berlubang di Jl. Sudirman (68% similarity)
         List<Map<String, Object>> c1 = new ArrayList<>();
-        c1.add(buildMergeTicket("TKT-2025-001", "Jalan Berlubang Parah", "Infrastruktur Jalan", "Budi S", "20 Apr 2025", "Jl. Sudirman, Medan Kota", "Ada jalan berlubang besar", 100));
-        c1.add(buildMergeTicket("TKT-2025-010", "Lubang di Jl Sudirman", "Infrastruktur Jalan", "Andi", "21 Apr 2025", "Jl. Sudirman, Medan Kota", "Jalanan rusak", 90));
-        c1.add(buildMergeTicket("TKT-2025-011", "Jalan rusak depan toko", "Infrastruktur Jalan", "Citra", "22 Apr 2025", "Jl. Sudirman, Medan Kota", "Bahaya buat motor", 88));
+        c1.add(buildMergeTicket("TKT-2025-001", "Jalan Berlubang Parah", "Infrastruktur Jalan", "Budi S", "20 Apr 2025", "Jl. Sudirman, Medan Kota", "Ada jalan berlubang besar", 68, "menunggu"));
+        c1.add(buildMergeTicket("TKT-2025-010", "Lubang di Jl Sudirman", "Infrastruktur Jalan", "Andi", "21 Apr 2025", "Jl. Sudirman, Medan Kota", "Jalanan rusak parah", 68, "menunggu"));
+        c1.add(buildMergeTicket("TKT-2025-011", "Jalan rusak depan toko", "Infrastruktur Jalan", "Citra", "22 Apr 2025", "Jl. Sudirman, Medan Kota", "Bahaya buat motor", 68, "menunggu"));
+        c1.add(buildMergeTicket("TKT-2025-016", "Jalan Berlubang Sudirman", "Infrastruktur Jalan", "Dewi", "23 Apr 2025", "Jl. Sudirman, Medan Kota", "Lubang besar di depan minimarket", 68, "menunggu"));
         clusters.add(c1);
 
+        // Cluster 2: Lampu Mati di Gang Melati (72% similarity)
         List<Map<String, Object>> c2 = new ArrayList<>();
-        c2.add(buildMergeTicket("TKT-2025-002", "Lampu Mati", "Penerangan Jalan", "Sari D", "23 Apr 2025", "Gang Melati, Medan Baru", "Lampu mati gelap", 100));
-        c2.add(buildMergeTicket("TKT-2025-012", "Lampu jalan rusak", "Penerangan Jalan", "Joko", "24 Apr 2025", "Gang Melati, Medan Baru", "Gelap gulita", 95));
+        c2.add(buildMergeTicket("TKT-2025-002", "Lampu Mati", "Penerangan Jalan", "Sari D", "23 Apr 2025", "Gang Melati, Medan Baru", "Lampu mati gelap gulita", 72, "menunggu"));
+        c2.add(buildMergeTicket("TKT-2025-012", "Lampu jalan rusak", "Penerangan Jalan", "Joko", "24 Apr 2025", "Gang Melati, Medan Baru", "Tidak ada penerangan sama sekali", 72, "menunggu"));
+        c2.add(buildMergeTicket("TKT-2025-017", "Lampu PJU mati", "Penerangan Jalan", "Rina", "25 Apr 2025", "Gang Melati, Medan Baru", "Lampu jalan tidak menyala 1 minggu", 72, "menunggu"));
         clusters.add(c2);
+
+        // Cluster 3: Drainase Tersumbat di Jl. Gatot Subroto (65% similarity)
+        List<Map<String, Object>> c3 = new ArrayList<>();
+        c3.add(buildMergeTicket("TKT-2025-003", "Saluran Mampet", "Drainase", "Hendra", "26 Apr 2025", "Jl. Gatot Subroto, Medan Petisah", "Air menggenang saat hujan", 65, "menunggu"));
+        c3.add(buildMergeTicket("TKT-2025-018", "Drainase tersumbat", "Drainase", "Fitri", "27 Apr 2025", "Jl. Gatot Subroto, Medan Petisah", "Sampah menyumbat saluran", 65, "menunggu"));
+        clusters.add(c3);
+
+        // Cluster 4: Trotoar Rusak di Jl. Imam Bonjol (70% similarity)
+        List<Map<String, Object>> c4 = new ArrayList<>();
+        c4.add(buildMergeTicket("TKT-2025-004", "Trotoar Retak", "Infrastruktur Jalan", "Wahyu", "28 Apr 2025", "Jl. Imam Bonjol, Medan Polonia", "Trotoar amblas dan retak", 70, "menunggu"));
+        c4.add(buildMergeTicket("TKT-2025-019", "Jalan setapak rusak", "Infrastruktur Jalan", "Agus", "29 Apr 2025", "Jl. Imam Bonjol, Medan Polonia", "Trotoar tidak bisa dilalui", 70, "menunggu"));
+        clusters.add(c4);
 
         cachedClusters = clusters;
         return clusters;
