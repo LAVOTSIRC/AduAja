@@ -1,0 +1,8 @@
+$kind: http-request
+name: Get Ticket Progress History
+method: GET
+url: '{{baseUrl}}/tickets/:ticketId/progress'
+order: 8000
+pathVariables:
+  - key: ticketId
+    value: '1'

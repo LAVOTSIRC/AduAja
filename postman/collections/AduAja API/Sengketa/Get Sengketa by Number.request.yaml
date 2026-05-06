@@ -1,0 +1,8 @@
+$kind: http-request
+name: Get Sengketa by Number
+method: GET
+url: '{{baseUrl}}/sengketa/number/:number'
+order: 3000
+pathVariables:
+  - key: number
+    value: ''

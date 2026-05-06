@@ -1,0 +1,8 @@
+$kind: http-request
+name: Search Dinas by Category
+method: GET
+url: '{{baseUrl}}/disposisi/dinas/search'
+order: 6000
+queryParams:
+  - key: category
+    value: ''

@@ -1,0 +1,15 @@
+$kind: http-request
+name: Add Ticket Material
+method: POST
+url: '{{baseUrl}}/tickets/:id/materials'
+order: 18000
+pathVariables:
+  - key: id
+    value: '1'
+queryParams:
+  - key: materialName
+    value: ''
+  - key: quantity
+    value: ''
+  - key: unit
+    value: ''

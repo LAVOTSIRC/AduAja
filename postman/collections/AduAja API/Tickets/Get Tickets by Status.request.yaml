@@ -1,0 +1,8 @@
+$kind: http-request
+name: Get Tickets by Status
+method: GET
+url: '{{baseUrl}}/tickets/status/:status'
+order: 5000
+pathVariables:
+  - key: status
+    value: BARU

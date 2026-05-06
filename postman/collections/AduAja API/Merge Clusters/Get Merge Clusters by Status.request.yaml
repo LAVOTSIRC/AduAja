@@ -1,0 +1,8 @@
+$kind: http-request
+name: Get Merge Clusters by Status
+method: GET
+url: '{{baseUrl}}/merge-clusters/status/:status'
+order: 3000
+pathVariables:
+  - key: status
+    value: PENDING

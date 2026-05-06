@@ -1,0 +1,8 @@
+$kind: http-request
+name: Get Attendance by User
+method: GET
+url: '{{baseUrl}}/attendance/user/:userId'
+order: 2000
+pathVariables:
+  - key: userId
+    value: '1'

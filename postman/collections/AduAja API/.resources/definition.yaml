@@ -1,0 +1,5 @@
+$kind: collection
+name: AduAja API
+variables:
+  - key: baseUrl
+    value: 'http://localhost:8080/api'

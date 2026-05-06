@@ -1,0 +1,8 @@
+$kind: http-request
+name: Get Unread Notifications
+method: GET
+url: '{{baseUrl}}/notifications/user/:userId/unread'
+order: 2000
+pathVariables:
+  - key: userId
+    value: '1'

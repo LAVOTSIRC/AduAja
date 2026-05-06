@@ -1,0 +1,8 @@
+$kind: http-request
+name: Get Sengketa by Status
+method: GET
+url: '{{baseUrl}}/sengketa/status/:status'
+order: 4000
+pathVariables:
+  - key: status
+    value: MENUNGGU_TINJAUAN

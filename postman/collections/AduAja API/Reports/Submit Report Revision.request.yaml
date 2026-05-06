@@ -1,0 +1,11 @@
+$kind: http-request
+name: Submit Report Revision
+method: POST
+url: '{{baseUrl}}/reports/:id/revisions'
+order: 12000
+pathVariables:
+  - key: id
+    value: '1'
+queryParams:
+  - key: description
+    value: ''

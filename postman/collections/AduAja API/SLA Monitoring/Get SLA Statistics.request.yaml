@@ -1,0 +1,5 @@
+$kind: http-request
+name: Get SLA Statistics
+method: GET
+url: '{{baseUrl}}/sla/statistics'
+order: 1000

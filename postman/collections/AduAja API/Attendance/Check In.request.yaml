@@ -1,0 +1,18 @@
+$kind: http-request
+name: Check In
+method: POST
+url: '{{baseUrl}}/attendance/checkin'
+order: 4000
+queryParams:
+  - key: userId
+    value: ''
+  - key: latitude
+    value: ''
+  - key: longitude
+    value: ''
+  - key: address
+    value: ''
+  - key: deviceInfo
+    value: ''
+  - key: ipAddress
+    value: ''

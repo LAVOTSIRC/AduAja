@@ -1,0 +1,12 @@
+$kind: http-request
+name: Create Merge Cluster
+method: POST
+url: '{{baseUrl}}/merge-clusters'
+order: 5000
+queryParams:
+  - key: parentReportId
+    value: ''
+  - key: childReportIds
+    value: ''
+  - key: similarityScore
+    value: ''
