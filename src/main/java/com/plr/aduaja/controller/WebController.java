@@ -9,6 +9,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.SessionAttribute;
+
+import jakarta.servlet.http.HttpSession;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -75,10 +78,11 @@ public class WebController {
     /** POST /admin/login — proses login admin berdasarkan role */
     @PostMapping("/admin/login")
     public String adminLoginPost(@RequestParam(value = "role", required = false, defaultValue = "admin_pusat") String role) {
-        if ("admin_pusat".equalsIgnoreCase(role)) {
-            return "redirect:/admin/dashboard";
-        } else {
+        if ("admin_dinas".equalsIgnoreCase(role)
+                || role.startsWith("admin_dinas")) {
             return "redirect:/admin/dinas/dashboard";
+        } else {
+            return "redirect:/admin/dashboard?role=" + role;
         }
     }
 
@@ -994,20 +998,67 @@ public class WebController {
 
     /** POST /warga/login — proses login warga */
     @PostMapping("/warga/login")
-    public String wargaLoginPost() {
-        return "redirect:/warga/dashboard";
+    public String wargaLoginPost(HttpSession session,
+                                 @RequestParam(value = "email", required = false) String email,
+                                 @RequestParam(value = "password", required = false) String password) {
+        if (email != null && password != null) {
+            User user = userService.getUserByEmail(email).orElse(null);
+            if (user != null && user.getPassword().equals(password)) {
+                session.setAttribute("loggedInUser", user);
+                return "redirect:/warga/dashboard";
+            }
+        }
+        return "redirect:/warga/login?error=Email atau password salah";
+    }
+
+    /** POST /warga/register — proses registrasi warga baru */
+    @PostMapping("/warga/register")
+    public String wargaRegisterPost(
+            HttpSession session,
+            @RequestParam(value = "name", required = false) String name,
+            @RequestParam(value = "email", required = false) String email,
+            @RequestParam(value = "nik", required = false) String nik,
+            @RequestParam(value = "phone", required = false) String phone,
+            @RequestParam(value = "password", required = false) String password
+    ) {
+        try {
+            User newUser = new User();
+            newUser.setName(name);
+            newUser.setUsername(name.toLowerCase().replaceAll("\\s+", "_"));
+            newUser.setEmail(email);
+            newUser.setNik(nik);
+            newUser.setPhoneNumber(phone);
+            newUser.setPassword(password);
+            newUser.setRole(User.Role.WARGA);
+            newUser.setIsActive(true);
+            User saved = userService.createUser(newUser);
+            session.setAttribute("loggedInUser", saved);
+            return "redirect:/warga/dashboard";
+        } catch (RuntimeException e) {
+            return "redirect:/warga/login?error=" + e.getMessage();
+        }
     }
 
     @GetMapping("/warga/module")
     public String wargaModule() { return "warga/module"; }
 
     @GetMapping("/warga/dashboard")
-    public String wargaDashboard(Model model) {
-        Map<String, Object> user = new HashMap<>();
-        user.put("name", "Budi Santoso");
-        model.addAttribute("user", user);
+    public String wargaDashboard(Model model, HttpSession session) {
+        User loggedInUser = (User) session.getAttribute("loggedInUser");
+        if (loggedInUser != null) {
+            model.addAttribute("user", loggedInUser);
+        } else {
+            Map<String, Object> dummy = new HashMap<>();
+            dummy.put("name", "Budi Santoso");
+            model.addAttribute("user", dummy);
+        }
 
-        List<Report> dbReports = reportService.getAllReports();
+        List<Report> dbReports;
+        if (loggedInUser != null) {
+            dbReports = reportService.getReportsByUser(loggedInUser.getId());
+        } else {
+            dbReports = reportService.getAllReports();
+        }
         long total = dbReports.size();
         long diproses = dbReports.stream().filter(r -> r.getStatus() == Report.Status.DIPROSES).count();
         long selesai = dbReports.stream().filter(r -> r.getStatus() == Report.Status.SELESAI).count();
@@ -1055,27 +1106,28 @@ public class WebController {
     /** POST /warga/create-report — kirim laporan baru dari warga */
     @PostMapping("/warga/create-report")
     public String wargaCreateReportPost(
+            HttpSession session,
             @ModelAttribute ReportForm reportForm,
             Model model
     ) {
         try {
-            // For now, use a fixed user ID. In production, get from session/authentication
-            String userId = userService.getUserByUsername("budi_santoso")
-                    .map(User::getId).orElse(null);
-
-            if (userId != null) {
-                Report report = new Report();
-                report.setTitle(reportForm.getCategory() + " - " + reportForm.getDescription().substring(0, Math.min(50, reportForm.getDescription().length())));
-                report.setDescription(reportForm.getDescription());
-                report.setCategory(reportForm.getCategory());
-                report.setLocation(reportForm.getLandmark());
-                report.setLandmark(reportForm.getLandmark());
-                report.setLatitude(reportForm.getLatitude());
-                report.setLongitude(reportForm.getLongitude());
-                report.setSlaDeadline(LocalDateTime.now().plusDays(7));
-
-                reportService.createReport(report, userId);
+            User loggedInUser = (User) session.getAttribute("loggedInUser");
+            if (loggedInUser == null) {
+                return "redirect:/warga/login";
             }
+
+            String userId = loggedInUser.getId();
+            Report report = new Report();
+            report.setTitle(reportForm.getCategory() + " - " + reportForm.getDescription().substring(0, Math.min(50, reportForm.getDescription().length())));
+            report.setDescription(reportForm.getDescription());
+            report.setCategory(reportForm.getCategory());
+            report.setLocation(reportForm.getLandmark());
+            report.setLandmark(reportForm.getLandmark());
+            report.setLatitude(reportForm.getLatitude());
+            report.setLongitude(reportForm.getLongitude());
+            report.setSlaDeadline(LocalDateTime.now().plusDays(7));
+
+            reportService.createReport(report, userId);
         } catch (Exception e) {
             model.addAttribute("error", "Gagal mengirim laporan: " + e.getMessage());
             return "warga/create-report";
@@ -1085,11 +1137,18 @@ public class WebController {
 
     @GetMapping("/warga/report-history")
     public String wargaReportHistory(
+            HttpSession session,
             Model model,
             @RequestParam(value = "status", required = false, defaultValue = "Semua") String filterStatus,
             @RequestParam(value = "q",      required = false, defaultValue = "") String searchQuery
     ) {
-        List<Report> dbReports = reportService.getAllReports();
+        User loggedInUser = (User) session.getAttribute("loggedInUser");
+        List<Report> dbReports;
+        if (loggedInUser != null) {
+            dbReports = reportService.getReportsByUser(loggedInUser.getId());
+        } else {
+            dbReports = reportService.getAllReports();
+        }
 
         List<Map<String, Object>> allReports = new ArrayList<>();
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
@@ -1250,18 +1309,32 @@ public class WebController {
     }
 
     @GetMapping("/warga/profile")
-    public String wargaProfile(Model model) {
+    public String wargaProfile(Model model, HttpSession session) {
+        User loggedInUser = (User) session.getAttribute("loggedInUser");
         Map<String, Object> profile = new HashMap<>();
-        profile.put("name",      "Budi Santoso");
-        profile.put("nik",       "1271052504900001");
-        profile.put("email",     "budi.santoso@email.com");
-        profile.put("phone",     "081234567890");
-        profile.put("address",   "Jl. Setia Budi No. 12");
-        profile.put("kelurahan", "Babura");
-        profile.put("kecamatan","Medan Baru");
-        profile.put("kota",      "Kota Medan");
-        profile.put("provinsi",  "Sumatera Utara");
-        profile.put("photoUrl",  null);
+        if (loggedInUser != null) {
+            profile.put("name",      loggedInUser.getName() != null ? loggedInUser.getName() : "");
+            profile.put("nik",       loggedInUser.getNik() != null ? loggedInUser.getNik() : "");
+            profile.put("email",     loggedInUser.getEmail() != null ? loggedInUser.getEmail() : "");
+            profile.put("phone",     loggedInUser.getPhoneNumber() != null ? loggedInUser.getPhoneNumber() : "");
+            profile.put("address",   loggedInUser.getAddress() != null ? loggedInUser.getAddress() : "");
+            profile.put("kelurahan", loggedInUser.getKelurahan() != null ? loggedInUser.getKelurahan() : "");
+            profile.put("kecamatan", loggedInUser.getKecamatan() != null ? loggedInUser.getKecamatan() : "");
+            profile.put("kota",      loggedInUser.getKota() != null ? loggedInUser.getKota() : "");
+            profile.put("provinsi",  loggedInUser.getProvinsi() != null ? loggedInUser.getProvinsi() : "");
+            profile.put("photoUrl",  null);
+        } else {
+            profile.put("name",      "Budi Santoso");
+            profile.put("nik",       "1271052504900001");
+            profile.put("email",     "budi.santoso@email.com");
+            profile.put("phone",     "081234567890");
+            profile.put("address",   "Jl. Setia Budi No. 12");
+            profile.put("kelurahan", "Babura");
+            profile.put("kecamatan", "Medan Baru");
+            profile.put("kota",      "Kota Medan");
+            profile.put("provinsi",  "Sumatera Utara");
+            profile.put("photoUrl",  null);
+        }
         model.addAttribute("profile", profile);
 
         List<Map<String, Object>> stats = new ArrayList<>();
@@ -1275,21 +1348,30 @@ public class WebController {
     /** POST /warga/profile — simpan perubahan profil warga */
     @PostMapping("/warga/profile")
     public String wargaProfilePost(
+            HttpSession session,
             @RequestParam(value = "name", required = false) String name,
+            @RequestParam(value = "nik", required = false) String nik,
             @RequestParam(value = "email", required = false) String email,
             @RequestParam(value = "phone", required = false) String phone,
-            @RequestParam(value = "address", required = false) String address
+            @RequestParam(value = "address", required = false) String address,
+            @RequestParam(value = "kelurahan", required = false) String kelurahan,
+            @RequestParam(value = "kecamatan", required = false) String kecamatan,
+            @RequestParam(value = "kota", required = false) String kota,
+            @RequestParam(value = "provinsi", required = false) String provinsi
     ) {
-        try {
-            User user = userService.getUserByUsername("budi_santoso").orElse(null);
-            if (user != null) {
-                if (name != null) user.setName(name);
-                if (email != null) user.setEmail(email);
-                if (phone != null) user.setPhoneNumber(phone);
-                if (address != null) user.setAddress(address);
-                userService.updateUser(user);
-            }
-        } catch (Exception ignored) {
+        User user = (User) session.getAttribute("loggedInUser");
+        if (user != null) {
+            if (name != null) user.setName(name);
+            if (nik != null) user.setNik(nik);
+            if (email != null) user.setEmail(email);
+            if (phone != null) user.setPhoneNumber(phone);
+            if (address != null) user.setAddress(address);
+            if (kelurahan != null) user.setKelurahan(kelurahan);
+            if (kecamatan != null) user.setKecamatan(kecamatan);
+            if (kota != null) user.setKota(kota);
+            if (provinsi != null) user.setProvinsi(provinsi);
+            userService.updateUser(user);
+            session.setAttribute("loggedInUser", user);
         }
         return "redirect:/warga/profile";
     }

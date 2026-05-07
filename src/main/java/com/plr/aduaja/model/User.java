@@ -55,7 +55,7 @@ public class User {
     private Boolean isActive = true;
 
     public enum Role {
-        WARGA, ADMIN_PUSAT, ADMIN_DINAS, PETUGAS
+        WARGA, ADMIN_PUSAT, ADMIN_DINAS, PETUGAS, SUPER_ADMIN
     }
 
     public String getId() { return id; }

@@ -179,8 +179,8 @@
           <form
             x-show="!otpStep && isRegister"
             x-cloak
-            th:action="@{/warga/dashboard}"
-            method="get"
+            th:action="@{/warga/register}"
+            method="post"
             class="space-y-4"
           >
             <div>
@@ -291,7 +291,6 @@
 
             <button
               type="submit"
-              x-on:click.prevent="otpStep = true"
               class="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
             >
               Daftar
