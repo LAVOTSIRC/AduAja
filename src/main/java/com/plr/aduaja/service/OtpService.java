@@ -1,68 +1,36 @@
 package com.plr.aduaja.service;
 
-import com.plr.aduaja.model.*;
-import com.plr.aduaja.model.OtpVerification.OtpType;
-import com.plr.aduaja.repository.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
+import com.plr.aduaja.model.OtpVerification;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
+// ============================================================
+// ABSTRACTION (Abstraksi): OtpService Interface sebagai kontrak
+// Controller hanya tahu interface ini, tidak tahu implementasinya
+//
+// POLYMORPHISM (Compile-time / Overloading):
+// - generateOtp(String userId, OtpType type)
+// - generateOtpForRegistration(String email)  ← Overload
+// - generateOtpForPasswordReset(String email) ← Overload
+// - verifyOtp(String userId, String otpCode)
+// - verifyOtpByEmail(String email, String otpCode)  ← Overload
+// ============================================================
+public interface OtpService {
 
-@Service
-public class OtpService {
+    // ===========================
+    // OVERLOADING (Compile-time Polymorphism)
+    // Generate OTP dengan cara berbeda
+    // ===========================
+    OtpVerification generateOtp(String userId, OtpVerification.OtpType type);
+    OtpVerification generateOtpForRegistration(String email);     // ← Overload
+    OtpVerification generateOtpForPasswordReset(String email);    // ← Overload
 
-    @Autowired
-    private OtpVerificationRepository otpRepository;
+    // ===========================
+    // OVERLOADING (Compile-time Polymorphism)
+    // Verify OTP dengan cara berbeda
+    // ===========================
+    boolean verifyOtp(String userId, String otpCode);
+    boolean verifyOtpByEmail(String email, String otpCode);       // ← Overload
 
-    @Autowired
-    private UserRepository userRepository;
-
-    public OtpVerification generateOtp(String userId, OtpType type, int expiryMinutes) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        OtpVerification otp = new OtpVerification();
-        otp.setUser(user);
-        otp.setOtpCode(generateCode());
-        otp.setOtpType(type);
-        otp.setExpiresAt(LocalDateTime.now().plusMinutes(expiryMinutes));
-        otp.setIsUsed(false);
-        otp.setCreatedAt(LocalDateTime.now());
-
-        return otpRepository.save(otp);
-    }
-
-    public boolean verifyOtp(String userId, String otpCode, OtpType type) {
-        Optional<OtpVerification> otpOpt = otpRepository.findTopByUserUserIdAndOtpTypeOrderByCreatedAtDesc(userId, type);
-        if (otpOpt.isEmpty()) {
-            return false;
-        }
-
-        OtpVerification otp = otpOpt.get();
-        if (otp.getIsUsed() || otp.getExpiresAt().isBefore(LocalDateTime.now())) {
-            return false;
-        }
-
-        if (!otp.getOtpCode().equals(otpCode)) {
-            return false;
-        }
-
-        otp.setIsUsed(true);
-        otpRepository.save(otp);
-        return true;
-    }
-
-    public void expireOldOtps() {
-        List<OtpVerification> expired = otpRepository.findByExpiresAtBeforeAndIsUsedFalse(LocalDateTime.now());
-        for (OtpVerification otp : expired) {
-            otp.setIsUsed(true);
-        }
-        otpRepository.saveAll(expired);
-    }
-
-    private String generateCode() {
-        return String.format("%06d", (int) (Math.random() * 1000000));
-    }
+    OtpVerification getActiveOtp(String userId);
+    void invalidateOtp(String otpId);
+    boolean isOtpExpired(String otpId);
 }

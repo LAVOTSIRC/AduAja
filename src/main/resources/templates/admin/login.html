@@ -7,9 +7,7 @@
   <th:block layout:fragment="extraHead">
     <title>AduAja - Login Admin</title>
     <style>
-      [x-cloak] {
-        display: none !important;
-      }
+      [x-cloak] { display: none !important; }
     </style>
   </th:block>
 
@@ -20,7 +18,7 @@
     <div class="w-full max-w-md">
       <div
         class="aduaja-glow-card bg-white rounded-2xl p-8"
-        x-data="adminLoginForm()"
+        x-data="{ showPassword: false }"
       >
         <div class="text-center mb-6">
           <div
@@ -34,73 +32,49 @@
           </p>
         </div>
 
+        <!-- Info Message (logout) -->
         <div
           th:if="${info}"
           class="mb-4 border border-emerald-200 bg-emerald-50 text-emerald-700 px-4 py-3 rounded-lg text-sm"
           th:text="${info}"
         ></div>
 
+        <!-- Error Message -->
         <div
           th:if="${error}"
-          class="mb-4 aduaja-feedback-error px-4 py-3 rounded-lg text-sm"
+          class="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm"
           th:text="${error}"
         ></div>
 
+        <!-- Login Form — POST sekarang ditangani AdminAuthController -->
         <form
           th:action="@{/admin/login}"
           method="post"
           class="space-y-4"
-          x-ref="loginForm"
-          x-on:submit.prevent="openOtpModal()"
         >
+          <!-- Email -->
           <div class="space-y-2">
-            <label for="role" class="block text-sm font-medium text-gray-700"
-              >Role Administrator</label
-            >
-            <select
-              id="role"
-              name="role"
-              class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="admin_pusat">
-                Admin Pusat (Validasi dan Disposisi)
-              </option>
-              <option value="admin_dinas">
-                Admin Dinas PU dan Penataan Ruang
-              </option>
-              <option value="admin_dinas_dlh">
-                Admin Dinas Lingkungan Hidup
-              </option>
-              <option value="admin_dinas_esdm">Admin Dinas ESDM</option>
-              <option value="admin_dinas_perhubungan">
-                Admin Dinas Perhubungan
-              </option>
-            </select>
-          </div>
-
-          <div class="space-y-2">
-            <label for="email" class="block text-sm font-medium text-gray-700"
-              >Email / Nomor HP</label
-            >
+            <label for="admin-email" class="block text-sm font-medium text-gray-700">
+              Email
+            </label>
             <input
-              id="email"
+              id="admin-email"
               name="email"
-              type="text"
+              type="email"
               placeholder="admin@aduaja.go.id"
               class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
           </div>
 
+          <!-- Password -->
           <div class="space-y-2">
-            <label
-              for="password"
-              class="block text-sm font-medium text-gray-700"
-              >Password</label
-            >
+            <label for="admin-password" class="block text-sm font-medium text-gray-700">
+              Password
+            </label>
             <div class="relative">
               <input
-                id="password"
+                id="admin-password"
                 name="password"
                 x-bind:type="showPassword ? 'text' : 'password'"
                 placeholder="Masukkan password Anda"
@@ -113,15 +87,12 @@
                 class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
               >
                 <i x-show="!showPassword" data-lucide="eye" class="w-4 h-4"></i>
-                <i
-                  x-show="showPassword"
-                  data-lucide="eye-off"
-                  class="w-4 h-4"
-                ></i>
+                <i x-show="showPassword" data-lucide="eye-off" class="w-4 h-4"></i>
               </button>
             </div>
           </div>
 
+          <!-- Remember Me -->
           <div class="flex items-center justify-between text-sm">
             <label class="flex items-center space-x-2 cursor-pointer">
               <input type="checkbox" class="rounded" />
@@ -130,19 +101,14 @@
             <a href="#" class="text-blue-600 hover:underline">Lupa password?</a>
           </div>
 
-          <div
-            x-show="validationError"
-            x-cloak
-            class="aduaja-feedback-error px-3 py-2 rounded-md text-sm"
-            x-text="validationError"
-          ></div>
-
+          <!-- Submit -->
           <button
             type="submit"
-            class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md font-medium disabled:opacity-70"
-            x-bind:disabled="loading"
-            x-text="loading ? 'Memproses...' : 'Login'"
-          ></button>
+            id="btn-admin-login"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md font-medium transition-colors"
+          >
+            Login
+          </button>
         </form>
 
         <p class="text-xs text-center text-gray-500 mt-4">
@@ -151,55 +117,11 @@
 
         <div class="mt-6 text-center border-t pt-4">
           <p class="text-sm text-gray-600">
-            Belum memiliki akun Admin Instansi?
+            Login sebagai Warga?
           </p>
-          <a href="#" class="text-blue-600 font-medium hover:underline text-sm"
-            >Ajukan Permohonan Akun</a
-          >
-        </div>
-
-        <!-- Modal OTP -->
-        <div
-          x-show="showOtpModal"
-          x-cloak
-          class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-        >
-          <div
-            class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6"
-            x-on:click.away="closeOtpModal()"
-          >
-            <h3 class="text-lg font-bold mb-2 text-center">Verifikasi OTP</h3>
-            <p class="text-sm text-gray-600 mb-4 text-center">
-              Silakan masukkan kode OTP 6 digit yang dikirimkan ke email/HP
-              Anda.
-            </p>
-            <input
-              type="text"
-              x-model="otp"
-              maxlength="6"
-              inputmode="numeric"
-              pattern="[0-9]{6}"
-              placeholder="Contoh: 123456"
-              class="w-full px-3 py-2 border rounded-md mb-4 text-center tracking-widest text-lg font-mono"
-              x-bind:disabled="loading"
-            />
-            <div class="flex gap-2">
-              <button
-                type="button"
-                x-on:click="closeOtpModal()"
-                class="flex-1 py-2 border rounded-md hover:bg-gray-50 text-sm font-medium"
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                x-on:click="submitWithOtp()"
-                class="flex-1 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium disabled:opacity-70"
-                x-bind:disabled="loading"
-                x-text="loading ? 'Memverifikasi...' : 'Verifikasi & Login'"
-              ></button>
-            </div>
-          </div>
+          <a th:href="@{/warga/login}" class="text-blue-600 font-medium hover:underline text-sm">
+            Login Warga
+          </a>
         </div>
       </div>
     </div>

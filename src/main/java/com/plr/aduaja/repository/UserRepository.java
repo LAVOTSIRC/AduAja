@@ -7,9 +7,13 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+// ============================================================
+// ABSTRACTION: Repository menyembunyikan detail query JPA
+// ============================================================
 @Repository
 public interface UserRepository extends JpaRepository<User, String> {
 
+    // Method pencarian — mendukung POLYMORPHISM (Overloading) di UserService
     Optional<User> findByEmail(String email);
 
     Optional<User> findByPhoneNumber(String phoneNumber);
