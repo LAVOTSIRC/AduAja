@@ -1,82 +1,59 @@
 package com.plr.aduaja.service;
 
 import com.plr.aduaja.model.Notification;
-import com.plr.aduaja.model.Notification.NotificationType;
-import com.plr.aduaja.model.Report;
-import com.plr.aduaja.model.User;
-import com.plr.aduaja.repository.NotificationRepository;
-import com.plr.aduaja.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
-@Service
-public class NotificationService {
+// ============================================================
+// ABSTRACTION (Abstraksi): NotificationService Interface sebagai kontrak
+// Controller hanya tahu interface ini, tidak tahu implementasinya
+//
+// POLYMORPHISM (Compile-time / Overloading):
+// - getNotificationsByUser(userId)
+// - getUnreadNotificationsByUser(userId)         ← Overload
+// - getNotificationsByType(userId, type)         ← Overload
+// ============================================================
+public interface NotificationService {
 
-    @Autowired
-    private NotificationRepository notificationRepository;
+    // OVERLOADING: method sama, parameter beda
+    List<Notification> getNotificationsByUser(String userId);
+    List<Notification> getUnreadNotificationsByUser(String userId);       // OVERLOAD
+    List<Notification> getNotificationsByType(String userId, String referenceType);  // OVERLOAD
 
-    @Autowired
-    private UserRepository userRepository;
+    Notification createNotification(String userId, String title, String message,
+                                     String referenceType, String referenceId);
+    Notification markAsRead(String notificationId);
+    int markAllAsReadByUser(String userId);
+    long countUnreadByUser(String userId);
 
-    public List<Notification> getNotificationsByUser(String userId) {
-        return notificationRepository.findByRecipientUserIdOrderBySentAtDesc(userId);
+    // ===========================
+    // BACKWARD COMPATIBILITY (untuk WebController / service lama)
+    // ===========================
+    default List<Notification> getUnreadNotifications(String userId) {
+        return getUnreadNotificationsByUser(userId);
     }
 
-    public List<Notification> getUnreadNotifications(String userId) {
-        return notificationRepository.findByRecipientUserIdAndIsReadFalse(userId);
+    default long getUnreadCount(String userId) {
+        return countUnreadByUser(userId);
     }
 
-    public long getUnreadCount(String userId) {
-        return notificationRepository.countByRecipientUserIdAndIsReadFalse(userId);
+    default void markAllAsRead(String userId) {
+        markAllAsReadByUser(userId);
     }
 
-    public Notification createNotification(String userId, String message, NotificationType type) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        Notification notification = new Notification();
-        notification.setRecipient(user);
-        notification.setMessageText(message);
-        notification.setNotificationType(type);
-        notification.setIsRead(false);
-        notification.setSentAt(LocalDateTime.now());
-
-        return notificationRepository.save(notification);
+    default Notification createNotification(String userId, String message,
+                                             Notification.NotificationType type) {
+        return createNotification(userId,
+                type != null ? type.name() : "NOTIFIKASI",
+                message, "SYSTEM", null);
     }
 
-    public Notification createNotificationForReport(String userId, Report report, String message, NotificationType type) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        Notification notification = new Notification();
-        notification.setRecipient(user);
-        notification.setReport(report);
-        notification.setMessageText(message);
-        notification.setNotificationType(type);
-        notification.setIsRead(false);
-        notification.setSentAt(LocalDateTime.now());
-
-        return notificationRepository.save(notification);
-    }
-
-    public Notification markAsRead(String notificationId) {
-        Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new RuntimeException("Notification not found"));
-
-        notification.setIsRead(true);
-
-        return notificationRepository.save(notification);
-    }
-
-    public void markAllAsRead(String userId) {
-        List<Notification> unread = notificationRepository.findByRecipientUserIdAndIsReadFalse(userId);
-        for (Notification notification : unread) {
-            notification.setIsRead(true);
-        }
-        notificationRepository.saveAll(unread);
+    default Notification createNotificationForReport(String userId,
+                                                      com.plr.aduaja.model.Report report,
+                                                      String message,
+                                                      Notification.NotificationType type) {
+        return createNotification(userId,
+                type != null ? type.name() : "NOTIFIKASI",
+                message, "REPORT",
+                report != null ? report.getReportId() : null);
     }
 }
