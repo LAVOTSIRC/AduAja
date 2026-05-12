@@ -5,6 +5,7 @@ import com.plr.aduaja.model.Report.ReportStatus;
 import com.plr.aduaja.model.FieldTask.TaskStatus;
 import com.plr.aduaja.repository.UserProfileRepository;
 import com.plr.aduaja.repository.UserRepository;
+import com.plr.aduaja.dto.LoginDTO;
 import com.plr.aduaja.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -75,113 +76,9 @@ public class WebController {
     // WARGA ROUTES - REGISTRATION & LOGIN
     // ==========================================
 
-    /** POST /warga/register - proses registrasi warga */
-    @PostMapping("/warga/register")
-    public String wargaRegister(
-            @RequestParam("name") String fullName,
-            @RequestParam("nik") String nik,
-            @RequestParam("phone") String phoneNumber,
-            @RequestParam("email") String email,
-            @RequestParam("password") String password,
-            RedirectAttributes redirectAttributes
-    ) {
-        try {
-            // Validasi NIK (16 digit)
-            if (nik == null || !nik.matches("\\d{16}")) {
-                redirectAttributes.addFlashAttribute("error", "NIK harus 16 digit angka");
-                return "redirect:/warga/login?register=true";
-            }
+    // POST /warga/register — Ditangani oleh WargaAuthController
 
-            // Cek email sudah terdaftar
-            if (userRepository.existsByEmail(email)) {
-                redirectAttributes.addFlashAttribute("error", "Email sudah terdaftar");
-                return "redirect:/warga/login?register=true";
-            }
-
-            // Cek NIK sudah terdaftar
-            if (userProfileRepository.existsByNik(nik)) {
-                redirectAttributes.addFlashAttribute("error", "NIK sudah terdaftar");
-                return "redirect:/warga/login?register=true";
-            }
-
-            // Cek nomor HP sudah terdaftar
-            if (userRepository.existsByPhoneNumber(phoneNumber)) {
-                redirectAttributes.addFlashAttribute("error", "Nomor HP sudah terdaftar");
-                return "redirect:/warga/login?register=true";
-            }
-
-            // Buat user baru
-            User newUser = new User();
-            newUser.setFullName(fullName);
-            newUser.setEmail(email);
-            newUser.setPhoneNumber(phoneNumber);
-            newUser.setPasswordHash(passwordEncoder.encode(password));
-            newUser.setRole(User.Role.WARGA);
-            newUser.setAccountStatus(User.AccountStatus.ACTIVE);
-            newUser = userRepository.save(newUser);
-
-            // Buat user profile dengan NIK
-            UserProfile profile = new UserProfile();
-            profile.setUser(newUser);
-            profile.setNik(nik);
-            userProfileRepository.save(profile);
-
-            redirectAttributes.addFlashAttribute("success", "Registrasi berhasil! Silakan login.");
-            return "redirect:/warga/login";
-
-        } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", "Terjadi kesalahan: " + e.getMessage());
-            return "redirect:/warga/login?register=true";
-        }
-    }
-
-    /** POST /warga/login - proses login warga */
-    @PostMapping("/warga/login")
-    public String wargaLogin(
-            @RequestParam("email") String email,
-            @RequestParam("password") String password,
-            RedirectAttributes redirectAttributes,
-            HttpSession session
-    ) {
-        try {
-            Optional<User> userOpt = userRepository.findByEmail(email);
-
-            if (userOpt.isEmpty()) {
-                redirectAttributes.addFlashAttribute("error", "Email atau password salah");
-                return "redirect:/warga/login";
-            }
-
-            User user = userOpt.get();
-
-            // Cek role harus WARGA
-            if (user.getRole() != User.Role.WARGA) {
-                redirectAttributes.addFlashAttribute("error", "Akun ini bukan akun warga");
-                return "redirect:/warga/login";
-            }
-
-            // Cek status akun
-            if (user.getAccountStatus() != User.AccountStatus.ACTIVE) {
-                redirectAttributes.addFlashAttribute("error", "Akun belum aktif atau ditangguhkan");
-                return "redirect:/warga/login";
-            }
-
-            // Verifikasi password
-            if (!passwordEncoder.matches(password, user.getPasswordHash())) {
-                redirectAttributes.addFlashAttribute("error", "Email atau password salah");
-                return "redirect:/warga/login";
-            }
-
-            // Simpan user ID di session
-            session.setAttribute("userId", user.getUserId());
-            session.setAttribute("userName", user.getFullName());
-            session.setAttribute("userRole", "WARGA");
-            return "redirect:/warga/dashboard";
-
-        } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", "Terjadi kesalahan saat login");
-            return "redirect:/warga/login";
-        }
-    }
+    // POST /warga/login — Ditangani oleh WargaAuthController
 
     // ==========================================
     // INDEX & LAYOUTS
@@ -196,33 +93,12 @@ public class WebController {
     // ADMIN ROUTES — ADMIN PUSAT
     // ==========================================
 
-    /** GET /admin/login — halaman login admin */
-    @GetMapping("/admin/login")
-    public String adminLogin(
-            Model model,
-            @RequestParam(value = "logout", required = false) String logout
-    ) {
-        if (logout != null) {
-            model.addAttribute("info", "Anda berhasil logout dari dashboard admin.");
-        }
-        return "admin/login";
-    }
+    // GET /admin/login — Ditangani oleh AdminAuthController
 
-    /** POST /admin/login — proses login admin berdasarkan role */
-    @PostMapping("/admin/login")
-    public String adminLoginPost(@RequestParam(value = "role", required = false, defaultValue = "admin_pusat") String role) {
-        if ("admin_pusat".equalsIgnoreCase(role)) {
-            return "redirect:/admin/dashboard";
-        } else {
-            return "redirect:/admin/dinas/dashboard";
-        }
-    }
 
-    /** POST /admin/logout — logout dummy (tanpa session persistence) */
-    @PostMapping("/admin/logout")
-    public String adminLogout() {
-        return "redirect:/admin/login?logout=1";
-    }
+    // POST /admin/login — Ditangani oleh AdminAuthController
+
+    // POST /admin/logout — Ditangani oleh AdminAuthController
 
     /** GET /admin/home — redirect ke dashboard */
     @GetMapping("/admin/home")
@@ -1019,17 +895,9 @@ public String adminSengketaPanelAliasPost(
 
     private List<Map<String, Object>> currentTasks = new ArrayList<>();
 
-    @GetMapping("/petugas/login")
-    public String petugasLogin() {
-        return "petugas/login";
-    }
+    // GET /petugas/login — Ditangani oleh AdminAuthController
+    // POST /petugas/login — Ditangani oleh AdminAuthController
 
-    /** POST /petugas/login — proses login petugas */
-    @PostMapping("/petugas/login")
-    public String petugasLoginPost() {
-        currentTasks = allDummyTasks();
-        return "redirect:/petugas/dashboard";
-    }
 
     /** GET /petugas/home — redirect ke dashboard */
     @GetMapping("/petugas/home")
@@ -1380,16 +1248,8 @@ public String adminSengketaPanelAliasPost(
     // WARGA ROUTES
     // ==========================================
 
-    @GetMapping("/warga/login")
-    public String wargaLoginPage(
-            @RequestParam(value = "register", required = false) String register,
-            Model model
-    ) {
-        if ("true".equals(register)) {
-            model.addAttribute("isRegister", true);
-        }
-        return "warga/login";
-    }
+    // GET /warga/login — Ditangani oleh WargaAuthController
+
 
     @GetMapping("/warga/module")
     public String wargaModule() { return "warga/module"; }
@@ -1678,49 +1538,10 @@ public String adminSengketaPanelAliasPost(
         return "warga/notifications";
     }
 
-    @GetMapping("/warga/profile")
-    public String wargaProfile(Model model) {
-        Map<String, Object> profile = new HashMap<>();
-        profile.put("name",      "Budi Santoso");
-        profile.put("nik",       "1271052504900001");
-        profile.put("email",     "budi.santoso@email.com");
-        profile.put("phone",     "081234567890");
-        profile.put("address",   "Jl. Setia Budi No. 12");
-        profile.put("kelurahan", "Babura");
-        profile.put("kecamatan","Medan Baru");
-        profile.put("kota",      "Kota Medan");
-        profile.put("provinsi",  "Sumatera Utara");
-        profile.put("photoUrl",  null);
-        model.addAttribute("profile", profile);
+    // GET /warga/profile — Ditangani oleh WargaAuthController (berbasis session)
+    // POST /warga/profile — Ditangani oleh WargaAuthController (via /warga/profile/edit)
 
-        List<Map<String, Object>> stats = new ArrayList<>();
-        stats.add(Map.of("value",5,"label","Total Laporan"));
-        stats.add(Map.of("value",2,"label","Selesai"));
-        stats.add(Map.of("value",2,"label","Diproses"));
-        model.addAttribute("stats", stats);
-        return "warga/profile";
-    }
 
-    /** POST /warga/profile — simpan perubahan profil warga */
-    @PostMapping("/warga/profile")
-    public String wargaProfilePost(
-            @RequestParam(value = "name", required = false) String name,
-            @RequestParam(value = "email", required = false) String email,
-            @RequestParam(value = "phone", required = false) String phone,
-            @RequestParam(value = "address", required = false) String address
-    ) {
-        try {
-            User user = userService.getUserByEmail("budi.santoso@email.com").orElse(null);
-            if (user != null) {
-                if (name != null) user.setFullName(name);
-                if (email != null) user.setEmail(email);
-                if (phone != null) user.setPhoneNumber(phone);
-                userService.updateUser(user);
-            }
-        } catch (Exception ignored) {
-        }
-        return "redirect:/warga/profile";
-    }
 
     // ==========================================
     // PRIVATE HELPERS — ADMIN PUSAT DUMMY DATA

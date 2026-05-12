@@ -1,14 +1,19 @@
 package com.plr.aduaja.model;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+// ============================================================
+// INHERITANCE (Pewarisan): User extends BaseEntity
+// → mewarisi createdAt & updatedAt secara otomatis
+// ENKAPSULASI: semua field adalah PRIVATE
+// ============================================================
 @Entity
 @Table(name = "users")
-public class User {
+public class User extends BaseEntity {  // ← INHERITANCE sejati
 
+    // ENKAPSULASI: field private
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "user_id")
@@ -23,6 +28,7 @@ public class User {
     @Column(name = "phone_number", unique = true, length = 20)
     private String phoneNumber;
 
+    // ENKAPSULASI: passwordHash tidak bisa diakses langsung
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
@@ -34,12 +40,7 @@ public class User {
     @Column(name = "account_status", nullable = false)
     private AccountStatus accountStatus = AccountStatus.PENDING;
 
-    @Column(name = "created_at")
-    private LocalDateTime createdAt = LocalDateTime.now();
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt = LocalDateTime.now();
-
+    // HAS-A (Composition) ≠ Inheritance
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     private UserProfile userProfile;
 
@@ -52,6 +53,9 @@ public class User {
     @OneToMany(mappedBy = "reporter", cascade = CascadeType.ALL)
     private List<Report> reports = new ArrayList<>();
 
+    // ============================================================
+    // ENUM — Role & AccountStatus
+    // ============================================================
     public enum Role {
         WARGA, ADMIN_PUSAT, ADMIN_DINAS, PETUGAS
     }
@@ -60,6 +64,9 @@ public class User {
         PENDING, ACTIVE, SUSPENDED
     }
 
+    // ============================================================
+    // ENKAPSULASI: Getter & Setter untuk semua field PRIVATE
+    // ============================================================
     public String getUserId() { return userId; }
     public void setUserId(String userId) { this.userId = userId; }
 
@@ -80,12 +87,6 @@ public class User {
 
     public AccountStatus getAccountStatus() { return accountStatus; }
     public void setAccountStatus(AccountStatus accountStatus) { this.accountStatus = accountStatus; }
-
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 
     public UserProfile getUserProfile() { return userProfile; }
     public void setUserProfile(UserProfile userProfile) { this.userProfile = userProfile; }

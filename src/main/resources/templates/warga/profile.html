@@ -5,23 +5,22 @@
   layout:decorate="~{layouts/master}"
 >
   <th:block layout:fragment="extraHead">
-    <title>AduAja - Profil Warga</title>
+    <title>AduAja - Profil Saya</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
-      [x-cloak] {
-        display: none !important;
-      }
+      [x-cloak] { display: none !important; }
     </style>
   </th:block>
 
-  <div layout:fragment="content" class="min-h-screen bg-gray-50" x-data="{ isEditing: false }">
+  <div layout:fragment="content" class="min-h-screen bg-gray-50"
+       x-data="{ isEditing: false }">
+
+    <!-- Header -->
     <header class="bg-white shadow-sm sticky top-0 z-10">
       <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
           <div class="flex items-center gap-3">
-            <a
-              th:href="@{/warga/dashboard}"
-              class="p-2 hover:bg-gray-100 rounded-lg"
-            >
+            <a th:href="@{/warga/dashboard}" class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
               <i data-lucide="arrow-left" class="w-5 h-5 text-gray-600"></i>
             </a>
             <div>
@@ -29,31 +28,31 @@
               <p class="text-xs text-gray-500">Kelola informasi pribadi Anda</p>
             </div>
           </div>
-          <div x-show="!isEditing" x-cloak>
+          <!-- Button Edit / Simpan -->
+          <div x-show="!isEditing">
             <button
-              x-on:click="isEditing = true"
+              id="btn-edit-profile"
+              @click="isEditing = true"
               class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <i data-lucide="edit-2" class="w-4 h-4"></i>
-              <span class="hidden sm:inline">Edit Profil</span>
+              <span>Edit Profil</span>
             </button>
           </div>
-          <div x-show="isEditing" x-cloak class="flex gap-2">
+          <div x-show="isEditing" class="flex gap-2" x-cloak>
             <button
-              type="button"
-              x-on:click="isEditing = false"
-              class="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              @click="isEditing = false"
+              class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              <i data-lucide="x" class="w-4 h-4"></i>
-              <span class="hidden sm:inline">Batal</span>
+              Batal
             </button>
             <button
               form="profile-form"
               type="submit"
-              class="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              id="btn-save-profile"
+              class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
             >
-              <i data-lucide="save" class="w-4 h-4"></i>
-              <span class="hidden sm:inline">Simpan</span>
+              Simpan
             </button>
           </div>
         </div>
@@ -61,250 +60,154 @@
     </header>
 
     <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <div
-        class="bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl p-8 mb-6 text-white"
-      >
+      <!-- Profile Banner Card -->
+      <div class="bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl p-8 mb-6 text-white">
         <div class="flex flex-col sm:flex-row items-center gap-6">
-          <div class="relative">
-            <div
-              class="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center overflow-hidden"
-            >
-              <img
-                th:if="${profile['photoUrl'] != null}"
-                th:src="${profile.photoUrl}"
-                alt="Profile"
-                class="w-full h-full object-cover"
-              />
-              <i
-                th:if="${profile.photoUrl == null}"
-                data-lucide="user"
-                class="w-12 h-12"
-              ></i>
-            </div>
-            <label
-              x-show="isEditing"
-              x-cloak
-              class="absolute bottom-0 right-0 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-400 transition-colors"
-            >
-              <i data-lucide="camera" class="w-4 h-4"></i>
-              <input
-                type="file"
-                name="photo"
-                form="profile-form"
-                accept="image/*"
-                class="hidden"
-              />
-            </label>
+          <div class="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center">
+            <i data-lucide="user" class="w-12 h-12"></i>
           </div>
-          <div class="text-center sm:text-left flex-1">
-            <h2 class="text-2xl font-bold mb-1" th:text="${profile.name}">
-              Nama
-            </h2>
-            <p class="text-blue-100 mb-4">Warga Kota Medan</p>
-            <div class="flex flex-wrap justify-center sm:justify-start gap-6">
-              <div th:each="stat : ${stats}">
-                <p class="text-2xl font-bold" th:text="${stat.value}">0</p>
-                <p class="text-sm text-blue-100" th:text="${stat.label}">
-                  Label
-                </p>
-              </div>
+          <div class="text-center sm:text-left">
+            <h2 class="text-2xl font-bold" th:text="${user.fullName}">Nama User</h2>
+            <p class="text-blue-100" th:text="${user.email}">email@email.com</p>
+            <div class="flex items-center gap-2 mt-2">
+              <span class="bg-white/20 text-white text-xs px-3 py-1 rounded-full" th:text="${user.role}">WARGA</span>
+              <span class="text-xs text-blue-200"
+                    th:text="${user.accountStatus == 'ACTIVE' ? '● Aktif' : '● Tidak Aktif'}">● Aktif</span>
             </div>
           </div>
         </div>
       </div>
 
-      <form
-        id="profile-form"
-        th:action="@{/warga/dashboard}"
-        method="get"
-        enctype="multipart/form-data"
-      >
-        <div
-          class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6"
-        >
-          <h3 class="font-semibold text-gray-900 mb-4">Informasi Pribadi</h3>
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2"
-                >Nama Lengkap <span class="text-red-500">*</span></label
-              >
-              <div class="relative">
-                <i
-                  data-lucide="user"
-                  class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
-                ></i>
-                <input
-                  type="text"
-                  name="name"
-                  th:value="${profile.name}"
-                  x-bind:disabled="!isEditing"
-                  class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-600"
-                />
-              </div>
-            </div>
+      <!-- Success/Error Messages -->
+      <div th:if="${success}" class="bg-green-50 border-l-4 border-green-500 p-4 mb-6 rounded-lg">
+        <div class="flex items-center gap-2">
+          <i data-lucide="check-circle" class="w-5 h-5 text-green-500"></i>
+          <span class="text-green-700 text-sm" th:text="${success}">Profil berhasil diperbarui</span>
+        </div>
+      </div>
+      <div th:if="${error}" class="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded-lg">
+        <div class="flex items-center gap-2">
+          <i data-lucide="alert-circle" class="w-5 h-5 text-red-500"></i>
+          <span class="text-red-700 text-sm" th:text="${error}">Error</span>
+        </div>
+      </div>
 
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2"
-                >NIK <span class="text-red-500">*</span></label
-              >
-              <div class="relative">
-                <i
-                  data-lucide="id-card"
-                  class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
-                ></i>
-                <input
-                  type="text"
-                  name="nik"
-                  maxlength="16"
-                  th:value="${profile.nik}"
-                  x-bind:disabled="!isEditing"
-                  class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-600"
-                />
-              </div>
-              <p class="text-xs text-gray-500 mt-1">16 digit NIK sesuai KTP</p>
-            </div>
+      <!-- Profile Form -->
+      <form id="profile-form"
+            th:action="@{/warga/profile/edit}"
+            th:object="${profileDTO}"
+            method="post"
+            class="space-y-6">
 
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2"
-                >Email <span class="text-red-500">*</span></label
-              >
-              <div class="relative">
-                <i
-                  data-lucide="mail"
-                  class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
-                ></i>
-                <input
-                  type="email"
-                  name="email"
-                  th:value="${profile.email}"
-                  x-bind:disabled="!isEditing"
-                  class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-600"
-                />
-              </div>
+        <!-- Informasi Pribadi -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <h3 class="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <i data-lucide="user" class="w-5 h-5 text-blue-600"></i>
+            Informasi Pribadi
+          </h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <!-- Nama Lengkap -->
+            <div class="sm:col-span-2">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Nama Lengkap</label>
+              <input
+                type="text"
+                th:field="*{fullName}"
+                x-bind:disabled="!isEditing"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
+              />
             </div>
-
+            <!-- NIK -->
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2"
-                >Nomor HP <span class="text-red-500">*</span></label
-              >
-              <div class="relative">
-                <i
-                  data-lucide="phone"
-                  class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
-                ></i>
-                <input
-                  type="tel"
-                  name="phone"
-                  th:value="${profile.phone}"
-                  x-bind:disabled="!isEditing"
-                  class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-600"
-                />
-              </div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">NIK</label>
+              <input
+                type="text"
+                th:field="*{nik}"
+                maxlength="16"
+                x-bind:disabled="!isEditing"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
+                placeholder="16 digit NIK"
+              />
+            </div>
+            <!-- Nomor HP -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Nomor HP</label>
+              <input
+                type="tel"
+                th:field="*{phoneNumber}"
+                x-bind:disabled="!isEditing"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
+                placeholder="08xxxxxxxxxx"
+              />
             </div>
           </div>
         </div>
 
-        <div
-          class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6"
-        >
-          <h3 class="font-semibold text-gray-900 mb-4">Alamat Domisili</h3>
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2"
-                >Alamat Lengkap</label
-              >
-              <div class="relative">
-                <i
-                  data-lucide="map-pin"
-                  class="absolute left-3 top-3 w-5 h-5 text-gray-400"
-                ></i>
-                <textarea
-                  name="address"
-                  rows="3"
-                  th:text="${profile.address}"
-                  x-bind:disabled="!isEditing"
-                  class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-600 resize-none"
-                ></textarea>
-              </div>
-            </div>
+        <!-- Kontak -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <h3 class="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <i data-lucide="mail" class="w-5 h-5 text-blue-600"></i>
+            Informasi Kontak
+          </h3>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+            <input
+              type="email"
+              th:field="*{email}"
+              x-bind:disabled="!isEditing"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
+              placeholder="nama@email.com"
+            />
+          </div>
+        </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2"
-                  >Kelurahan</label
-                >
-                <input
-                  type="text"
-                  name="kelurahan"
-                  th:value="${profile.kelurahan}"
-                  x-bind:disabled="!isEditing"
-                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-600"
-                />
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2"
-                  >Kecamatan</label
-                >
-                <input
-                  type="text"
-                  name="kecamatan"
-                  th:value="${profile.kecamatan}"
-                  x-bind:disabled="!isEditing"
-                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-600"
-                />
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2"
-                  >Kota/Kabupaten</label
-                >
-                <input
-                  type="text"
-                  name="kota"
-                  th:value="${profile.kota}"
-                  x-bind:disabled="!isEditing"
-                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-600"
-                />
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2"
-                  >Provinsi</label
-                >
-                <input
-                  type="text"
-                  name="provinsi"
-                  th:value="${profile.provinsi}"
-                  x-bind:disabled="!isEditing"
-                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-600"
-                />
-              </div>
-            </div>
+        <!-- Alamat -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <h3 class="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <i data-lucide="map-pin" class="w-5 h-5 text-blue-600"></i>
+            Alamat Domisili
+          </h3>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Alamat Lengkap</label>
+            <textarea
+              th:field="*{alamatLengkap}"
+              rows="3"
+              x-bind:disabled="!isEditing"
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 resize-none transition-colors"
+              placeholder="Masukkan alamat lengkap"
+            ></textarea>
           </div>
         </div>
       </form>
 
-      <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h3 class="font-semibold text-gray-900 mb-4">Pengaturan Akun</h3>
+      <!-- Pengaturan Akun -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mt-6">
+        <h3 class="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <i data-lucide="settings" class="w-5 h-5 text-gray-600"></i>
+          Pengaturan Akun
+        </h3>
         <div class="space-y-3">
-          <button
-            class="w-full text-left px-4 py-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            <p class="font-medium text-gray-900">Ubah Password</p>
-            <p class="text-sm text-gray-500">Perbarui password akun Anda</p>
+          <button id="btn-change-password"
+                  class="w-full text-left px-4 py-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-medium text-gray-900">Ubah Password</p>
+                <p class="text-sm text-gray-500">Perbarui password akun Anda</p>
+              </div>
+              <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400"></i>
+            </div>
           </button>
-          <button
-            class="w-full text-left px-4 py-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            <p class="font-medium text-gray-900">Notifikasi</p>
-            <p class="text-sm text-gray-500">Atur preferensi notifikasi</p>
-          </button>
-          <button
-            class="w-full text-left px-4 py-3 border border-red-200 rounded-lg hover:bg-red-50 transition-colors text-red-600"
-          >
-            <p class="font-medium">Hapus Akun</p>
-            <p class="text-sm">
-              Hapus akun dan semua data Anda secara permanen
-            </p>
-          </button>
+          <form th:action="@{/warga/logout}" method="post">
+            <button type="submit" id="btn-logout"
+                    class="w-full text-left px-4 py-3 border border-red-200 rounded-lg hover:bg-red-50 text-red-600 transition-colors">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="font-medium">Keluar</p>
+                  <p class="text-sm">Logout dari akun ini</p>
+                </div>
+                <i data-lucide="log-out" class="w-5 h-5"></i>
+              </div>
+            </button>
+          </form>
         </div>
       </div>
     </main>

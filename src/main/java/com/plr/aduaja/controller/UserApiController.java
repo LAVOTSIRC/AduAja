@@ -2,6 +2,7 @@ package com.plr.aduaja.controller;
 
 import com.plr.aduaja.model.User;
 import com.plr.aduaja.service.UserService;
+import com.plr.aduaja.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,34 +18,39 @@ public class UserApiController {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private UserRepository userRepository;
+
     @GetMapping
     public ResponseEntity<List<User>> getAllUsers() {
-        return ResponseEntity.ok(userService.getAllUsers());
+        // getAllUsers → findAll via repository (alias backward compat)
+        return ResponseEntity.ok(userRepository.findAll());
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<User> getUserById(@PathVariable String id) {
-        Optional<User> user = userService.getUserById(id);
+        Optional<User> user = userService.findById(id);
         return user.map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/email/{email}")
     public ResponseEntity<User> getUserByEmail(@PathVariable String email) {
-        Optional<User> user = userService.getUserByEmail(email);
+        Optional<User> user = userService.findByEmail(email);
         return user.map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/role/{role}")
     public ResponseEntity<List<User>> getUsersByRole(@PathVariable User.Role role) {
-        return ResponseEntity.ok(userService.getUsersByRole(role));
+        return ResponseEntity.ok(userService.findByRole(role));
     }
 
     @PostMapping
     public ResponseEntity<User> createUser(@RequestBody User user) {
         try {
-            return ResponseEntity.status(HttpStatus.CREATED).body(userService.createUser(user));
+            // API endpoint langsung simpan user (sudah terbentuk dari luar)
+            return ResponseEntity.status(HttpStatus.CREATED).body(userService.updateUser(user));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
