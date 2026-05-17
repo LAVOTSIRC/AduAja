@@ -105,17 +105,22 @@ public class DispositionServiceImpl implements DispositionService {
 
         Disposition saved = dispositionRepository.save(disposition);
 
-        SlaRecord sla = new SlaRecord();
-        sla.setReport(report);
-        sla.setSlaStartAt(LocalDateTime.now());
-        if (report.getCategory() != null && report.getCategory().getSlaDurationHours() != null) {
-            sla.setSlaDeadlineAt(LocalDateTime.now().plusHours(report.getCategory().getSlaDurationHours()));
-        } else {
-            sla.setSlaDeadlineAt(LocalDateTime.now().plusHours(48));
+        // FIX: hanya buat SlaRecord BARU jika belum ada untuk report ini
+        // Mencegah duplicate row yang menyebabkan Hibernate ASSERT error pada @OneToOne
+        boolean slaExists = slaRecordRepository.findByReportReportId(reportId).isPresent();
+        if (!slaExists) {
+            SlaRecord sla = new SlaRecord();
+            sla.setReport(report);
+            sla.setSlaStartAt(LocalDateTime.now());
+            if (report.getCategory() != null && report.getCategory().getSlaDurationHours() != null) {
+                sla.setSlaDeadlineAt(LocalDateTime.now().plusHours(report.getCategory().getSlaDurationHours()));
+            } else {
+                sla.setSlaDeadlineAt(LocalDateTime.now().plusHours(48));
+            }
+            sla.setCurrentStatus(SlaStatus.BERJALAN);
+            sla.setTotalPausedMinutes(0);
+            slaRecordRepository.save(sla);
         }
-        sla.setCurrentStatus(SlaStatus.BERJALAN);
-        sla.setTotalPausedMinutes(0);
-        slaRecordRepository.save(sla);
 
         return saved;
     }

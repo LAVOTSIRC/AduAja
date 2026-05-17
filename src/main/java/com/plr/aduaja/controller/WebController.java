@@ -250,9 +250,19 @@ public class WebController {
         }
         model.addAttribute("selectedReport", selected);
 
-        // Merge tickets — from DB reports
-        List<Map<String, Object>> mergeTickets = getAdminValidationList();
-        mergeTickets = mergeTickets.stream().filter(t -> "Diterima".equals(t.get("status"))).collect(Collectors.toList());
+        // Merge tickets — from DB reports + tambahkan key yang dibutuhkan template
+        List<Map<String, Object>> mergeTickets = getAdminValidationList().stream()
+                .map(t -> {
+                    Map<String, Object> m = new HashMap<>(t);
+                    // Key yang dibutuhkan template dashboard (line 531)
+                    m.putIfAbsent("similarityScore", 0);         // int — % kemiripan
+                    m.putIfAbsent("ticketStatus", "menunggu");    // "menunggu"|"disposisi"|"in-progress"
+                    m.putIfAbsent("isMergeable", true);           // boolean — bisa digabung
+                    m.putIfAbsent("deskripsi", m.getOrDefault("judul", "-"));
+                    m.putIfAbsent("foto", dummyReportImage());
+                    return m;
+                })
+                .collect(Collectors.toList());
         model.addAttribute("mergeTickets", mergeTickets);
         model.addAttribute("clusters", new ArrayList<>());
         model.addAttribute("selectedTickets", new ArrayList<>());
@@ -350,22 +360,47 @@ public class WebController {
             @RequestParam(value = "id", required = false) String id
     ) {
         Map<String, Object> selectedDisposition = null;
-        if (id != null) {
+        if (id != null && !id.trim().isEmpty()) {
+            // FIX: load laporan dengan status apapun (bukan hanya DIVALIDASI)
+            // Kasus: laporan sudah DIDISPOSISI tapi admin mau lihat/edit ulang
             Report r = reportService.findById(id.trim()).orElse(null);
-            if (r != null && r.getStatus() == ReportStatus.DIVALIDASI) {
+            if (r != null) {
                 selectedDisposition = new HashMap<>();
                 selectedDisposition.put("id", r.getReportId());
-                selectedDisposition.put("judul", r.getTicketNumber() != null ? r.getTicketNumber() : "Laporan");
-                selectedDisposition.put("kategori", r.getCategory() != null ? r.getCategory().getCategoryName() : "Lainnya");
-                selectedDisposition.put("pelapor", r.getReporter() != null ? r.getReporter().getFullName() : "-");
-                selectedDisposition.put("wilayah", r.getLocationHint() != null ? r.getLocationHint() : "-");
-                selectedDisposition.put("status", "Tervalidasi");
+                selectedDisposition.put("judul", r.getTicketNumber() != null
+                        ? r.getTicketNumber()
+                        : "Laporan #" + r.getReportId().substring(0, 8));
+                selectedDisposition.put("kategori", r.getCategory() != null
+                        ? r.getCategory().getCategoryName() : "Lainnya");
+                selectedDisposition.put("pelapor", r.getReporter() != null
+                        ? r.getReporter().getFullName() : "-");
+                selectedDisposition.put("wilayah", r.getLocationHint() != null
+                        ? r.getLocationHint() : "-");
+                selectedDisposition.put("deskripsi", r.getDescription() != null
+                        ? r.getDescription() : "-");
+                selectedDisposition.put("status", r.getStatus() != null
+                        ? r.getStatus().name() : "TIDAK_DIKETAHUI");
                 selectedDisposition.put("prioritasSistem", "Sedang");
-                selectedDisposition.put("dinasRekomendasi", "Dinas Terkait");
-                selectedDisposition.put("foto", r.getPhotoBase64() != null ? r.getPhotoBase64() : dummyReportImage());
+                selectedDisposition.put("dinasRekomendasi", "");
+                selectedDisposition.put("instruksiAdmin", "");
+                selectedDisposition.put("deadline", "");
+                selectedDisposition.put("foto", r.getPhotoBase64() != null
+                        ? r.getPhotoBase64() : dummyReportImage());
+
+                // Cek apakah sudah ada disposisi sebelumnya
+                // FIX: buat alias final agar bisa dipakai di dalam lambda ifPresent()
+                final Map<String, Object> dispMap = selectedDisposition;
+                dispositionService.getDispositionByReportId(r.getReportId()).ifPresent(d -> {
+                    if (d.getTargetAgency() != null) {
+                        dispMap.put("dinasRekomendasi", d.getTargetAgency().getAgencyName());
+                    }
+                    if (d.getNotes() != null) {
+                        dispMap.put("instruksiAdmin", d.getNotes());
+                    }
+                });
             }
         }
-        
+
         List<Agency> realAgencies = agencyService.getActiveAgencies();
         List<Map<String, Object>> dinasList = realAgencies.stream().map(a -> {
             Map<String, Object> m = new HashMap<>();
@@ -375,7 +410,7 @@ public class WebController {
             return m;
         }).collect(Collectors.toList());
         model.addAttribute("dinasList", dinasList);
-        
+
         model.addAttribute("selectedDisposition", selectedDisposition);
         return "admin/disposisi-detail";
     }

@@ -28,9 +28,9 @@
               <h1 class="text-2xl font-bold text-gray-900">
                 Detail &amp; Edit Disposisi
               </h1>
-              <p
+               <p
                 class="text-sm text-gray-600 mt-1"
-                th:text="${'Tiket: ' + selectedDisposition.id}"
+                th:text="${selectedDisposition != null ? 'Tiket: ' + selectedDisposition.id : 'Pilih tiket untuk melanjutkan'}"
               ></p>
             </div>
           </div>
