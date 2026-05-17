@@ -29,8 +29,9 @@ public abstract class BaseEntity {
         this.updatedAt = LocalDateTime.now();
     }
 
-    // ENKAPSULASI: hanya getter, tidak ada setter public
-    // (field tidak bisa diubah dari luar setelah persist)
+    // ENKAPSULASI: getter + setter untuk backward compatibility
+    // (beberapa service lama masih memanggil setUpdatedAt secara manual)
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }
