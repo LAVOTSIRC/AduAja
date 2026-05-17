@@ -6,6 +6,7 @@ import com.plr.aduaja.model.FieldTask.TaskStatus;
 import com.plr.aduaja.repository.ReportCategoryRepository;
 import com.plr.aduaja.repository.UserProfileRepository;
 import com.plr.aduaja.repository.UserRepository;
+import com.plr.aduaja.dto.DispositionDTO;
 import com.plr.aduaja.dto.CreateReportDTO;
 import com.plr.aduaja.dto.LoginDTO;
 import com.plr.aduaja.service.*;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import jakarta.servlet.http.HttpSession;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -29,6 +31,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Controller
 public class WebController {
@@ -56,6 +59,9 @@ public class WebController {
 
     @Autowired
     private MergeRecordService mergeRecordService;
+
+    @Autowired
+    private AgencyService agencyService;
 
     @Autowired
     private UserProfileRepository userProfileRepository;
@@ -123,18 +129,50 @@ public class WebController {
 
         if ("admin_dinas".equalsIgnoreCase(role)) {
             model.addAttribute("dinasName", "Dinas Pekerjaan Umum");
+            long diterima = reportService.countByStatus(Report.ReportStatus.DIDISPOSISI);
+            long diproses = fieldTaskService.countByStatus(FieldTask.TaskStatus.SEDANG_DIKERJAKAN);
+            long baru = fieldTaskService.countByStatus(FieldTask.TaskStatus.BARU);
+            long selesai = fieldTaskService.countByStatus(FieldTask.TaskStatus.SELESAI);
             List<Map<String, Object>> dinasStats = new ArrayList<>();
-            dinasStats.add(Map.of("title", "Laporan Diterima", "value", 12,
+            dinasStats.add(Map.of("title", "Laporan Diterima", "value", diterima,
                     "icon", "inbox", "bgColor", "bg-blue-100", "color", "text-blue-600"));
-            dinasStats.add(Map.of("title", "Dalam Penanganan", "value", 5,
+            dinasStats.add(Map.of("title", "Tugas Baru", "value", baru,
+                    "icon", "inbox", "bgColor", "bg-indigo-100", "color", "text-indigo-600"));
+            dinasStats.add(Map.of("title", "Dalam Penanganan", "value", diproses,
                     "icon", "wrench", "bgColor", "bg-yellow-100", "color", "text-yellow-600"));
-            dinasStats.add(Map.of("title", "Terlambat SLA", "value", 2,
-                    "icon", "alert-circle", "bgColor", "bg-red-100", "color", "text-red-600"));
-            dinasStats.add(Map.of("title", "Selesai", "value", 8,
+            dinasStats.add(Map.of("title", "Selesai", "value", selesai,
                     "icon", "check-circle", "bgColor", "bg-green-100", "color", "text-green-600"));
             model.addAttribute("stats", dinasStats);
-            model.addAttribute("pendingAssignments", dummyIncomingReportsForDinas());
-            model.addAttribute("availablePetugas", dummyPetugasList());
+            List<Map<String, Object>> pendingAssignments = new ArrayList<>();
+            List<Disposition> allDisp = dispositionService.getAllDispositions();
+            for (Disposition d : allDisp) {
+                if (d.getReport() != null) {
+                    List<FieldTask> existingTasks = fieldTaskService.getTasksByReport(d.getReport().getReportId());
+                    if (existingTasks.isEmpty()) {
+                        Map<String, Object> m = new HashMap<>();
+                        m.put("id", d.getReport().getReportId());
+                        m.put("judul", d.getReport().getTicketNumber() != null ? d.getReport().getTicketNumber() : "Laporan");
+                        m.put("kategori", d.getReport().getCategory() != null ? d.getReport().getCategory().getCategoryName() : "Lainnya");
+                        m.put("prioritas", "Sedang");
+                        m.put("slaStatus", "-");
+                        pendingAssignments.add(m);
+                    }
+                }
+            }
+            model.addAttribute("pendingAssignments", pendingAssignments);
+            List<User> realPetugas = userService.findByRole(User.Role.PETUGAS);
+            List<Map<String, Object>> petugasList = realPetugas.stream().map(p -> {
+                Map<String, Object> m = new HashMap<>();
+                m.put("id", p.getUserId());
+                m.put("nama", p.getFullName());
+                m.put("nip", "-");
+                m.put("statusKetersediaan", "Tersedia");
+                m.put("wilayahTugas", "-");
+                m.put("tugasAktif", (int) fieldTaskService.getTasksByOfficerAndStatus(p.getUserId(), FieldTask.TaskStatus.SEDANG_DIKERJAKAN).size());
+                m.put("kontak", p.getEmail());
+                return m;
+            }).collect(Collectors.toList());
+            model.addAttribute("availablePetugas", petugasList.isEmpty() ? new ArrayList<>() : petugasList);
         } else {
             long laporanMasuk = reportService.countByStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
             long menungguValidasi = reportService.countByStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
@@ -191,9 +229,8 @@ public class WebController {
         ));
         model.addAttribute("panels", panels);
 
-        // Queue reports (for "Antrean Laporan" tab) — sorted FIFO, exclude merged child tickets
+        // Queue reports (for "Antrean Laporan" tab)
         List<Map<String, Object>> queueReports = getAdminValidationList();
-        queueReports.removeIf(r -> mergedTicketMap.containsKey(r.get("id")));
         DateTimeFormatter queueFmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
         queueReports.sort(Comparator.comparing(r -> {
             try { return LocalDate.parse((String) r.get("tanggalMasuk"), queueFmt); }
@@ -201,7 +238,7 @@ public class WebController {
         }));
         model.addAttribute("queueReports", queueReports);
 
-        // Reports for validation tab (now merged into queue)
+        // Reports for validation tab
         List<Map<String, Object>> validationReports = getAdminValidationList();
         model.addAttribute("validationReports", validationReports);
         
@@ -213,37 +250,61 @@ public class WebController {
         }
         model.addAttribute("selectedReport", selected);
 
-        // Merge tickets
-        model.addAttribute("mergeTickets", dummyMergeTickets());
-        model.addAttribute("clusters", dummyClusters());
+        // Merge tickets — from DB reports
+        List<Map<String, Object>> mergeTickets = getAdminValidationList();
+        mergeTickets = mergeTickets.stream().filter(t -> "Diterima".equals(t.get("status"))).collect(Collectors.toList());
+        model.addAttribute("mergeTickets", mergeTickets);
+        model.addAttribute("clusters", new ArrayList<>());
         model.addAttribute("selectedTickets", new ArrayList<>());
-        model.addAttribute("hiddenChildCount", mergedTicketMap.size());
+        model.addAttribute("hiddenChildCount", 0);
 
         // Disposisi
-                List<Map<String, Object>> disposisiReports = dummyDisposisiReports();
-                model.addAttribute("disposisiReports", disposisiReports);
-        model.addAttribute("dinasList", dummyDinasList());
+        List<Map<String, Object>> disposisiReports = new ArrayList<>();
+        List<Report> validated = reportService.getReportsByStatus(Report.ReportStatus.DIVALIDASI);
+        for (Report r : validated) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", r.getReportId());
+            m.put("judul", r.getTicketNumber() != null ? r.getTicketNumber() : "Laporan #" + r.getReportId().substring(0, 8));
+            m.put("kategori", r.getCategory() != null ? r.getCategory().getCategoryName() : "Lainnya");
+            m.put("pelapor", r.getReporter() != null ? r.getReporter().getFullName() : "-");
+            m.put("wilayah", r.getLocationHint() != null ? r.getLocationHint() : "-");
+            m.put("status", "Tervalidasi");
+            m.put("prioritasSistem", "Sedang");
+            m.put("dinasRekomendasi", "Dinas Terkait");
+            m.put("foto", r.getPhotoBase64() != null ? r.getPhotoBase64() : dummyReportImage());
+            disposisiReports.add(m);
+        }
+        model.addAttribute("disposisiReports", disposisiReports);
         
-                Map<String, Object> selectedDisposition = null;
-                if ("disposisi".equalsIgnoreCase(tab)) {
-                        if (id != null && !id.trim().isEmpty()) {
-                                String targetId = id.trim();
-                                for (Map<String, Object> r : disposisiReports) {
-                                        Object rid = r.get("id");
-                                        if (rid != null && targetId.equals(String.valueOf(rid))) {
-                                                selectedDisposition = r;
-                                                break;
-                                        }
-                                }
-                                // Fallback to first item if specific ID not found
-                                if (selectedDisposition == null && !disposisiReports.isEmpty()) {
-                                        selectedDisposition = disposisiReports.get(0);
-                                }
-                        } else if (!disposisiReports.isEmpty()) {
-                                selectedDisposition = disposisiReports.get(0);
-                        }
+        List<Agency> realAgencies = agencyService.getActiveAgencies();
+        List<Map<String, Object>> dinasList = realAgencies.stream().map(a -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", a.getAgencyId());
+            m.put("name", a.getAgencyName());
+            m.put("kategori", a.getContactEmail() != null ? List.of(a.getContactEmail()) : List.of("Lainnya"));
+            return m;
+        }).collect(Collectors.toList());
+        model.addAttribute("dinasList", dinasList);
+        
+        Map<String, Object> selectedDisposition = null;
+        if ("disposisi".equalsIgnoreCase(tab)) {
+            if (id != null && !id.trim().isEmpty()) {
+                String targetId = id.trim();
+                for (Map<String, Object> r : disposisiReports) {
+                    Object rid = r.get("id");
+                    if (rid != null && targetId.equals(String.valueOf(rid))) {
+                        selectedDisposition = r;
+                        break;
+                    }
                 }
-                model.addAttribute("selectedDisposition", selectedDisposition);
+                if (selectedDisposition == null && !disposisiReports.isEmpty()) {
+                    selectedDisposition = disposisiReports.get(0);
+                }
+            } else if (!disposisiReports.isEmpty()) {
+                selectedDisposition = disposisiReports.get(0);
+            }
+        }
+        model.addAttribute("selectedDisposition", selectedDisposition);
 
         return "admin/dashboard";
     }
@@ -254,27 +315,25 @@ public class WebController {
             Model model,
             @RequestParam(value = "id", required = false) String id
     ) {
-        List<Map<String, Object>> validationReports = getAdminValidationList();
-        List<Map<String, Object>> disposisiReports = dummyDisposisiReports();
-        
         Map<String, Object> selectedReport = null;
         boolean isInDisposisi = false;
         
         if (id != null && !id.trim().isEmpty()) {
-            String ticketId = id.trim();
+            // Check validation queue
+            List<Map<String, Object>> validationReports = getAdminValidationList();
             for (Map<String, Object> r : validationReports) {
-                if (ticketId.equals(String.valueOf(r.get("id")))) {
+                if (id.trim().equals(String.valueOf(r.get("id")))) {
                     selectedReport = r;
                     break;
                 }
             }
+            // Check disposisi if not in validation
             if (selectedReport == null) {
-                for (Map<String, Object> r : disposisiReports) {
-                    if (ticketId.equals(String.valueOf(r.get("id")))) {
-                        selectedReport = r;
-                        isInDisposisi = true;
-                        break;
-                    }
+                Report r = reportService.findById(id.trim()).orElse(null);
+                if (r != null && r.getStatus() == ReportStatus.DIVALIDASI) {
+                    selectedReport = toAdminValidationMap(r);
+                    selectedReport.put("status", "Tervalidasi");
+                    isInDisposisi = true;
                 }
             }
         }
@@ -290,18 +349,47 @@ public class WebController {
             Model model,
             @RequestParam(value = "id", required = false) String id
     ) {
-        List<Map<String, Object>> disposisiReports = dummyDisposisiReports();
-        model.addAttribute("dinasList", dummyDinasList());
-        
         Map<String, Object> selectedDisposition = null;
         if (id != null) {
-            selectedDisposition = disposisiReports.stream()
-                    .filter(r -> r.get("id").equals(id))
-                    .findFirst().orElse(null);
+            Report r = reportService.findById(id.trim()).orElse(null);
+            if (r != null && r.getStatus() == ReportStatus.DIVALIDASI) {
+                selectedDisposition = new HashMap<>();
+                selectedDisposition.put("id", r.getReportId());
+                selectedDisposition.put("judul", r.getTicketNumber() != null ? r.getTicketNumber() : "Laporan");
+                selectedDisposition.put("kategori", r.getCategory() != null ? r.getCategory().getCategoryName() : "Lainnya");
+                selectedDisposition.put("pelapor", r.getReporter() != null ? r.getReporter().getFullName() : "-");
+                selectedDisposition.put("wilayah", r.getLocationHint() != null ? r.getLocationHint() : "-");
+                selectedDisposition.put("status", "Tervalidasi");
+                selectedDisposition.put("prioritasSistem", "Sedang");
+                selectedDisposition.put("dinasRekomendasi", "Dinas Terkait");
+                selectedDisposition.put("foto", r.getPhotoBase64() != null ? r.getPhotoBase64() : dummyReportImage());
+            }
         }
+        
+        List<Agency> realAgencies = agencyService.getActiveAgencies();
+        List<Map<String, Object>> dinasList = realAgencies.stream().map(a -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", a.getAgencyId());
+            m.put("name", a.getAgencyName());
+            m.put("kategori", a.getContactEmail() != null ? List.of(a.getContactEmail()) : List.of("Lainnya"));
+            return m;
+        }).collect(Collectors.toList());
+        model.addAttribute("dinasList", dinasList);
         
         model.addAttribute("selectedDisposition", selectedDisposition);
         return "admin/disposisi-detail";
+    }
+
+    /**
+     * GET /admin/disposisi-detail — route langsung sesuai spec Anggota 3
+     * (Fix: sebelumnya hanya tersedia di /admin/dashboard/disposisi-detail)
+     */
+    @GetMapping("/admin/disposisi-detail")
+    public String adminDisposisiDetailDirect(
+            Model model,
+            @RequestParam(value = "id", required = false) String id
+    ) {
+        return adminDisposisiDetail(model, id);  // delegate ke method yang sudah ada
     }
 
     /** GET /admin/laporan-queue — antrean laporan masuk */
@@ -355,46 +443,10 @@ public String adminValidationPost(
         return "redirect:/admin/dashboard?tab=queue";
     }
 
-    if (cachedValidationReports != null) {
-        Map<String, Object> report = null;
-        for (Map<String, Object> r : cachedValidationReports) {
-            Object rid = r.get("id");
-            if (rid != null && ticketId.equals(String.valueOf(rid))) {
-                report = r;
-                break;
-            }
-        }
-
-        if (report != null) {
-            cachedValidationReports.remove(report);
-            if ("approved".equals(normalizedAction) || "approve".equals(normalizedAction)) {
-                if (cachedDisposisiReports == null) {
-                    dummyDisposisiReports();
-                }
-                Map<String, Object> disp = new HashMap<>(report);
-                disp.put("status", "Tervalidasi");
-                disp.put("prioritasSistem", report.getOrDefault("prioritas", "Sedang"));
-                disp.put("dinasRekomendasi", "Dinas Terkait");
-                if (note != null) {
-                    disp.put("catatanValidasi", note);
-                }
-                cachedDisposisiReports.add(disp);
-                return "redirect:/admin/dashboard?tab=disposisi";
-            }
-
-            if ("rejected".equals(normalizedAction) || "revision".equals(normalizedAction)) {
-                if (note != null) {
-                    report.put("alasanPenolakan", note);
-                }
-            }
-        }
-        return "redirect:/admin/dashboard?tab=queue";
-    }
-
     try {
         boolean approved = "approved".equals(normalizedAction) || "approve".equals(normalizedAction);
         if (ticketId != null) {
-            Report r = reportService.updateStatus(ticketId, approved ? ReportStatus.DIVALIDASI : ReportStatus.DITOLAK);
+            Report r = reportService.updateStatus(ticketId, approved ? ReportStatus.DIVALIDASI : ReportStatus.DITOLAK, note, note);
             if (r != null && r.getReporter() != null) {
                 String notifTitle = approved ? "Laporan Divalidasi" : "Laporan Ditolak";
                 String notifMsg = approved
@@ -427,8 +479,10 @@ public String adminValidationPost(
 /** GET /admin/merge — panel merge tiket duplikat */
 @GetMapping("/admin/merge")
 public String adminMergeTicketPanel(Model model) {
-    model.addAttribute("mergeTickets", dummyMergeTickets());
-    model.addAttribute("clusters", dummyClusters());
+    List<Map<String, Object>> mergeTickets = getAdminValidationList();
+    mergeTickets = mergeTickets.stream().filter(t -> "Diterima".equals(t.get("status"))).collect(Collectors.toList());
+    model.addAttribute("mergeTickets", mergeTickets);
+    model.addAttribute("clusters", new ArrayList<>());
     model.addAttribute("selectedTickets", new ArrayList<>());
     return "admin/merge-ticket-panel";
 }
@@ -446,26 +500,10 @@ public String adminMergeTicketPanelAlias(Model model) {
             @RequestParam(value = "primaryTicket", required = false) String primaryTicket,
             @RequestParam(value = "mergeReason", required = false) String mergeReason
     ) {
-        // Merge selected tickets
         if (selectedTickets != null && selectedTickets.size() >= 2 && mergeReason != null && !mergeReason.trim().isEmpty()) {
-            // Validate merge reason length
             if (mergeReason.trim().length() < 10) {
                 return "redirect:/admin/dashboard?tab=merge&mergeError=shortReason";
             }
-            // Check: no ticket can be in disposisi or in-progress
-            List<String> blockedTickets = new ArrayList<>();
-            for (String tid : selectedTickets) {
-                String status = ticketLifecycleStatus.get(tid);
-                if ("disposisi".equals(status) || "in-progress".equals(status)) {
-                    blockedTickets.add(tid);
-                }
-            }
-            if (!blockedTickets.isEmpty()) {
-                // Reject merge: some tickets are already being processed
-                return "redirect:/admin/dashboard?tab=merge&mergeError=blocked&blocked=" + String.join(",", blockedTickets);
-            }
-
-            // Validate primaryTicket is selected
             if (primaryTicket == null || primaryTicket.trim().isEmpty()) {
                 return "redirect:/admin/dashboard?tab=merge&mergeError=noParent";
             }
@@ -473,36 +511,31 @@ public String adminMergeTicketPanelAlias(Model model) {
                 return "redirect:/admin/dashboard?tab=merge&mergeError=invalidParent";
             }
 
-            List<Map<String, Object>> newCluster = new ArrayList<>();
-            if (cachedMergeTickets != null) {
-                for (String tid : selectedTickets) {
-                    Map<String, Object> t = cachedMergeTickets.stream()
-                            .filter(r -> tid.equals(r.get("id"))).findFirst().orElse(null);
-                    if (t != null) {
-                        cachedMergeTickets.remove(t);
-                        // Mark child tickets (not the primary) as merged/hidden
-                        if (!tid.equals(primaryTicket)) {
-                            mergedTicketMap.put(tid, primaryTicket);
-                        }
-                        newCluster.add(t);
+            try {
+                String adminId = userService.getUserByEmail("admin@aduaja.go.id")
+                        .map(User::getUserId).orElse(null);
+                for (String childId : selectedTickets) {
+                    if (!childId.equals(primaryTicket)) {
+                        mergeRecordService.createMerge(primaryTicket, childId, adminId, mergeReason);
                     }
                 }
-            }
-            if (!newCluster.isEmpty() && cachedClusters != null) {
-                cachedClusters.add(newCluster);
+            } catch (Exception ignored) {
             }
             return "redirect:/admin/dashboard?tab=merge&merged=true";
         }
 
-        // Separate a cluster
-        if (clusterIndex != null && cachedClusters != null && clusterIndex >= 0 && clusterIndex < cachedClusters.size()) {
-            List<Map<String, Object>> separated = cachedClusters.remove((int) clusterIndex);
-            if (cachedMergeTickets != null) {
-                for (Map<String, Object> t : separated) {
-                    String tid = (String) t.get("id");
-                    mergedTicketMap.remove(tid); // un-hide from queue
-                    cachedMergeTickets.add(t);
+        if (clusterIndex != null) {
+            try {
+                List<MergeRecord> records = mergeRecordService.getActiveMergeRecords();
+                int idx = 0;
+                for (MergeRecord mr : records) {
+                    if (idx == clusterIndex) {
+                        mergeRecordService.undoMerge(mr.getMergeId());
+                        break;
+                    }
+                    idx++;
                 }
+            } catch (Exception ignored) {
             }
             return "redirect:/admin/dashboard?tab=merge&separated=true";
         }
@@ -520,16 +553,48 @@ public String adminMergeTicketPanelAlias(Model model) {
             Model model,
             @RequestParam(value = "id", required = false) String id
     ) {
-        List<Map<String, Object>> reports = dummyDisposisiReports();
+        List<Map<String, Object>> reports = new ArrayList<>();
+        List<Report> validated = reportService.getReportsByStatus(Report.ReportStatus.DIVALIDASI);
+        if (!validated.isEmpty()) {
+            for (Report r : validated) {
+                Map<String, Object> m = new HashMap<>();
+                m.put("id", r.getReportId());
+                m.put("judul", r.getTicketNumber() != null ? r.getTicketNumber() : "Laporan #" + r.getReportId().substring(0, 8));
+                m.put("kategori", r.getCategory() != null ? r.getCategory().getCategoryName() : "Lainnya");
+                m.put("pelapor", r.getReporter() != null ? r.getReporter().getFullName() : "-");
+                m.put("wilayah", r.getLocationHint() != null ? r.getLocationHint() : "-");
+                m.put("status", "Tervalidasi");
+                m.put("prioritasSistem", "Sedang");
+                m.put("dinasRekomendasi", "Dinas Terkait");
+                m.put("foto", r.getPhotoBase64() != null ? r.getPhotoBase64() : dummyReportImage());
+                reports.add(m);
+            }
+        } else {
+            reports = new ArrayList<>();
+        }
         model.addAttribute("reports", reports);
         model.addAttribute("pendingCount", reports.size());
-        model.addAttribute("dinasList", dummyDinasList());
+
+        List<Map<String, Object>> dinasList = new ArrayList<>();
+        try {
+            List<Agency> realAgencies = agencyService.getActiveAgencies();
+            if (realAgencies != null) {
+                dinasList = realAgencies.stream().map(a -> {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("id", a.getAgencyId());
+                    m.put("name", a.getAgencyName());
+                    m.put("kategori", a.getContactEmail() != null ? List.of(a.getContactEmail()) : List.of("Lainnya"));
+                    return m;
+                }).collect(Collectors.toList());
+            }
+        } catch (Exception ignored) {}
+        model.addAttribute("dinasList", dinasList);
 
         Map<String, Object> selected = null;
         if (id != null) {
             selected = reports.stream()
                     .filter(r -> r.get("id").equals(id))
-                    .findFirst().orElse(reports.get(0));
+                    .findFirst().orElse(reports.isEmpty() ? null : reports.get(0));
         }
         model.addAttribute("selectedReport", selected);
         return "admin/disposisi-panel";
@@ -539,33 +604,40 @@ public String adminMergeTicketPanelAlias(Model model) {
 public String adminDisposisiPost(
         @RequestParam(value = "id", required = false) String id,
         @RequestParam(value = "dinasId", required = false) String dinasId,
-        @RequestParam(value = "catatan", required = false) String catatan
+        @RequestParam(value = "catatan", required = false) String catatan,
+        HttpSession session
 ) {
     String ticketId = id != null ? id.trim() : null;
-    boolean handledDummy = false;
 
-    if (ticketId != null && cachedDisposisiReports != null) {
-        Map<String, Object> report = cachedDisposisiReports.stream()
-                .filter(r -> ticketId.equals(String.valueOf(r.get("id"))))
-                .findFirst().orElse(null);
-        if (report != null) {
-            cachedDisposisiReports.remove(report);
-        }
-        handledDummy = true;
-    }
+    // ENCAPSULATION: bungkus data form ke dalam DispositionDTO sebelum dikirim ke Service
+    // Controller tidak langsung memanggil repository — semua lewat DTO + Service (Abstraction)
+    DispositionDTO dto = new DispositionDTO();
+    dto.setReportId(ticketId);
+    dto.setTargetAgencyId(dinasId);
+    dto.setNotes(catatan);
 
     try {
-        if (ticketId != null) {
-            String adminId = userService.getUserByEmail("admin@aduaja.go.id")
-                    .map(User::getUserId).orElse(null);
-            dispositionService.createDisposition(ticketId, adminId, dinasId, catatan);
+        if (dto.getReportId() != null && !dto.getReportId().isEmpty()) {
+            // Ambil admin ID dari session atau fallback ke email default
+            String adminId = (String) session.getAttribute("userId");
+            if (adminId == null) {
+                adminId = userService.getUserByEmail("admin@aduaja.go.id")
+                        .map(User::getUserId).orElse(null);
+            }
+            dto.setDispatchedById(adminId);
+
+            // Abstraction: Controller hanya tahu interface, detail disembunyikan di ServiceImpl
+            dispositionService.createDisposition(
+                    dto.getReportId(),
+                    dto.getDispatchedById(),
+                    dto.getTargetAgencyId(),
+                    dto.getNotes()
+            );
+            reportService.updateStatus(dto.getReportId(), Report.ReportStatus.DIDISPOSISI);
         }
     } catch (Exception ignored) {
     }
 
-    if (handledDummy) {
-        return "redirect:/admin/dashboard?tab=disposisi";
-    }
     return "redirect:/admin/disposisi" + (ticketId != null ? "?id=" + ticketId : "");
 }
 
@@ -589,14 +661,38 @@ public String adminSengketaPanel(
         Model model,
         @RequestParam(value = "id", required = false) String id
 ) {
-    List<Map<String, Object>> disputes = dummyDisputeList();
+    List<DisputeRecord> realDisputes = disputeService.getPendingDisputes();
+    DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
+    List<Map<String, Object>> disputes = realDisputes.stream().map(d -> {
+        Map<String, Object> m = new HashMap<>();
+        m.put("id", d.getDisputeId());
+        m.put("ticketId", d.getReport() != null ? d.getReport().getReportId() : "-");
+        m.put("judul", d.getReasonText() != null ? d.getReasonText() : "Sengketa #" + d.getDisputeId().substring(0, 8));
+        m.put("statusSengketa", d.getResolution() == null ? "Menunggu Tinjauan" : "Selesai");
+        m.put("prioritas", "Sedang");
+        m.put("tanggalSengketa", d.getFiledAt() != null ? d.getFiledAt().format(fmt) : "-");
+        m.put("pelapor", d.getReport() != null && d.getReport().getReporter() != null ? d.getReport().getReporter().getFullName() : "-");
+        m.put("tanggalLaporan", "-");
+        m.put("tanggalSelesai", d.getResolvedAt() != null ? d.getResolvedAt().format(fmt) : "-");
+        m.put("statusSebelum", "Selesai");
+        m.put("alasanSengketa", d.getReasonText() != null ? d.getReasonText() : "-");
+        m.put("fotoBuktiSengketa", dummyReportImage());
+        m.put("fotoBuktiPerbaikan", dummyReportImage());
+        m.put("keteranganDinas", d.getResolutionNotes() != null ? d.getResolutionNotes() : "-");
+        m.put("dinas", "Dinas Terkait");
+        m.put("petugasId", "-");
+        m.put("petugasNama", "-");
+        return m;
+    }).collect(Collectors.toList());
     model.addAttribute("disputes", disputes);
 
     Map<String, Object> selected = null;
-    if (id != null) {
+    if (id != null && !disputes.isEmpty()) {
         selected = disputes.stream()
                 .filter(d -> d.get("id").equals(id))
                 .findFirst().orElse(disputes.get(0));
+    } else if (!disputes.isEmpty()) {
+        selected = disputes.get(0);
     }
     model.addAttribute("selectedDispute", selected);
     return "admin/sengketa-panel";
@@ -643,20 +739,53 @@ public String adminSengketaPanelAliasPost(
     public String adminDinasDashboard(Model model) {
         model.addAttribute("dinasName", "Dinas Pekerjaan Umum");
 
+        long diterima = reportService.countByStatus(Report.ReportStatus.DIDISPOSISI);
+        long diproses = fieldTaskService.countByStatus(FieldTask.TaskStatus.SEDANG_DIKERJAKAN);
+        long selesai = fieldTaskService.countByStatus(FieldTask.TaskStatus.SELESAI);
+        long baru = fieldTaskService.countByStatus(FieldTask.TaskStatus.BARU);
         List<Map<String, Object>> stats = new ArrayList<>();
-        stats.add(Map.of("title", "Laporan Diterima", "value", 12,
+        stats.add(Map.of("title", "Laporan Diterima", "value", diterima,
                 "icon", "inbox", "bgColor", "bg-blue-100", "color", "text-blue-600"));
-        stats.add(Map.of("title", "Dalam Penanganan", "value", 5,
+        stats.add(Map.of("title", "Tugas Baru", "value", baru,
+                "icon", "inbox", "bgColor", "bg-indigo-100", "color", "text-indigo-600"));
+        stats.add(Map.of("title", "Dalam Penanganan", "value", diproses,
                 "icon", "wrench", "bgColor", "bg-yellow-100", "color", "text-yellow-600"));
-        stats.add(Map.of("title", "Terlambat SLA", "value", 2,
-                "icon", "alert-circle", "bgColor", "bg-red-100", "color", "text-red-600"));
-        stats.add(Map.of("title", "Selesai", "value", 8,
+        stats.add(Map.of("title", "Selesai", "value", selesai,
                 "icon", "check-circle", "bgColor", "bg-green-100", "color", "text-green-600"));
         model.addAttribute("stats", stats);
 
-        // Penugasan data
-        model.addAttribute("pendingAssignments", dummyIncomingReportsForDinas());
-        model.addAttribute("availablePetugas", dummyPetugasList());
+        // Penugasan data — real dispositions without assigned tasks
+        List<Map<String, Object>> pendingAssignments = new ArrayList<>();
+        List<Disposition> allDisp = dispositionService.getAllDispositions();
+        for (Disposition d : allDisp) {
+            if (d.getReport() != null) {
+                List<FieldTask> existingTasks = fieldTaskService.getTasksByReport(d.getReport().getReportId());
+                if (existingTasks.isEmpty()) {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("id", d.getReport().getReportId());
+                    m.put("judul", d.getReport().getTicketNumber() != null ? d.getReport().getTicketNumber() : "Laporan");
+                    m.put("kategori", d.getReport().getCategory() != null ? d.getReport().getCategory().getCategoryName() : "Lainnya");
+                    m.put("prioritas", "Sedang");
+                    m.put("slaStatus", "-");
+                    pendingAssignments.add(m);
+                }
+            }
+        }
+        model.addAttribute("pendingAssignments", pendingAssignments);
+
+        List<User> realPetugas = userService.findByRole(User.Role.PETUGAS);
+        List<Map<String, Object>> petugasList = realPetugas.stream().map(p -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", p.getUserId());
+            m.put("nama", p.getFullName());
+            m.put("nip", "-");
+            m.put("statusKetersediaan", "Tersedia");
+            m.put("wilayahTugas", "-");
+            m.put("tugasAktif", (int) fieldTaskService.getTasksByOfficerAndStatus(p.getUserId(), FieldTask.TaskStatus.SEDANG_DIKERJAKAN).size());
+            m.put("kontak", p.getEmail());
+            return m;
+        }).collect(Collectors.toList());
+        model.addAttribute("availablePetugas", petugasList.isEmpty() ? new ArrayList<>() : petugasList);
 
         return "admin/dinas/dinas-dashboard";
     }
@@ -675,7 +804,31 @@ public String adminSengketaPanelAliasPost(
     ) {
         model.addAttribute("dinasName", "Dinas Pekerjaan Umum");
 
-        List<Map<String, Object>> laporanDinas = dummyDinasQueueReports();
+        List<Map<String, Object>> laporanDinas = new ArrayList<>();
+
+        List<Disposition> realDispositions = dispositionService.getAllDispositions();
+        if (!realDispositions.isEmpty()) {
+            DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
+            for (Disposition d : realDispositions) {
+                Map<String, Object> m = new HashMap<>();
+                m.put("id", d.getReport() != null ? d.getReport().getReportId() : "-");
+                m.put("judul", d.getReport() != null ? (d.getReport().getTicketNumber() != null ? d.getReport().getTicketNumber() : "Laporan") : "Disposisi");
+                m.put("kategori", d.getReport() != null && d.getReport().getCategory() != null
+                    ? d.getReport().getCategory().getCategoryName() : "Lainnya");
+                m.put("pelapor", d.getReport() != null && d.getReport().getReporter() != null
+                    ? d.getReport().getReporter().getFullName() : "-");
+                m.put("wilayah", d.getReport() != null && d.getReport().getLocationHint() != null
+                    ? d.getReport().getLocationHint() : "-");
+                m.put("tanggalDisposisi", d.getDispatchedAt() != null ? d.getDispatchedAt().format(fmt) : "-");
+                m.put("status", "Belum Ditindaklanjuti");
+                m.put("prioritas", "Sedang");
+                m.put("sisaWaktu", "-");
+                laporanDinas.add(m);
+            }
+        } else {
+            laporanDinas = new ArrayList<>();
+        }
+
         long terlambatCount = laporanDinas.stream()
                 .filter(r -> "Terlambat SLA".equals(r.get("status"))).count();
 
@@ -708,9 +861,42 @@ public String adminSengketaPanelAliasPost(
             Model model,
             @RequestParam(value = "id", required = false) String id
     ) {
-        List<Map<String, Object>> incomingReports = dummyIncomingReportsForDinas();
+        List<Map<String, Object>> incomingReports = new ArrayList<>();
+        List<Disposition> allDisp = dispositionService.getAllDispositions();
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
+        for (Disposition d : allDisp) {
+            if (d.getReport() != null) {
+                List<FieldTask> existing = fieldTaskService.getTasksByReport(d.getReport().getReportId());
+                if (existing.isEmpty()) {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("id", d.getReport().getReportId());
+                    m.put("judul", d.getReport().getTicketNumber() != null ? d.getReport().getTicketNumber() : "Laporan");
+                    m.put("kategori", d.getReport().getCategory() != null ? d.getReport().getCategory().getCategoryName() : "Lainnya");
+                    m.put("prioritas", "Sedang");
+                    m.put("tanggalDisposisi", d.getDispatchedAt() != null ? d.getDispatchedAt().format(fmt) : "-");
+                    m.put("wilayah", d.getReport().getLocationHint() != null ? d.getReport().getLocationHint() : "-");
+                    m.put("deadline", "-");
+                    m.put("instruksiAdmin", d.getNotes() != null ? d.getNotes() : "-");
+                    m.put("foto", d.getReport().getPhotoBase64() != null ? d.getReport().getPhotoBase64() : dummyReportImage());
+                    incomingReports.add(m);
+                }
+            }
+        }
+
+        List<User> realPetugas = userService.findByRole(User.Role.PETUGAS);
+        List<Map<String, Object>> petugasList = realPetugas.stream().map(p -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", p.getUserId());
+            m.put("nama", p.getFullName());
+            m.put("nip", "-");
+            m.put("statusKetersediaan", "Tersedia");
+            m.put("wilayahTugas", "-");
+            m.put("tugasAktif", (int) fieldTaskService.getTasksByOfficerAndStatus(p.getUserId(), FieldTask.TaskStatus.SEDANG_DIKERJAKAN).size());
+            m.put("kontak", p.getEmail());
+            return m;
+        }).collect(Collectors.toList());
         model.addAttribute("incomingReports", incomingReports);
-        model.addAttribute("petugasList", dummyPetugasList());
+        model.addAttribute("petugasList", petugasList);
 
         Map<String, Object> selected = null;
         if (id != null && !id.trim().isEmpty()) {
@@ -768,14 +954,40 @@ public String adminSengketaPanelAliasPost(
             Model model,
             @RequestParam(value = "id", required = false) String id
     ) {
-        List<Map<String, Object>> ticketsInProgress = dummyTicketsInProgress();
+        List<Map<String, Object>> ticketsInProgress = new ArrayList<>();
+        List<FieldTask> realTasks = fieldTaskService.getTasksByStatus(FieldTask.TaskStatus.SEDANG_DIKERJAKAN);
+        if (!realTasks.isEmpty()) {
+            DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
+            for (FieldTask t : realTasks) {
+                Map<String, Object> m = new HashMap<>();
+                m.put("id", t.getTaskId());
+                m.put("judul", t.getReport() != null ? (t.getReport().getTicketNumber() != null ? t.getReport().getTicketNumber() : "Laporan") : "Tugas");
+                m.put("kategori", t.getReport() != null && t.getReport().getCategory() != null
+                    ? t.getReport().getCategory().getCategoryName() : "Lainnya");
+                m.put("prioritas", "Sedang");
+                m.put("pelapor", t.getReport() != null && t.getReport().getReporter() != null
+                    ? t.getReport().getReporter().getFullName() : "-");
+                m.put("deadline", "-");
+                m.put("foto", dummyReportImage());
+                List<Map<String, Object>> ph = new ArrayList<>();
+                if (t.getStartedAt() != null) {
+                    ph.add(Map.of("tanggal", t.getStartedAt().format(fmt), "petugas",
+                        t.getOfficer() != null ? t.getOfficer().getFullName() : "-",
+                        "keterangan", "Pengerjaan dimulai", "estimasi", "-"));
+                }
+                m.put("progressHistory", ph);
+                ticketsInProgress.add(m);
+            }
+        } else {
+            ticketsInProgress = new ArrayList<>();
+        }
         model.addAttribute("ticketsInProgress", ticketsInProgress);
 
         Map<String, Object> selected = null;
         if (id != null) {
             selected = ticketsInProgress.stream()
                     .filter(t -> t.get("id").equals(id))
-                    .findFirst().orElse(ticketsInProgress.get(0));
+                    .findFirst().orElse(ticketsInProgress.isEmpty() ? null : ticketsInProgress.get(0));
         }
         model.addAttribute("selectedTicket", selected);
         return "admin/dinas/progress-update";
@@ -815,14 +1027,42 @@ public String adminSengketaPanelAliasPost(
             Model model,
             @RequestParam(value = "id", required = false) String id
     ) {
-        List<Map<String, Object>> ticketsReady = dummyTicketsReadyToClose();
+        List<Map<String, Object>> ticketsReady = new ArrayList<>();
+        List<FieldTask> realTasks = fieldTaskService.getTasksByStatus(FieldTask.TaskStatus.SELESAI);
+        if (!realTasks.isEmpty()) {
+            DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
+            for (FieldTask t : realTasks) {
+                Map<String, Object> m = new HashMap<>();
+                m.put("id", t.getTaskId());
+                m.put("judul", t.getReport() != null ? (t.getReport().getTicketNumber() != null ? t.getReport().getTicketNumber() : "Laporan") : "Tugas");
+                m.put("kategori", t.getReport() != null && t.getReport().getCategory() != null
+                    ? t.getReport().getCategory().getCategoryName() : "Lainnya");
+                m.put("prioritas", "Sedang");
+                m.put("pelapor", t.getReport() != null && t.getReport().getReporter() != null
+                    ? t.getReport().getReporter().getFullName() : "-");
+                m.put("wilayah", t.getReport() != null && t.getReport().getLocationHint() != null
+                    ? t.getReport().getLocationHint() : "-");
+                m.put("foto", dummyReportImage());
+                List<Map<String, Object>> ph = new ArrayList<>();
+                if (t.getStartedAt() != null) {
+                    ph.add(Map.of("tanggal", t.getStartedAt().format(fmt), "keterangan", "Pengerjaan dimulai"));
+                }
+                if (t.getCompletedAt() != null) {
+                    ph.add(Map.of("tanggal", t.getCompletedAt().format(fmt), "keterangan", "Pengerjaan selesai"));
+                }
+                m.put("progressHistory", ph);
+                ticketsReady.add(m);
+            }
+        } else {
+            ticketsReady = new ArrayList<>();
+        }
         model.addAttribute("ticketsReadyToClose", ticketsReady);
 
         Map<String, Object> selected = null;
         if (id != null) {
             selected = ticketsReady.stream()
                     .filter(t -> t.get("id").equals(id))
-                    .findFirst().orElse(ticketsReady.get(0));
+                    .findFirst().orElse(ticketsReady.isEmpty() ? null : ticketsReady.get(0));
         }
         model.addAttribute("selectedTicket", selected);
         return "admin/dinas/close-ticket";
@@ -861,7 +1101,29 @@ public String adminSengketaPanelAliasPost(
             Model model,
             @RequestParam(value = "id", required = false) String id
     ) {
-        List<Map<String, Object>> disputes = dummyDisputeList();
+        List<DisputeRecord> realDisputes = disputeService.getPendingDisputes();
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
+        List<Map<String, Object>> disputes = realDisputes.stream().map(d -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", d.getDisputeId());
+            m.put("ticketId", d.getReport() != null ? d.getReport().getReportId() : "-");
+            m.put("judul", d.getReasonText() != null ? d.getReasonText() : "Sengketa #" + d.getDisputeId().substring(0, 8));
+            m.put("statusSengketa", d.getResolution() == null ? "Menunggu Tinjauan" : "Selesai");
+            m.put("prioritas", "Sedang");
+            m.put("tanggalSengketa", d.getFiledAt() != null ? d.getFiledAt().format(fmt) : "-");
+            m.put("pelapor", d.getReport() != null && d.getReport().getReporter() != null ? d.getReport().getReporter().getFullName() : "-");
+            m.put("tanggalLaporan", "-");
+            m.put("tanggalSelesai", d.getResolvedAt() != null ? d.getResolvedAt().format(fmt) : "-");
+            m.put("statusSebelum", "Selesai");
+            m.put("alasanSengketa", d.getReasonText() != null ? d.getReasonText() : "-");
+            m.put("fotoBuktiSengketa", dummyReportImage());
+            m.put("fotoBuktiPerbaikan", dummyReportImage());
+            m.put("keteranganDinas", d.getResolutionNotes() != null ? d.getResolutionNotes() : "-");
+            m.put("dinas", "Dinas Terkait");
+            m.put("petugasId", "-");
+            m.put("petugasNama", "-");
+            return m;
+        }).collect(Collectors.toList());
         model.addAttribute("disputes", disputes);
 
         Map<String, Object> selected = null;
@@ -884,9 +1146,13 @@ public String adminSengketaPanelAliasPost(
 
         if (selected != null) {
             String originalPetugasId = (String) selected.get("petugasId");
-            for (Map<String, Object> p : dummyPetugasList()) {
-                if (!p.get("id").equals(originalPetugasId)) {
-                    availablePetugas.add(p);
+            List<User> realPetugas = userService.findByRole(User.Role.PETUGAS);
+            for (User p : realPetugas) {
+                if (!p.getUserId().equals(originalPetugasId)) {
+                    Map<String, Object> pm = new HashMap<>();
+                    pm.put("id", p.getUserId());
+                    pm.put("nama", p.getFullName());
+                    availablePetugas.add(pm);
                 }
             }
             model.addAttribute("availablePetugasForReassignment", availablePetugas);
@@ -904,11 +1170,52 @@ public String adminSengketaPanelAliasPost(
             @RequestParam(value = "id", required = false) String id,
             @RequestParam(value = "keputusan", required = false) String keputusan,
             @RequestParam(value = "catatan", required = false) String catatan,
-            @RequestParam(value = "petugasId", required = false) String petugasId
+            @RequestParam(value = "petugasId", required = false) String petugasId,
+            HttpSession session
     ) {
-        if ("diterima".equals(keputusan) && petugasId != null && !petugasId.isEmpty()) {
-            return "redirect:/admin/dinas/sengketa?reassigned=true";
+        // FIX: implementasi nyata, bukan hanya stub/redirect kosong
+        String adminId = (String) session.getAttribute("userId");
+        if (adminId == null) {
+            adminId = userService.getUserByEmail("admin.pu@aduaja.go.id")
+                    .map(User::getUserId).orElse(null);
         }
+
+        try {
+            if ("diterima".equals(keputusan) && petugasId != null && !petugasId.isEmpty()) {
+                // Sengketa DITERIMA → tugaskan kembali ke petugas lain
+                // 1. Resolve dispute dengan status TUGASKAN_KEMBALI
+                if (adminId != null) {
+                    disputeService.resolveDispute(id, adminId,
+                            DisputeRecord.ResolutionType.TUGASKAN_KEMBALI, catatan);
+                }
+                // 2. Cari tugas lapangan yang terkait & reassign ke petugas baru
+                //    (Polymorphism: memanggil reassignTask via FieldTaskService interface)
+                try {
+                    DisputeRecord dispute = disputeService.getAllDisputes().stream()
+                            .filter(d -> id.equals(d.getDisputeId()))
+                            .findFirst().orElse(null);
+                    if (dispute != null && dispute.getReport() != null) {
+                        String reportId = dispute.getReport().getReportId();
+                        List<FieldTask> relatedTasks = fieldTaskService.getTasksByReport(reportId);
+                        for (FieldTask task : relatedTasks) {
+                            if (task.getTaskStatus() != FieldTask.TaskStatus.SELESAI) {
+                                fieldTaskService.reassignTask(task.getTaskId(), petugasId);
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {}
+
+                return "redirect:/admin/dinas/sengketa?reassigned=true";
+
+            } else {
+                // Sengketa DITOLAK → tutup laporan
+                if (adminId != null) {
+                    disputeService.resolveDispute(id, adminId,
+                            DisputeRecord.ResolutionType.TUTUP_LAPORAN, catatan);
+                }
+            }
+        } catch (Exception ignored) {}
+
         return "redirect:/admin/dinas/sengketa" + (id != null ? "?id=" + id : "");
     }
 
@@ -916,7 +1223,6 @@ public String adminSengketaPanelAliasPost(
     // PETUGAS ROUTES
     // ==========================================
 
-    private List<Map<String, Object>> currentTasks = new ArrayList<>();
 
     // GET /petugas/login — Ditangani oleh AdminAuthController
     // POST /petugas/login — Ditangani oleh AdminAuthController
@@ -928,37 +1234,74 @@ public String adminSengketaPanelAliasPost(
         return "redirect:/petugas/dashboard";
     }
 
-    /** POST /petugas/task-action — proses aksi pada tugas (Start, Postpone, dll) */
+    /** POST /petugas/dashboard — proses check-in/check-out/istirahat */
+    @PostMapping("/petugas/dashboard")
+    public String petugasDashboardPost(
+            @RequestParam(value = "checkIn", required = false) Boolean checkIn,
+            @RequestParam(value = "action", required = false) String action,
+            @RequestParam(value = "attendanceId", required = false) String attendanceId,
+            @RequestParam(value = "latitude", required = false) java.math.BigDecimal latitude,
+            @RequestParam(value = "longitude", required = false) java.math.BigDecimal longitude,
+            @RequestParam(value = "deviceInfo", required = false) String deviceInfo,
+            HttpSession session
+    ) {
+        String userId = (String) session.getAttribute("userId");
+        if (userId == null) return "redirect:/petugas/login";
+
+        try {
+            if (checkIn != null && checkIn) {
+                attendanceService.checkIn(userId, latitude, longitude, deviceInfo);
+            } else if ("checkout".equals(action) && attendanceId != null) {
+                attendanceService.checkOut(attendanceId);
+            } else if ("break".equals(action) && attendanceId != null) {
+                attendanceService.setBreak(attendanceId);
+            } else if ("resume".equals(action) && attendanceId != null) {
+                attendanceService.resumeFromBreak(attendanceId);
+            }
+        } catch (Exception ignored) {}
+
+        return "redirect:/petugas/dashboard";
+    }
+
+    /** POST /petugas/task-action — proses aksi pada tugas (Start, Complete, Postpone, Reassign) */
     @PostMapping("/petugas/task-action")
     public String petugasTaskAction(
             @RequestParam(value = "id", required = false) String id,
             @RequestParam(value = "action", required = false, defaultValue = "start") String action,
-            @RequestParam(value = "description", required = false) String description
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "newOfficerId", required = false) String newOfficerId,
+            @RequestParam(value = "latitude", required = false) java.math.BigDecimal latitude,
+            @RequestParam(value = "longitude", required = false) java.math.BigDecimal longitude,
+            HttpSession session
     ) {
         if (id != null) {
             try {
+                // Polymorphism: switch ke berbagai implementasi service method
                 switch (action) {
-                    case "start" -> fieldTaskService.startTask(id, null, null);
-                    case "complete" -> fieldTaskService.completeTask(id);
-                }
-            } catch (Exception e) {
-                // If task not found in database, update dummy data as fallback
-                if (currentTasks != null) {
-                    for (Map<String, Object> t : currentTasks) {
-                        if (t.get("id").equals(id)) {
-                            if ("start".equals(action)) {
-                                t.put("status", "in_progress");
-                                t.put("startedAt", "04 Mei 2026 10:00");
-                            } else if ("pending".equals(action)) {
-                                t.put("status", "pending");
-                                t.put("pendingReason", description != null ? description : "Ditunda oleh petugas");
-                            } else if ("reportback".equals(action)) {
-                                t.put("status", "invalid");
-                            }
-                            break;
+                    case "start" ->
+                        // startTask(taskId, lat, lon) — Overloading: method yang sama dipanggil berbeda
+                        fieldTaskService.startTask(id, latitude, longitude);
+
+                    case "complete" ->
+                        // completeTask(taskId) — Override dari FieldTaskService interface
+                        fieldTaskService.completeTask(id);
+
+                    case "postpone" -> {
+                        // FIX: handle postpone — sekarang juga menyimpan TaskPostponement record
+                        String reason = description != null && !description.isBlank()
+                                ? description : "Ditunda oleh petugas";
+                        fieldTaskService.postponeTask(id, reason);
+                    }
+
+                    case "reassign" -> {
+                        // FIX: handle reassign — tugaskan ke petugas lain
+                        String targetOfficer = newOfficerId != null ? newOfficerId : "";
+                        if (!targetOfficer.isBlank()) {
+                            fieldTaskService.reassignTask(id, targetOfficer);
                         }
                     }
                 }
+            } catch (Exception ignored) {
             }
         }
         return "redirect:/petugas/task-detail?id=" + id;
@@ -967,83 +1310,93 @@ public String adminSengketaPanelAliasPost(
     @GetMapping("/petugas/dashboard")
     public String petugasDashboard(
             Model model,
+            HttpSession session,
             @RequestParam(value = "checkIn", required = false) Boolean checkIn
     ) {
-        if (currentTasks == null || currentTasks.isEmpty()) {
-            currentTasks = allDummyTasks();
+        String userId = (String) session.getAttribute("userId");
+
+        boolean isCheckedIn = true;
+        if (checkIn != null && !checkIn) isCheckedIn = false;
+        Map<String, Object> defUser = new HashMap<>();
+        defUser.put("name", "Ahmad Fauzi");
+        defUser.put("dinas", "Dinas Pekerjaan Umum");
+        model.addAttribute("user", defUser);
+        Map<String, Object> defAttendance = new HashMap<>();
+        defAttendance.put("attendanceId", "-");
+        defAttendance.put("checkedIn", isCheckedIn);
+        defAttendance.put("currentStatus", isCheckedIn ? "Siap Bertugas" : "Belum Check-In");
+        defAttendance.put("checkInTime", isCheckedIn ? "08:05" : "-");
+        defAttendance.put("workDuration", isCheckedIn ? "04:32:10" : "00:00:00");
+        defAttendance.put("location", isCheckedIn ? "Kantor Dinas PU Medan" : "-");
+        model.addAttribute("attendance", defAttendance);
+        List<Map<String, Object>> defActive = new ArrayList<>();
+        long selesai = 0, inProgress = 0, newTasks = 0, pending = 0;
+
+        if (userId != null) {
+            userService.findById(userId).ifPresent(officer -> {
+                model.addAttribute("user", Map.of("name", officer.getFullName(), "dinas", "Dinas Pekerjaan Umum"));
+                List<FieldTask> realTasks = fieldTaskService.getTasksByOfficer(userId);
+                if (!realTasks.isEmpty()) {
+                    long s = realTasks.stream().filter(t -> t.getTaskStatus() == TaskStatus.SELESAI).count();
+                    long ip = realTasks.stream().filter(t -> t.getTaskStatus() == TaskStatus.SEDANG_DIKERJAKAN).count();
+                    long n = realTasks.stream().filter(t -> t.getTaskStatus() == TaskStatus.BARU).count();
+                    long p = realTasks.stream().filter(t -> t.getTaskStatus() == TaskStatus.TERTUNDA).count();
+                    model.addAttribute("stats", Map.of("selesaiHariIni", s, "sedangDikerjakan", ip, "tugasBaru", n, "tertunda", p));
+                    List<Map<String, Object>> realActive = realTasks.stream().limit(5).map(this::toPetugasTaskMap).collect(Collectors.toList());
+                    if (!realActive.isEmpty()) model.addAttribute("activeTasks", realActive);
+                }
+                attendanceService.getCurrentShift(userId).ifPresent(shift -> {
+                    model.addAttribute("attendance", Map.of(
+                        "attendanceId", shift.getAttendanceId(),
+                        "checkedIn", shift.getCheckInAt() != null,
+                        "currentStatus", shift.getShiftStatus() == OfficerAttendance.ShiftStatus.AKTIF ? "Siap Bertugas"
+                            : shift.getShiftStatus() == OfficerAttendance.ShiftStatus.ISTIRAHAT ? "Istirahat" : "Selesai Shift",
+                        "checkInTime", shift.getCheckInAt() != null ? shift.getCheckInAt().format(DateTimeFormatter.ofPattern("HH:mm")) : "-",
+                        "workDuration", shift.getCheckInAt() != null ? formatDuration(Duration.between(shift.getCheckInAt(), LocalDateTime.now())) : "00:00:00",
+                        "location", shift.getCheckInLatitude() != null ? shift.getCheckInLatitude() + ", " + shift.getCheckInLongitude() : "Kantor Dinas PU Medan"
+                    ));
+                });
+            });
         }
-        
-        boolean isCheckedIn = true; 
-        if (checkIn != null && !checkIn) {
-            isCheckedIn = false;
+        if (!model.containsAttribute("stats")) {
+            model.addAttribute("stats", Map.of("selesaiHariIni", 0L, "sedangDikerjakan", 0L, "tugasBaru", 0L, "tertunda", 0L));
         }
-
-        Map<String, Object> user = new HashMap<>();
-        user.put("name", "Ahmad Fauzi");
-        user.put("dinas", "Dinas Pekerjaan Umum");
-        model.addAttribute("user", user);
-
-        Map<String, Object> attendance = new HashMap<>();
-        attendance.put("checkedIn", isCheckedIn);
-        attendance.put("currentStatus", isCheckedIn ? "Siap Bertugas" : "Belum Check-In");
-        attendance.put("checkInTime", isCheckedIn ? "08:05" : "-");
-        attendance.put("workDuration", isCheckedIn ? "04:32:10" : "00:00:00");
-        attendance.put("location", isCheckedIn ? "Kantor Dinas PU Medan" : "-");
-        model.addAttribute("attendance", attendance);
-
-        Map<String, Object> stats = new HashMap<>();
-        long selesai = currentTasks.stream().filter(t -> "completed".equals(t.get("status"))).count();
-        long inProgress = currentTasks.stream().filter(t -> "in_progress".equals(t.get("status"))).count();
-        long newTasks = currentTasks.stream().filter(t -> "new".equals(t.get("status"))).count();
-        long pending = currentTasks.stream().filter(t -> "pending".equals(t.get("status"))).count();
-
-        stats.put("selesaiHariIni", selesai);
-        stats.put("sedangDikerjakan", inProgress);
-        stats.put("tugasBaru", newTasks);
-        stats.put("tertunda", pending);
-        model.addAttribute("stats", stats);
+        if (!model.containsAttribute("activeTasks")) {
+            model.addAttribute("activeTasks", new ArrayList<>());
+        }
 
         Map<String, Object> deviceInfo = new HashMap<>();
         deviceInfo.put("browser", "Chrome 124");
         deviceInfo.put("os", "Android 14");
         model.addAttribute("deviceInfo", deviceInfo);
 
-        List<Map<String, Object>> activeTasks = new ArrayList<>();
-        activeTasks.add(buildTask("TGS-001", "Perbaikan Jalan Berlubang Jl. Sudirman", "Jalan",
-                "in_progress", "high", "Jl. Sudirman No. 10, Medan Kota",
-                "Terdapat beberapa lubang besar di badan jalan dengan kedalaman sekitar 15 cm.",
-                "Budi Santoso", "28 Apr 2025",
-                "30 Apr 2025 17:00", "Sisa 6 jam", "text-orange-600",
-                "1,2 km", null, "28 Apr 2025 09:00"));
-        activeTasks.add(buildTask("TGS-002", "Penggantian Lampu Jalan Gang Melati", "Penerangan",
-                "new", "medium", "Gang Melati No. 5, Medan Baru",
-                "Lampu jalan di sepanjang gang mati total sejak 3 hari lalu.",
-                "Sari Dewi", "27 Apr 2025",
-                "02 Mei 2025 17:00", "Sisa 2 hari", "text-yellow-600",
-                "2,5 km", null, null));
-        model.addAttribute("activeTasks", activeTasks);
-
         return "petugas/dashboard";
     }
 
     @GetMapping("/petugas/tasks")
-    public String petugasTasks(Model model) {
-        if (currentTasks == null || currentTasks.isEmpty()) {
-            currentTasks = allDummyTasks();
-        }
-
-        List<Map<String, Object>> tasksNew        = new ArrayList<>();
+    public String petugasTasks(Model model, HttpSession session) {
+        List<Map<String, Object>> tasksNew = new ArrayList<>();
         List<Map<String, Object>> tasksInProgress = new ArrayList<>();
-        List<Map<String, Object>> tasksPending    = new ArrayList<>();
+        List<Map<String, Object>> tasksPending = new ArrayList<>();
 
-        for (Map<String, Object> t : currentTasks) {
-            switch (t.get("status").toString()) {
-                case "new"         -> tasksNew.add(t);
-                case "in_progress" -> tasksInProgress.add(t);
-                case "pending"     -> tasksPending.add(t);
+        String userId = (String) session.getAttribute("userId");
+        if (userId != null) {
+            List<FieldTask> realTasks = fieldTaskService.getTasksByOfficer(userId);
+            if (!realTasks.isEmpty()) {
+                for (FieldTask t : realTasks) {
+                    switch (t.getTaskStatus()) {
+                        case BARU -> tasksNew.add(toPetugasTaskMap(t));
+                        case SEDANG_DIKERJAKAN -> tasksInProgress.add(toPetugasTaskMap(t));
+                        case TERTUNDA -> tasksPending.add(toPetugasTaskMap(t));
+                        default -> {}
+                    }
+                }
+                model.addAttribute("tasksNew", tasksNew);
+                model.addAttribute("tasksInProgress", tasksInProgress);
+                model.addAttribute("tasksPending", tasksPending);
+                return "petugas/tasks";
             }
         }
-
         model.addAttribute("tasksNew", tasksNew);
         model.addAttribute("tasksInProgress", tasksInProgress);
         model.addAttribute("tasksPending", tasksPending);
@@ -1053,69 +1406,79 @@ public String adminSengketaPanelAliasPost(
     @GetMapping("/petugas/task-detail")
     public String petugasTaskDetail(
             Model model,
+            HttpSession session,
             @RequestParam(value = "id", required = false, defaultValue = "TGS-001") String id
     ) {
-        if (currentTasks == null || currentTasks.isEmpty()) {
-            currentTasks = allDummyTasks();
+        String userId = (String) session.getAttribute("userId");
+        if (userId != null) {
+            Optional<FieldTask> realTask = fieldTaskService.getTaskById(id);
+            if (realTask.isPresent()) {
+                FieldTask ft = realTask.get();
+                Map<String, Object> task = toPetugasTaskMap(ft);
+                task.put("reporterPhone", ft.getReport() != null && ft.getReport().getReporter() != null
+                    ? ft.getReport().getReporter().getEmail() : "-");
+
+                Map<String, Object> locationMap = new HashMap<>();
+                String addr = ft.getReport() != null ? (ft.getReport().getLocationHint() != null ? ft.getReport().getLocationHint() : "-") : "-";
+                locationMap.put("address", addr);
+                locationMap.put("latitude", ft.getOfficerLatitude() != null ? ft.getOfficerLatitude().toPlainString() : "3.5952");
+                locationMap.put("longitude", ft.getOfficerLongitude() != null ? ft.getOfficerLongitude().toPlainString() : "98.6722");
+                task.put("location", locationMap);
+
+                List<Map<String, Object>> statusHistory = new ArrayList<>();
+                statusHistory.add(Map.of("status", "Tugas Dibuat", "time",
+                    ft.getCreatedAt() != null ? ft.getCreatedAt().format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm")) : "-",
+                    "note", "Tugas diterima dari laporan warga"));
+                if (ft.getStartedAt() != null) {
+                    statusHistory.add(Map.of("status", "Mulai Dikerjakan", "time",
+                        ft.getStartedAt().format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm")),
+                        "note", "Petugas memulai pengerjaan"));
+                }
+                if (ft.getCompletedAt() != null) {
+                    statusHistory.add(Map.of("status", "Selesai", "time",
+                        ft.getCompletedAt().format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm")),
+                        "note", "Tugas telah selesai dikerjakan"));
+                }
+                task.put("statusHistory", statusHistory);
+
+                model.addAttribute("task", task);
+                model.addAttribute("user", userId != null ? userService.findById(userId)
+                    .map(u -> Map.of("name", u.getFullName())).orElse(Map.of("name", "Petugas"))
+                    : Map.of("name", "Petugas"));
+                model.addAttribute("attendance", Map.of("checkedIn", true));
+                return "petugas/task-detail";
+            }
         }
 
-        Map<String, Object> task = currentTasks.stream()
-                .filter(t -> t.get("id").equals(id))
-                .findFirst()
-                .orElse(currentTasks.get(0));
-
-        task.put("description",
-                "Terdapat beberapa lubang besar di badan jalan dengan kedalaman sekitar 15 cm " +
-                        "dan diameter 40 cm. Kondisi ini membahayakan pengendara terutama pada malam hari.");
-
-        task.put("reporterPhone", "+62 812-3456-7890");
-
-        Map<String, Object> locationMap = new HashMap<>();
-        locationMap.put("address", task.getOrDefault("location", "Jl. Sudirman No. 10, Medan Kota").toString());
-        locationMap.put("latitude",  "3.5952");
-        locationMap.put("longitude", "98.6722");
-        task.put("location", locationMap);
-
-        task.put("distanceToTask", task.getOrDefault("distanceToTask", "1,2 km"));
-
-        List<Map<String, Object>> statusHistory = new ArrayList<>();
-        statusHistory.add(Map.of("status", "Tugas Dibuat",    "time", "28 Apr 2025 08:00", "note", "Tugas diterima dari laporan warga"));
-        statusHistory.add(Map.of("status", "Mulai Dikerjakan","time", "28 Apr 2025 09:00", "note", "Petugas tiba di lokasi"));
-        task.put("statusHistory", statusHistory);
-
-        model.addAttribute("task", task);
-        model.addAttribute("user", Map.of("name", "Ahmad Fauzi"));
-        model.addAttribute("attendance", Map.of("checkedIn", true));
-        return "petugas/task-detail";
+        return "redirect:/petugas/tasks";
     }
 
     @GetMapping("/petugas/task-execution")
     public String petugasTaskExecution(
             Model model,
+            HttpSession session,
             @RequestParam(value = "id", required = false, defaultValue = "TGS-001") String id
     ) {
-        if (currentTasks == null || currentTasks.isEmpty()) {
-            currentTasks = allDummyTasks();
+        String userId = (String) session.getAttribute("userId");
+        if (userId != null) {
+            Optional<FieldTask> realTask = fieldTaskService.getTaskById(id);
+            if (realTask.isPresent()) {
+                FieldTask ft = realTask.get();
+                Map<String, Object> task = toPetugasTaskMap(ft);
+                Map<String, Object> locationMap = new HashMap<>();
+                String addr = ft.getReport() != null ? (ft.getReport().getLocationHint() != null ? ft.getReport().getLocationHint() : "-") : "-";
+                locationMap.put("address", addr);
+                locationMap.put("latitude", ft.getOfficerLatitude() != null ? ft.getOfficerLatitude().toPlainString() : "3.5952");
+                locationMap.put("longitude", ft.getOfficerLongitude() != null ? ft.getOfficerLongitude().toPlainString() : "98.6722");
+                task.put("location", locationMap);
+                task.put("distanceToTask", "-");
+                model.addAttribute("task", task);
+                model.addAttribute("materials", new ArrayList<>());
+                return "petugas/task-execution";
+            }
         }
-        
-        Map<String, Object> task = currentTasks.stream()
-                .filter(t -> t.get("id").equals(id))
-                .findFirst()
-                .orElse(currentTasks.get(0));
 
-        Map<String, Object> locationMap = new HashMap<>();
-        locationMap.put("address", task.getOrDefault("location", "Jl. Sudirman No. 10, Medan Kota").toString());
-        locationMap.put("latitude", "3.5952");
-        locationMap.put("longitude", "98.6722");
-        task.put("location", locationMap);
-        task.put("distanceToTask", task.getOrDefault("distanceToTask", "1,2 km"));
-
-        model.addAttribute("task", task);
-        
-        // Dummy materials for simulation
-        List<Map<String, Object>> materials = new ArrayList<>();
-        model.addAttribute("materials", materials);
-        return "petugas/task-execution";
+        return "redirect:/petugas/tasks";
     }
 
     /** POST /petugas/task-execution — simpan laporan pengerjaan tugas */
@@ -1130,16 +1493,7 @@ public String adminSengketaPanelAliasPost(
         if ("complete".equals(action)) {
             try {
                 fieldTaskService.completeTask(id);
-            } catch (Exception e) {
-                // Fallback to dummy data
-                if (currentTasks != null) {
-                    for (Map<String, Object> t : currentTasks) {
-                        if (t.get("id").equals(id)) {
-                            t.put("status", "completed");
-                            break;
-                        }
-                    }
-                }
+            } catch (Exception ignored) {
             }
             return "redirect:/petugas/dashboard";
         }
@@ -1147,32 +1501,67 @@ public String adminSengketaPanelAliasPost(
     }
 
     @GetMapping("/petugas/history")
-    public String petugasHistory(Model model) {
+    public String petugasHistory(Model model, HttpSession session) {
+        String userId = (String) session.getAttribute("userId");
+        if (userId != null) {
+            List<FieldTask> allTasks = fieldTaskService.getTasksByOfficer(userId);
+            List<FieldTask> completed = allTasks.stream()
+                .filter(t -> t.getTaskStatus() == TaskStatus.SELESAI).collect(Collectors.toList());
+            long totalH = completed.stream()
+                .filter(t -> t.getStartedAt() != null && t.getCompletedAt() != null)
+                .mapToLong(t -> Duration.between(t.getStartedAt(), t.getCompletedAt()).toHours())
+                .sum();
+            long avgMins = completed.isEmpty() ? 0 :
+                completed.stream()
+                    .filter(t -> t.getStartedAt() != null && t.getCompletedAt() != null)
+                    .mapToLong(t -> Duration.between(t.getStartedAt(), t.getCompletedAt()).toMinutes())
+                    .sum() / completed.size();
+            model.addAttribute("stats", Map.of(
+                "totalTasks", allTasks.size(),
+                "avgDuration", (avgMins / 60) + "j " + (avgMins % 60) + "m",
+                "totalHours", totalH
+            ));
+            List<Map<String, Object>> taskList = completed.stream().map(t -> {
+                Map<String, Object> m = new HashMap<>();
+                m.put("id", t.getTaskId());
+                m.put("title", t.getReport() != null ? "Tugas #" + t.getTaskId().substring(0, 8) : "-");
+                m.put("category", t.getReport() != null && t.getReport().getCategory() != null
+                    ? t.getReport().getCategory().getCategoryName() : "Lainnya");
+                m.put("location", t.getReport() != null ? (t.getReport().getLocationHint() != null ? t.getReport().getLocationHint() : "-") : "-");
+                m.put("status", "approved");
+                m.put("duration", t.getStartedAt() != null && t.getCompletedAt() != null
+                    ? formatDuration(Duration.between(t.getStartedAt(), t.getCompletedAt())) : "-");
+                m.put("completedAt", t.getCompletedAt() != null
+                    ? t.getCompletedAt().format(DateTimeFormatter.ofPattern("dd MMM yyyy")) : "-");
+                m.put("photoBefore", 0);
+                m.put("photoAfter", 0);
+                m.put("materialUsed", 0);
+                return m;
+            }).collect(Collectors.toList());
+            if (!taskList.isEmpty()) {
+                model.addAttribute("tasks", taskList);
+                return "petugas/history";
+            }
+        }
+
         Map<String, Object> stats = new HashMap<>();
         stats.put("totalTasks", 12);
         stats.put("avgDuration", "2j 18m");
         stats.put("totalHours", 28);
         model.addAttribute("stats", stats);
-
         List<Map<String, Object>> tasks = new ArrayList<>();
-        tasks.add(Map.of(
-                "id", "TGS-001", "title", "Perbaikan Jalan Berlubang Jl. Sudirman",
+        tasks.add(Map.of("id", "TGS-001", "title", "Perbaikan Jalan Berlubang Jl. Sudirman",
                 "category", "Jalan", "location", "Jl. Sudirman, Medan Kota",
                 "status", "approved", "duration", "2j 15m", "completedAt", "28 Apr 2025",
-                "photoBefore", 2, "photoAfter", 3, "materialUsed", 2
-        ));
-        tasks.add(Map.of(
-                "id", "TGS-002", "title", "Penggantian Lampu Jalan Gang Melati",
+                "photoBefore", 2, "photoAfter", 3, "materialUsed", 2));
+        tasks.add(Map.of("id", "TGS-002", "title", "Penggantian Lampu Jalan Gang Melati",
                 "category", "Penerangan", "location", "Gang Melati, Medan Baru",
                 "status", "pending_review", "duration", "1j 45m", "completedAt", "26 Apr 2025",
-                "photoBefore", 2, "photoAfter", 2, "materialUsed", 1
-        ));
-        tasks.add(Map.of(
-                "id", "TGS-003", "title", "Pembersihan Saluran Drainase Jl. Gatot Subroto",
+                "photoBefore", 2, "photoAfter", 2, "materialUsed", 1));
+        tasks.add(Map.of("id", "TGS-003", "title", "Pembersihan Saluran Drainase Jl. Gatot Subroto",
                 "category", "Drainase", "location", "Jl. Gatot Subroto, Medan Petisah",
                 "status", "approved", "duration", "3j 10m", "completedAt", "25 Apr 2025",
-                "photoBefore", 3, "photoAfter", 3, "materialUsed", 0
-        ));
+                "photoBefore", 3, "photoAfter", 3, "materialUsed", 0));
         model.addAttribute("tasks", tasks);
         return "petugas/history";
     }
@@ -1180,89 +1569,162 @@ public String adminSengketaPanelAliasPost(
     @GetMapping("/petugas/reports")
     public String petugasReports(
             Model model,
+            HttpSession session,
             @RequestParam(value = "period", required = false, defaultValue = "week") String period
     ) {
+        String userId = (String) session.getAttribute("userId");
         Map<String, Object> user = new HashMap<>();
-        user.put("name", "Ahmad Fauzi");
+        user.put("name", "Petugas");
+        if (userId != null) {
+            userService.findById(userId).ifPresent(u -> user.put("name", u.getFullName()));
+        }
         model.addAttribute("user", user);
         model.addAttribute("selectedPeriod", period);
 
-        int total     = period.equals("year") ? 48 : period.equals("month") ? 18 : 6;
-        int completed = period.equals("year") ? 44 : period.equals("month") ? 16 : 5;
-        int pending   = total - completed;
-        int hours     = period.equals("year") ? 112 : period.equals("month") ? 42 : 14;
-        String rate   = (int) Math.round((double) completed / total * 100) + "%";
+        List<FieldTask> allTasks = userId != null ? fieldTaskService.getTasksByOfficer(userId) : new ArrayList<>();
+        List<FieldTask> completed = allTasks.stream().filter(t -> t.getTaskStatus() == TaskStatus.SELESAI).collect(Collectors.toList());
+        List<FieldTask> inProgress = allTasks.stream().filter(t -> t.getTaskStatus() == TaskStatus.SEDANG_DIKERJAKAN).collect(Collectors.toList());
+
+        int total = allTasks.size();
+        int completedCount = completed.size();
+        int pendingCount = allTasks.size() - completedCount;
+        long totalMinutes = completed.stream()
+            .filter(t -> t.getStartedAt() != null && t.getCompletedAt() != null)
+            .mapToLong(t -> Duration.between(t.getStartedAt(), t.getCompletedAt()).toMinutes())
+            .sum();
+        int hours = total > 0 ? (int) (totalMinutes / 60) : 0;
+        long avgMins = completedCount > 0 ? totalMinutes / completedCount : 0;
+        String avgDur = avgMins > 0 ? (avgMins / 60) + "j " + (avgMins % 60) + "m" : "-";
+        String rate = total > 0 ? (int) Math.round((double) completedCount / total * 100) + "%" : "0%";
 
         Map<String, Object> stats = new HashMap<>();
         stats.put("totalTasks",     total);
-        stats.put("completedTasks", completed);
-        stats.put("pendingTasks",   pending);
+        stats.put("completedTasks", completedCount);
+        stats.put("pendingTasks",   pendingCount);
         stats.put("totalHours",     hours);
-        stats.put("avgDuration",    "2j 18m");
+        stats.put("avgDuration",    avgDur);
         stats.put("completionRate", rate);
 
+        Map<String, Long> catCount = new java.util.TreeMap<>();
+        for (FieldTask t : allTasks) {
+            String cat = t.getReport() != null && t.getReport().getCategory() != null
+                ? t.getReport().getCategory().getCategoryName() : "Lainnya";
+            catCount.merge(cat, 1L, Long::sum);
+        }
         List<Map<String, Object>> categories = new ArrayList<>();
-        categories.add(Map.of("name","Jalan",      "count",2,"percentage",40,"colorClass","bg-blue-500"));
-        categories.add(Map.of("name","Penerangan", "count",2,"percentage",33,"colorClass","bg-yellow-500"));
-        categories.add(Map.of("name","Drainase",   "count",1,"percentage",17,"colorClass","bg-green-500"));
-        categories.add(Map.of("name","Lainnya",    "count",1,"percentage",10,"colorClass","bg-gray-400"));
+        String[] catColors = {"bg-blue-500", "bg-yellow-500", "bg-green-500", "bg-purple-500", "bg-red-500", "bg-gray-400"};
+        int ci = 0;
+        for (Map.Entry<String, Long> e : catCount.entrySet()) {
+            int pct = total > 0 ? (int) Math.round(e.getValue() * 100.0 / total) : 0;
+            categories.add(Map.of("name", e.getKey(), "count", e.getValue().intValue(),
+                "percentage", pct, "colorClass", catColors[ci++ % catColors.length]));
+        }
         stats.put("categories", categories);
 
         List<Map<String, Object>> progress = new ArrayList<>();
         String progressTitle;
+        LocalDate now = LocalDate.now();
         if (period.equals("week")) {
             progressTitle = "Tugas per Hari (7 Hari Terakhir)";
-            String[] labels = {"Sen","Sel","Rab","Kam","Jum","Sab","Min"};
-            int[]    vals   = {1, 0, 2, 1, 1, 0, 0};
-            for (int i = 0; i < labels.length; i++)
-                progress.add(Map.of("label", labels[i], "completed", vals[i], "percent", vals[i] * 40));
+            String[] dayNames = {"Min","Sen","Sel","Rab","Kam","Jum","Sab"};
+            for (int i = 6; i >= 0; i--) {
+                LocalDate d = now.minusDays(i);
+                String dayLabel = dayNames[d.getDayOfWeek().getValue() % 7];
+                int dayTasks = (int) completed.stream()
+                    .filter(t -> t.getCompletedAt() != null && t.getCompletedAt().toLocalDate().equals(d))
+                    .count();
+                progress.add(Map.of("label", dayLabel, "completed", dayTasks, "percent", Math.min(dayTasks * 25, 100)));
+            }
         } else if (period.equals("month")) {
             progressTitle = "Tugas per Minggu (30 Hari Terakhir)";
-            String[] labels = {"Mg 1","Mg 2","Mg 3","Mg 4"};
-            int[]    vals   = {4, 5, 4, 3};
-            for (int i = 0; i < labels.length; i++)
-                progress.add(Map.of("label", labels[i], "completed", vals[i], "percent", vals[i] * 17));
+            for (int w = 4; w >= 1; w--) {
+                LocalDate start = now.minusWeeks(w);
+                LocalDate end = start.plusDays(6);
+                int weekTasks = (int) completed.stream()
+                    .filter(t -> t.getCompletedAt() != null && !t.getCompletedAt().toLocalDate().isBefore(start) && !t.getCompletedAt().toLocalDate().isAfter(end))
+                    .count();
+                progress.add(Map.of("label", "Mg " + (5 - w), "completed", weekTasks, "percent", Math.min(weekTasks * 25, 100)));
+            }
         } else {
             progressTitle = "Tugas per Bulan (1 Tahun)";
-            String[] labels = {"Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agt","Sep","Okt","Nov","Des"};
-            int[]    vals   = {3,4,5,4,4,3,4,4,5,4,5,5};
-            for (int i = 0; i < labels.length; i++)
-                progress.add(Map.of("label", labels[i], "completed", vals[i], "percent", vals[i] * 18));
+            String[] monthLabels = {"Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agt","Sep","Okt","Nov","Des"};
+            for (int m = 0; m < 12; m++) {
+                int monthValue = m + 1;
+                int monthTasks = (int) completed.stream()
+                    .filter(t -> t.getCompletedAt() != null && t.getCompletedAt().getMonthValue() == monthValue)
+                    .count();
+                progress.add(Map.of("label", monthLabels[m], "completed", monthTasks, "percent", Math.min(monthTasks * 25, 100)));
+            }
         }
-        stats.put("progress",      progress);
+        stats.put("progress", progress);
         stats.put("progressTitle", progressTitle);
 
         model.addAttribute("stats", stats);
+        model.addAttribute("materialStats", new ArrayList<>());
         return "petugas/reports";
     }
 
     @GetMapping("/petugas/attendance-history")
-    public String petugasAttendanceHistory(Model model) {
+    public String petugasAttendanceHistory(Model model, HttpSession session) {
+        String userId = (String) session.getAttribute("userId");
+        if (userId != null) {
+            List<OfficerAttendance> realRecords = attendanceService.getAttendanceByOfficer(userId);
+            if (!realRecords.isEmpty()) {
+                long daysPresent = realRecords.size();
+                long totalMinutes = realRecords.stream()
+                    .filter(r -> r.getCheckInAt() != null && r.getCheckOutAt() != null)
+                    .mapToLong(r -> Duration.between(r.getCheckInAt(), r.getCheckOutAt()).toMinutes())
+                    .sum();
+                long lateCount = 0;
+                List<Map<String, Object>> recordList = realRecords.stream().map(r -> {
+                    Map<String, Object> di = new HashMap<>();
+                    di.put("browser", r.getDeviceInfo() != null ? r.getDeviceInfo() : "Unknown");
+                    di.put("os", "Android");
+                    di.put("ip", "-");
+                    String dateFmt = r.getCheckInAt() != null
+                        ? r.getCheckInAt().format(DateTimeFormatter.ofPattern("EEEE, dd MMM yyyy")) : "-";
+                    String ciTime = r.getCheckInAt() != null
+                        ? r.getCheckInAt().format(DateTimeFormatter.ofPattern("HH:mm")) : "-";
+                    String coTime = r.getCheckOutAt() != null
+                        ? r.getCheckOutAt().format(DateTimeFormatter.ofPattern("HH:mm")) : null;
+                    String dur = r.getCheckInAt() != null && r.getCheckOutAt() != null
+                        ? formatDuration(Duration.between(r.getCheckInAt(), r.getCheckOutAt())) : "-";
+                    String status = r.getShiftStatus() == OfficerAttendance.ShiftStatus.SELESAI_SHIFT ? "completed" : "ongoing";
+                    return buildAttendanceRecord(dateFmt, ciTime, coTime, dur, status,
+                        Map.of("address", r.getCheckInLatitude() != null
+                            ? r.getCheckInLatitude().toPlainString() + ", " + r.getCheckInLongitude().toPlainString() : "Kantor Dinas"),
+                        r.getCheckOutAt() != null
+                            ? Map.of("address", "Check-out lokasi")
+                            : null,
+                        di);
+                }).collect(Collectors.toList());
+                model.addAttribute("user", Map.of("name", "Petugas"));
+                model.addAttribute("summary", Map.of("daysPresent", (int) daysPresent, "totalHours", totalMinutes / 60, "lateCount", (int) lateCount));
+                model.addAttribute("attendanceRecords", recordList);
+                return "petugas/attendance-history";
+            }
+        }
+
         Map<String, Object> user = new HashMap<>();
         user.put("name", "Ahmad Fauzi");
         model.addAttribute("user", user);
-
         Map<String, Object> summary = new HashMap<>();
         summary.put("daysPresent", 18);
         summary.put("totalHours",  144);
         summary.put("lateCount",   2);
         model.addAttribute("summary", summary);
-
         List<Map<String, Object>> records = new ArrayList<>();
-        Map<String, Object> d1 = Map.of("browser","Chrome 124","os","Android 14","ip","180.244.12.34");
         records.add(buildAttendanceRecord("Senin, 28 Apr 2025", "08:05", "17:02", "08:57:00", "completed",
                 Map.of("address","Jl. Setia Budi No. 1, Medan Sunggal"),
-                Map.of("address","Jl. Sudirman No. 10, Medan Kota"), d1));
-
-        Map<String, Object> d2 = Map.of("browser","Chrome 124","os","Android 14","ip","180.244.12.34");
+                Map.of("address","Jl. Sudirman No. 10, Medan Kota"),
+                Map.of("browser","Chrome 124","os","Android 14","ip","180.244.12.34")));
         records.add(buildAttendanceRecord("Jumat, 25 Apr 2025", "08:15", "17:00", "08:45:00", "completed",
                 Map.of("address","Jl. Setia Budi No. 1, Medan Sunggal"),
-                Map.of("address","Kantor Dinas PU Medan"), d2));
-
-        Map<String, Object> d3 = Map.of("browser","Chrome 124","os","Android 14","ip","180.244.12.34");
+                Map.of("address","Kantor Dinas PU Medan"),
+                Map.of("browser","Chrome 124","os","Android 14","ip","180.244.12.34")));
         records.add(buildAttendanceRecord("Kamis, 24 Apr 2025", "07:58", null, "09:10:00", "ongoing",
-                Map.of("address","Kantor Dinas PU Medan"), null, d3));
-
+                Map.of("address","Kantor Dinas PU Medan"), null,
+                Map.of("browser","Chrome 124","os","Android 14","ip","180.244.12.34")));
         model.addAttribute("attendanceRecords", records);
         return "petugas/attendance-history";
     }
@@ -1618,602 +2080,16 @@ public String adminSengketaPanelAliasPost(
 
     private List<Map<String, Object>> getAdminValidationList() {
         List<Report> real = reportService.getReportsByStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
-        if (!real.isEmpty()) {
-            real.sort(Comparator.nullsLast(Comparator.comparing(Report::getSubmittedAt, Comparator.nullsLast(Comparator.naturalOrder()))));
-            return real.stream().map(this::toAdminValidationMap).collect(java.util.stream.Collectors.toList());
-        }
-        return new ArrayList<>(dummyValidationReports());
+        real.sort(Comparator.nullsLast(Comparator.comparing(Report::getSubmittedAt, Comparator.nullsLast(Comparator.naturalOrder()))));
+        return real.stream().map(this::toAdminValidationMap).collect(java.util.stream.Collectors.toList());
     }
 
     // ==========================================
-    // PRIVATE HELPERS — ADMIN PUSAT DUMMY DATA
+    // PRIVATE HELPERS — SHARED
     // ==========================================
 
-    /** Dummy data: laporan untuk antrean admin pusat */
-    private List<Map<String, Object>> dummyQueueReports() {
-        // Antrean Laporan is functionally identical to Validation list, they share the same cache.
-        return dummyValidationReports();
-    }
-
-    private Map<String, Object> buildQueueReport(String id, String judul, String kategori,
-                                                 String pelapor, String wilayah, String tanggalMasuk, String status,
-                                                 String prioritas, String sisaWaktuSLA) {
-        Map<String, Object> m = new HashMap<>();
-        m.put("id", id);
-        m.put("judul", judul);
-        m.put("kategori", kategori);
-        m.put("pelapor", pelapor);
-        m.put("wilayah", wilayah);
-        m.put("tanggalMasuk", tanggalMasuk);
-        m.put("status", status);
-        m.put("prioritas", prioritas);
-        m.put("sisaWaktuSLA", sisaWaktuSLA);
-        return m;
-    }
-
-        private static List<Map<String, Object>> cachedValidationReports = null;
-
-        private String dummyReportImage() {
-                return "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='800' viewBox='0 0 1200 800'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop offset='0%25' stop-color='%231d4ed8'/%3E%3Cstop offset='100%25' stop-color='%230f766e'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='1200' height='800' fill='url(%23g)'/%3E%3Crect x='70' y='70' width='1060' height='660' rx='36' fill='white' fill-opacity='0.12'/%3E%3Ctext x='600' y='390' text-anchor='middle' fill='white' font-family='Arial, sans-serif' font-size='64' font-weight='700'%3EAduAja%3C/text%3E%3Ctext x='600' y='460' text-anchor='middle' fill='white' font-family='Arial, sans-serif' font-size='28' fill-opacity='0.9'%3EDummy Report Image%3C/text%3E%3C/svg%3E";
-        }
-    /** Dummy data: laporan yang menunggu validasi */
-    private List<Map<String, Object>> dummyValidationReports() {
-        if (cachedValidationReports != null) return cachedValidationReports;
-        List<Map<String, Object>> list = new ArrayList<>();
-        list.add(buildValidationReport("TKT-2025-001", "Jalan Berlubang Jl. Sudirman",
-                "Infrastruktur Jalan", "Budi Santoso", "081234567890",
-                "Jl. Sudirman No. 10, Medan Kota", "3.5952,98.6722",
-                "Dekat Indomaret Sudirman", "28 Apr 2025", "28 Apr 2025 07:30",
-                "Terdapat lubang besar sedalam 15 cm, membahayakan pengendara.",
-                dummyReportImage(), "Diterima", "Kritis", "Sisa 6 jam"));
-        list.add(buildValidationReport("TKT-2025-002", "Lampu Jalan Mati Gang Melati",
-                "Penerangan Jalan", "Sari Dewi", "085678901234",
-                "Gang Melati No. 5, Medan Baru", "3.5870,98.6712",
-                "Depan Warung Bu Tini", "27 Apr 2025", "27 Apr 2025 20:00",
-                "3 titik lampu jalan mati sejak seminggu yang lalu.",
-                dummyReportImage(), "Diterima", "Sedang", "Sisa 2 hari"));
-        list.add(buildValidationReport("TKT-2025-003", "Drainase Tersumbat Jl. Gatot Subroto",
-                "Drainase", "Rina Hartati", "087890123456",
-                "Jl. Gatot Subroto No. 8, Medan Petisah", "3.5931,98.6695",
-                "Samping SPBU Gatot Subroto", "26 Apr 2025", "26 Apr 2025 10:15",
-                "Saluran drainase tersumbat menyebabkan genangan saat hujan.",
-                dummyReportImage(), "Dalam Peninjauan", "Tinggi", "Sisa 1 hari"));
-        list.add(buildValidationReport("TKT-2025-004", "Trotoar Rusak Jl. Imam Bonjol",
-                "Infrastruktur Jalan", "Hendra Wijaya", "089012345678",
-                "Jl. Imam Bonjol No. 15, Medan Polonia", "3.5812,98.6834",
-                "Depan RS Columbia Asia", "25 Apr 2025", "25 Apr 2025 14:20",
-                "Trotoar sepanjang 20 meter retak dan amblas, membahayakan pejalan kaki.",
-                dummyReportImage(), "Ditolak", "Sedang", "-"));
-        list.add(buildValidationReport("TKT-2025-005", "Taman Bermain Rusak Taman Sari",
-                "Taman dan Ruang Publik", "Dewi Lestari", "081298765432",
-                "Taman Sari, Medan Maimun", "3.5789,98.6812",
-                "Dalam area Taman Sari", "24 Apr 2025", "24 Apr 2025 09:00",
-                "Fasilitas bermain anak rusak berat dan berkarat. Ayunan putus, perosotan retak.",
-                dummyReportImage(), "Revisi", "Rendah", "-"));
-        list.add(buildValidationReport("TKT-2025-006", "Jalan Berlubang Sudirman (2)",
-                "Infrastruktur Jalan", "Ahmad Rifai", "082345678901",
-                "Jl. Sudirman, Medan Kota", "3.5960,98.6730",
-                "Depan Kantor Pos Sudirman", "28 Apr 2025", "28 Apr 2025 11:45",
-                "Lubang jalan di depan kantor pos Sudirman, sudah 3 minggu tidak diperbaiki.",
-                dummyReportImage(), "Diterima", "Tinggi", "Sisa 4 hari"));
-        list.add(buildValidationReport("TKT-2025-007", "Lubang Jalan Jl. Sudirman Tengah",
-                "Infrastruktur Jalan", "Nina Sari", "087654321098",
-                "Jl. Sudirman, Medan Kota", "3.5955,98.6725",
-                "Tengah Jl. Sudirman", "27 Apr 2025", "27 Apr 2025 08:30",
-                "Ada lubang besar di tengah jalan Sudirman, sudah menyebabkan 2 kecelakaan ringan.",
-                dummyReportImage(), "Ditolak", "Sedang", "-"));
-        list.add(buildValidationReport("TKT-2025-008", "Lampu Jalan Padam Gang Melati",
-                "Penerangan Jalan", "Rudi Kurniawan", "083456789012",
-                "Gang Melati, Medan Baru", "3.5875,98.6718",
-                "Ujung Gang Melati", "27 Apr 2025", "27 Apr 2025 19:00",
-                "Lampu jalan di gang melati padam sejak 5 hari, warga takut keluar malam.",
-                dummyReportImage(), "Revisi", "Tinggi", "-"));
-        list.add(buildValidationReport("TKT-2025-009", "Pohon Tumbang Jalan Pemuda",
-                "Taman dan Ruang Publik", "Fitri Handayani", "085678901234",
-                "Jl. Pemuda No. 30, Medan Petisah", "3.5920,98.6700",
-                "Depan Bank BRI Pemuda", "26 Apr 2025", "26 Apr 2025 06:15",
-                "Pohon besar tumbang menutup setengah badan jalan. Perlu segera diamankan.",
-                dummyReportImage(), "Diterima", "Kritis", "Sisa 2 jam"));
-        list.add(buildValidationReport("TKT-2025-010", "Sampah Menumpuk Jl. Sisingamangaraja",
-                "Lingkungan Hidup", "Wahyu Nugroho", "089876543210",
-                "Jl. Sisingamangaraja No. 45, Medan Kota", "3.5905,98.6755",
-                "Samping Pasar Sisingamangaraja", "25 Apr 2025", "25 Apr 2025 16:30",
-                "Tumpukan sampah tidak terangkut selama 1 minggu, menimbulkan bau dan lalat.",
-                dummyReportImage(), "Ditolak", "Sedang", "-"));
-        cachedValidationReports = list;
-        return list;
-    }
-
-    private Map<String, Object> buildValidationReport(
-            String id, String judul, String kategori, String pelapor, String kontakPelapor,
-            String wilayah, String koordinatStr, String patokan, String tanggalMasuk,
-            String waktuKejadian, String deskripsi, String foto, String status, String prioritas, String sisaWaktuSLA) {
-        Map<String, Object> m = new HashMap<>();
-        m.put("id", id);
-        m.put("judul", judul);
-        m.put("kategori", kategori);
-        m.put("pelapor", pelapor);
-        m.put("kontakPelapor", kontakPelapor);
-        m.put("wilayah", wilayah);
-        m.put("koordinatStr", koordinatStr);
-        m.put("patokan", patokan);
-        m.put("tanggalMasuk", tanggalMasuk);
-        m.put("waktuKejadian", waktuKejadian);
-        m.put("deskripsi", deskripsi);
-        m.put("foto", foto);
-        m.put("status", status);
-        m.put("prioritas", prioritas);
-        m.put("sisaWaktuSLA", sisaWaktuSLA);
-        return m;
-    }
-
-    private static List<Map<String, Object>> cachedMergeTickets = null;
-    private static List<List<Map<String, Object>>> cachedClusters = null;
-    // Track which tickets have been merged (child tickets hidden from main queue)
-    private static Map<String, String> mergedTicketMap = new HashMap<>(); // childId -> parentId
-    // Track ticket lifecycle status for merge blocking
-    private static Map<String, String> ticketLifecycleStatus = new HashMap<>();
-
-    /** Initialize lifecycle statuses: some tickets are already in disposisi/in-progress */
-    private void initTicketLifecycleStatus() {
-        if (!ticketLifecycleStatus.isEmpty()) return;
-        // Tickets that are already in disposisi or in-progress — cannot be merged
-        ticketLifecycleStatus.put("TKT-2025-006", "disposisi");    // sudah didisposisikan
-        ticketLifecycleStatus.put("TKT-2025-008", "in-progress");  // sedang dikerjakan petugas
-    }
-
-    /** Dummy data: tiket yang terdeteksi sebagai duplikat */
-    private List<Map<String, Object>> dummyMergeTickets() {
-        if (cachedMergeTickets != null) return cachedMergeTickets;
-        initTicketLifecycleStatus();
-        List<Map<String, Object>> list = new ArrayList<>();
-        list.add(buildMergeTicket("TKT-2025-006", "Jalan Berlubang Sudirman (2)",
-                "Infrastruktur Jalan", "Ahmad Rifai", "28 Apr 2025",
-                "Jl. Sudirman, Medan Kota",
-                "Lubang jalan di depan kantor pos Sudirman.", 92, "disposisi"));
-        list.add(buildMergeTicket("TKT-2025-007", "Lubang Jalan Jl. Sudirman Tengah",
-                "Infrastruktur Jalan", "Nina Sari", "27 Apr 2025",
-                "Jl. Sudirman, Medan Kota",
-                "Ada lubang besar di tengah jalan Sudirman.", 87, "menunggu"));
-        list.add(buildMergeTicket("TKT-2025-008", "Lampu Jalan Padam Gang Melati",
-                "Penerangan Jalan", "Rudi Kurniawan", "27 Apr 2025",
-                "Gang Melati, Medan Baru",
-                "Lampu jalan di gang melati padam sejak 5 hari.", 85, "in-progress"));
-        list.add(buildMergeTicket("TKT-2025-013", "Lubang Jalan Sudirman Utara",
-                "Infrastruktur Jalan", "Dimas Pratama", "29 Apr 2025",
-                "Jl. Sudirman, Medan Kota",
-                "Lubang di persimpangan Sudirman Utara, sudah ada 2 laporan serupa.", 90, "menunggu"));
-        cachedMergeTickets = list;
-        return list;
-    }
-
-    private Map<String, Object> buildMergeTicket(String id, String judul, String kategori,
-                                                 String pelapor, String tanggalMasuk, String wilayah, String deskripsi, int similarityScore, String ticketStatus) {
-        Map<String, Object> m = new HashMap<>();
-        m.put("id", id);
-        m.put("judul", judul);
-        m.put("kategori", kategori);
-        m.put("pelapor", pelapor);
-        m.put("tanggalMasuk", tanggalMasuk);
-        m.put("wilayah", wilayah);
-        m.put("deskripsi", deskripsi);
-        m.put("similarityScore", similarityScore);
-        m.put("foto", dummyReportImage());
-        m.put("ticketStatus", ticketStatus); // "menunggu", "disposisi", "in-progress"
-        m.put("isMergeable", !"disposisi".equals(ticketStatus) && !"in-progress".equals(ticketStatus));
-        return m;
-    }
-
-    /** Dummy data: cluster duplikat — grouped by similarity */
-    private List<List<Map<String, Object>>> dummyClusters() {
-        if (cachedClusters != null) return cachedClusters;
-        initTicketLifecycleStatus();
-        List<List<Map<String, Object>>> clusters = new ArrayList<>();
-
-        // Cluster 1: Jalan Berlubang di Jl. Sudirman (68% similarity)
-        List<Map<String, Object>> c1 = new ArrayList<>();
-        c1.add(buildMergeTicket("TKT-2025-001", "Jalan Berlubang Parah", "Infrastruktur Jalan", "Budi S", "20 Apr 2025", "Jl. Sudirman, Medan Kota", "Ada jalan berlubang besar", 68, "menunggu"));
-        c1.add(buildMergeTicket("TKT-2025-010", "Lubang di Jl Sudirman", "Infrastruktur Jalan", "Andi", "21 Apr 2025", "Jl. Sudirman, Medan Kota", "Jalanan rusak parah", 68, "menunggu"));
-        c1.add(buildMergeTicket("TKT-2025-011", "Jalan rusak depan toko", "Infrastruktur Jalan", "Citra", "22 Apr 2025", "Jl. Sudirman, Medan Kota", "Bahaya buat motor", 68, "menunggu"));
-        c1.add(buildMergeTicket("TKT-2025-016", "Jalan Berlubang Sudirman", "Infrastruktur Jalan", "Dewi", "23 Apr 2025", "Jl. Sudirman, Medan Kota", "Lubang besar di depan minimarket", 68, "menunggu"));
-        clusters.add(c1);
-
-        // Cluster 2: Lampu Mati di Gang Melati (72% similarity)
-        List<Map<String, Object>> c2 = new ArrayList<>();
-        c2.add(buildMergeTicket("TKT-2025-002", "Lampu Mati", "Penerangan Jalan", "Sari D", "23 Apr 2025", "Gang Melati, Medan Baru", "Lampu mati gelap gulita", 72, "menunggu"));
-        c2.add(buildMergeTicket("TKT-2025-012", "Lampu jalan rusak", "Penerangan Jalan", "Joko", "24 Apr 2025", "Gang Melati, Medan Baru", "Tidak ada penerangan sama sekali", 72, "menunggu"));
-        c2.add(buildMergeTicket("TKT-2025-017", "Lampu PJU mati", "Penerangan Jalan", "Rina", "25 Apr 2025", "Gang Melati, Medan Baru", "Lampu jalan tidak menyala 1 minggu", 72, "menunggu"));
-        clusters.add(c2);
-
-        // Cluster 3: Drainase Tersumbat di Jl. Gatot Subroto (65% similarity)
-        List<Map<String, Object>> c3 = new ArrayList<>();
-        c3.add(buildMergeTicket("TKT-2025-003", "Saluran Mampet", "Drainase", "Hendra", "26 Apr 2025", "Jl. Gatot Subroto, Medan Petisah", "Air menggenang saat hujan", 65, "menunggu"));
-        c3.add(buildMergeTicket("TKT-2025-018", "Drainase tersumbat", "Drainase", "Fitri", "27 Apr 2025", "Jl. Gatot Subroto, Medan Petisah", "Sampah menyumbat saluran", 65, "menunggu"));
-        clusters.add(c3);
-
-        // Cluster 4: Trotoar Rusak di Jl. Imam Bonjol (70% similarity)
-        List<Map<String, Object>> c4 = new ArrayList<>();
-        c4.add(buildMergeTicket("TKT-2025-004", "Trotoar Retak", "Infrastruktur Jalan", "Wahyu", "28 Apr 2025", "Jl. Imam Bonjol, Medan Polonia", "Trotoar amblas dan retak", 70, "menunggu"));
-        c4.add(buildMergeTicket("TKT-2025-019", "Jalan setapak rusak", "Infrastruktur Jalan", "Agus", "29 Apr 2025", "Jl. Imam Bonjol, Medan Polonia", "Trotoar tidak bisa dilalui", 70, "menunggu"));
-        clusters.add(c4);
-
-        cachedClusters = clusters;
-        return clusters;
-    }
-
-    private static List<Map<String, Object>> cachedDisposisiReports = null;
-    /** Dummy data: laporan tervalidasi yang siap disposisi */
-    private List<Map<String, Object>> dummyDisposisiReports() {
-        if (cachedDisposisiReports != null) return cachedDisposisiReports;
-        List<Map<String, Object>> list = new ArrayList<>();
-        list.add(buildDisposisiReport("TKT-2025-003", "Saluran Drainase Tersumbat Jl. Gatot Subroto",
-                "Drainase", "Rina Hartati", "Jl. Gatot Subroto, Medan Petisah",
-                "Tervalidasi", "Tinggi", "Dinas PU dan Penataan Ruang"));
-        list.add(buildDisposisiReport("TKT-2025-004", "Trotoar Rusak Jl. Imam Bonjol",
-                "Infrastruktur Jalan", "Hendra Wijaya", "Jl. Imam Bonjol, Medan Polonia",
-                "Tervalidasi", "Sedang", "Dinas PU dan Penataan Ruang"));
-        list.add(buildDisposisiReport("TKT-2025-009", "Pencemaran Sungai Deli",
-                "Lingkungan Hidup", "Wahyu Nugroho", "Bantaran Sungai Deli, Medan Barat",
-                "Tervalidasi", "Kritis", "Dinas Lingkungan Hidup"));
-        cachedDisposisiReports = list;
-        return list;
-    }
-
-    private Map<String, Object> buildDisposisiReport(String id, String judul, String kategori,
-                                                     String pelapor, String wilayah, String status, String prioritasSistem, String dinasRekomendasi) {
-        Map<String, Object> m = new HashMap<>();
-        m.put("id", id);
-        m.put("judul", judul);
-        m.put("kategori", kategori);
-        m.put("pelapor", pelapor);
-        m.put("wilayah", wilayah);
-        m.put("status", status);
-        m.put("prioritasSistem", prioritasSistem);
-        m.put("dinasRekomendasi", dinasRekomendasi);
-        m.put("foto", dummyReportImage());
-        return m;
-    }
-
-    /** Dummy data: daftar dinas tujuan disposisi */
-    private List<Map<String, Object>> dummyDinasList() {
-        List<Map<String, Object>> list = new ArrayList<>();
-        list.add(Map.of("id","dinas_pu","name","Dinas PU dan Penataan Ruang",
-                "kategori", List.of("Infrastruktur Jalan","Drainase","Trotoar","Jembatan")));
-        list.add(Map.of("id","dinas_dlh","name","Dinas Lingkungan Hidup",
-                "kategori", List.of("Lingkungan Hidup","Pencemaran","Sampah")));
-        list.add(Map.of("id","dinas_esdm","name","Dinas ESDM",
-                "kategori", List.of("Penerangan Jalan","Listrik Publik")));
-        list.add(Map.of("id","dinas_perhubungan","name","Dinas Perhubungan",
-                "kategori", List.of("Rambu Lalu Lintas","Halte","Parkir")));
-        return list;
-    }
-
-    /** Dummy data: sengketa untuk panel resolusi */
-    private List<Map<String, Object>> dummyDisputeList() {
-        List<Map<String, Object>> list = new ArrayList<>();
-
-        Map<String, Object> d1 = new HashMap<>();
-        d1.put("id", "SGK-2025-001");
-        d1.put("ticketId", "TKT-2025-010");
-        d1.put("judul", "Jalan Tidak Diperbaiki dengan Benar");
-        d1.put("statusSengketa", "Menunggu Tinjauan");
-        d1.put("prioritas", "Tinggi");
-        d1.put("tanggalSengketa", "01 Mei 2025");
-        d1.put("pelapor", "Budi Santoso");
-        d1.put("tanggalLaporan", "10 Apr 2025");
-        d1.put("tanggalSelesai", "28 Apr 2025");
-        d1.put("statusSebelum", "Selesai");
-        d1.put("alasanSengketa", "Jalan sudah dinyatakan selesai diperbaiki, namun kondisi aspal masih berlubang dan tidak rata. Perbaikan tidak tuntas.");
-        d1.put("fotoBuktiSengketa", dummyReportImage());
-        d1.put("fotoBuktiPerbaikan", dummyReportImage());
-        d1.put("keteranganDinas", "Pekerjaan perbaikan jalan telah dilakukan sesuai spesifikasi teknis. Kondisi yang dilihat warga adalah bagian lain yang bukan termasuk scope perbaikan.");
-        d1.put("dinas", "Dinas PU dan Penataan Ruang");
-        d1.put("petugasId", "PTG-001");
-        d1.put("petugasNama", "Ahmad Fauzi");
-        list.add(d1);
-
-        Map<String, Object> d2 = new HashMap<>();
-        d2.put("id", "SGK-2025-002");
-        d2.put("ticketId", "TKT-2025-011");
-        d2.put("judul", "Lampu Jalan Masih Mati Setelah Perbaikan");
-        d2.put("statusSengketa", "Menunggu Tinjauan");
-        d2.put("prioritas", "Sedang");
-        d2.put("tanggalSengketa", "30 Apr 2025");
-        d2.put("pelapor", "Sari Dewi");
-        d2.put("tanggalLaporan", "15 Apr 2025");
-        d2.put("tanggalSelesai", "25 Apr 2025");
-        d2.put("statusSebelum", "Selesai");
-        d2.put("alasanSengketa", "Status tiket sudah ditandai selesai tetapi lampu jalan di Gang Melati masih belum menyala hingga hari ini.");
-        d2.put("fotoBuktiSengketa", dummyReportImage());
-        d2.put("fotoBuktiPerbaikan", dummyReportImage());
-        d2.put("keteranganDinas", "Penggantian lampu telah dilakukan pada 25 April. Kemungkinan terjadi kerusakan pada kabel jaringan yang perlu pengecekan lebih lanjut.");
-        d2.put("dinas", "Dinas ESDM");
-        d2.put("petugasId", "PTG-002");
-        d2.put("petugasNama", "Rizal Harahap");
-        list.add(d2);
-
-        return list;
-    }
-
-    // ==========================================
-    // PRIVATE HELPERS — ADMIN DINAS DUMMY DATA
-    // ==========================================
-
-    /** Dummy data: laporan di antrean dinas (sudah didisposisikan) */
-    private List<Map<String, Object>> dummyDinasQueueReports() {
-        List<Map<String, Object>> list = new ArrayList<>();
-        list.add(buildDinasQueueReport("TKT-2025-003", "Saluran Drainase Tersumbat Jl. Gatot Subroto",
-                "Drainase", "Rina Hartati", "Medan Petisah", "26 Apr 2025",
-                "Belum Ditindaklanjuti", "Tinggi", "02 Mei 2025"));
-        list.add(buildDinasQueueReport("TKT-2025-004", "Trotoar Rusak Jl. Imam Bonjol",
-                "Infrastruktur Jalan", "Hendra Wijaya", "Medan Polonia", "25 Apr 2025",
-                "Dalam Penanganan", "Sedang", "05 Mei 2025"));
-        list.add(buildDinasQueueReport("TKT-2025-012", "Jembatan Rusak Jl. Setia Budi",
-                "Jembatan", "Agus Prasetyo", "Medan Sunggal", "24 Apr 2025",
-                "Terlambat SLA", "Kritis", "30 Apr 2025"));
-        list.add(buildDinasQueueReport("TKT-2025-013", "Saluran Air Mampet Jl. Diponegoro",
-                "Drainase", "Fitri Handayani", "Medan Maimun", "23 Apr 2025",
-                "Belum Ditindaklanjuti", "Rendah", "07 Mei 2025"));
-        return list;
-    }
-
-    private Map<String, Object> buildDinasQueueReport(String id, String judul, String kategori,
-                                                      String pelapor, String wilayah, String tanggalDisposisi, String status,
-                                                      String prioritas, String sisaWaktu) {
-        Map<String, Object> m = new HashMap<>();
-        m.put("id", id);
-        m.put("judul", judul);
-        m.put("kategori", kategori);
-        m.put("pelapor", pelapor);
-        m.put("wilayah", wilayah);
-        m.put("tanggalDisposisi", tanggalDisposisi);
-        m.put("status", status);
-        m.put("prioritas", prioritas);
-        m.put("sisaWaktu", sisaWaktu);
-        return m;
-    }
-
-    /** Dummy data: laporan yang masuk ke dinas untuk penugasan petugas */
-    private List<Map<String, Object>> dummyIncomingReportsForDinas() {
-        List<Map<String, Object>> list = new ArrayList<>();
-        list.add(buildIncomingDinasReport("TKT-2025-003",
-                "Saluran Drainase Tersumbat Jl. Gatot Subroto",
-                "Drainase", "Tinggi", "26 Apr 2025",
-                "Jl. Gatot Subroto, Medan Petisah", "02 Mei 2025 17:00",
-                "Segera tangani sebelum musim hujan. Prioritaskan pembersihan di titik utama.",
-                dummyReportImage()));
-        list.add(buildIncomingDinasReport("TKT-2025-004",
-                "Trotoar Rusak Jl. Imam Bonjol",
-                "Infrastruktur Jalan", "Sedang", "25 Apr 2025",
-                "Jl. Imam Bonjol, Medan Polonia", "05 Mei 2025 17:00",
-                "Perbaiki area trotoar yang retak dan membahayakan pejalan kaki.",
-                dummyReportImage()));
-        list.add(buildIncomingDinasReport("TKT-2025-012",
-                "Jembatan Rusak Jl. Setia Budi",
-                "Jembatan", "Kritis", "24 Apr 2025",
-                "Jl. Setia Budi, Medan Sunggal", "30 Apr 2025 17:00",
-                "URGENT: Jembatan dalam kondisi kritis, butuh penanganan segera.",
-                dummyReportImage()));
-        return list;
-    }
-
-    private Map<String, Object> buildIncomingDinasReport(String id, String judul, String kategori,
-                                                         String prioritas, String tanggalDisposisi, String wilayah, String deadline,
-                                                         String instruksiAdmin, String foto) {
-        Map<String, Object> m = new HashMap<>();
-        m.put("id", id);
-        m.put("judul", judul);
-        m.put("kategori", kategori);
-        m.put("prioritas", prioritas);
-        m.put("tanggalDisposisi", tanggalDisposisi);
-        m.put("wilayah", wilayah);
-        m.put("deadline", deadline);
-        m.put("instruksiAdmin", instruksiAdmin);
-        m.put("foto", foto);
-        return m;
-    }
-
-    /** Dummy data: daftar petugas lapangan */
-    private List<Map<String, Object>> dummyPetugasList() {
-        List<Map<String, Object>> list = new ArrayList<>();
-        list.add(buildPetugas("PTG-001", "Ahmad Fauzi", "198804152015031002",
-                "Tersedia", "Medan Petisah, Medan Polonia", 1, "081234567890"));
-        list.add(buildPetugas("PTG-002", "Rizal Harahap", "199002201019011003",
-                "Tersedia", "Medan Baru, Medan Maimun", 2, "082345678901"));
-        list.add(buildPetugas("PTG-003", "Dedi Susanto", "198506302014041001",
-                "Sedang Bertugas", "Medan Sunggal, Medan Barat", 3, "083456789012"));
-        return list;
-    }
-
-    private Map<String, Object> buildPetugas(String id, String nama, String nip,
-                                             String statusKetersediaan, String wilayahTugas, int tugasAktif, String kontak) {
-        Map<String, Object> m = new HashMap<>();
-        m.put("id", id);
-        m.put("nama", nama);
-        m.put("nip", nip);
-        m.put("statusKetersediaan", statusKetersediaan);
-        m.put("wilayahTugas", wilayahTugas);
-        m.put("tugasAktif", tugasAktif);
-        m.put("kontak", kontak);
-        return m;
-    }
-
-    /** Dummy data: tiket yang sedang dalam penanganan (untuk progress update) */
-    private List<Map<String, Object>> dummyTicketsInProgress() {
-        List<Map<String, Object>> list = new ArrayList<>();
-
-        Map<String, Object> t1 = new HashMap<>();
-        t1.put("id", "TKT-2025-004");
-        t1.put("judul", "Trotoar Rusak Jl. Imam Bonjol");
-        t1.put("kategori", "Infrastruktur Jalan");
-        t1.put("prioritas", "Sedang");
-        t1.put("pelapor", "Hendra Wijaya");
-        t1.put("deadline", "05 Mei 2025 17:00");
-        t1.put("foto", dummyReportImage());
-
-        List<Map<String, Object>> ph1 = new ArrayList<>();
-        ph1.add(Map.of("tanggal","29 Apr 2025 09:00","petugas","Ahmad Fauzi",
-                "keterangan","Petugas tiba di lokasi, melakukan survei awal. Menemukan 3 titik kerusakan sepanjang 12 meter.",
-                "estimasi","03 Mei 2025"));
-        ph1.add(Map.of("tanggal","30 Apr 2025 10:30","petugas","Ahmad Fauzi",
-                "keterangan","Pengerjaan dimulai pada titik pertama. Material telah tersedia di lokasi.",
-                "estimasi","03 Mei 2025"));
-        t1.put("progressHistory", ph1);
-        list.add(t1);
-
-        Map<String, Object> t2 = new HashMap<>();
-        t2.put("id", "TKT-2025-003");
-        t2.put("judul", "Saluran Drainase Tersumbat Jl. Gatot Subroto");
-        t2.put("kategori", "Drainase");
-        t2.put("prioritas", "Tinggi");
-        t2.put("pelapor", "Rina Hartati");
-        t2.put("deadline", "02 Mei 2025 17:00");
-        t2.put("foto", dummyReportImage());
-
-        List<Map<String, Object>> ph2 = new ArrayList<>();
-        ph2.add(Map.of("tanggal","28 Apr 2025 14:00","petugas","Rizal Harahap",
-                "keterangan","Pembersihan saluran dimulai. Ditemukan sumbatan lumpur dan sampah padat.",
-                "estimasi","01 Mei 2025"));
-        t2.put("progressHistory", ph2);
-        list.add(t2);
-
-        return list;
-    }
-
-    /** Dummy data: tiket yang siap ditutup */
-    private List<Map<String, Object>> dummyTicketsReadyToClose() {
-        List<Map<String, Object>> list = new ArrayList<>();
-
-        Map<String, Object> t1 = new HashMap<>();
-        t1.put("id", "TKT-2025-014");
-        t1.put("judul", "Perbaikan Jalan Jl. Sutomo");
-        t1.put("kategori", "Infrastruktur Jalan");
-        t1.put("prioritas", "Tinggi");
-        t1.put("pelapor", "Sigit Wibowo");
-        t1.put("wilayah", "Jl. Sutomo, Medan Timur");
-        t1.put("foto", dummyReportImage());
-
-        List<Map<String, Object>> ph1 = new ArrayList<>();
-        ph1.add(Map.of("tanggal","25 Apr 2025","keterangan","Survei lokasi dan persiapan material."));
-        ph1.add(Map.of("tanggal","27 Apr 2025","keterangan","Pengerjaan patching aspal selesai di seluruh titik."));
-        ph1.add(Map.of("tanggal","29 Apr 2025","keterangan","Quality check selesai, kondisi jalan sudah layak."));
-        t1.put("progressHistory", ph1);
-        list.add(t1);
-
-        Map<String, Object> t2 = new HashMap<>();
-        t2.put("id", "TKT-2025-015");
-        t2.put("judul", "Penggantian Tutup Gorong-gorong Jl. Asia");
-        t2.put("kategori", "Drainase");
-        t2.put("prioritas", "Sedang");
-        t2.put("pelapor", "Lestari Wulandari");
-        t2.put("wilayah", "Jl. Asia, Medan Kota");
-        t2.put("foto", dummyReportImage());
-
-        List<Map<String, Object>> ph2 = new ArrayList<>();
-        ph2.add(Map.of("tanggal","26 Apr 2025","keterangan","Material tutup gorong-gorong tiba."));
-        ph2.add(Map.of("tanggal","28 Apr 2025","keterangan","Pemasangan tutup gorong-gorong selesai."));
-        t2.put("progressHistory", ph2);
-        list.add(t2);
-
-        return list;
-    }
-
-    // ==========================================
-    // PRIVATE HELPERS — PETUGAS DUMMY DATA
-    // ==========================================
-
-    private Map<String, Object> buildTask(
-            String id, String title, String category,
-            String status, String priority, String location, String description,
-            String reporterName, String reportDate,
-            String slaDeadline, String slaStatusText, String slaStatusClass,
-            String distanceToTask, String pendingReason, String startedAt
-    ) {
-        Map<String, Object> t = new HashMap<>();
-        t.put("id",            id);
-        t.put("title",         title);
-        t.put("category",      category);
-        t.put("status",        status);
-        t.put("priority",      priority);
-        t.put("location",      location);
-        t.put("description",   description);
-        t.put("reporterName",  reporterName);
-        t.put("reportDate",    reportDate);
-        t.put("slaDeadline",   slaDeadline);
-        t.put("slaStatusText", slaStatusText);
-        t.put("slaStatusClass", slaStatusClass);
-        t.put("distanceToTask", distanceToTask);
-        if (pendingReason != null) t.put("pendingReason", pendingReason);
-        if (startedAt     != null) t.put("startedAt",     startedAt);
-        return t;
-    }
-
-    private List<Map<String, Object>> allDummyTasks() {
-        List<Map<String, Object>> list = new ArrayList<>();
-        list.add(buildTask("TGS-001",
-                "Perbaikan Jalan Berlubang Jl. Sudirman",
-                "Jalan",
-                "new", "critical",
-                "Jl. Sudirman No. 10, Medan Kota",
-                "Terdapat beberapa lubang besar di badan jalan dengan kedalaman sekitar 15 cm dan diameter 40 cm. Kondisi ini membahayakan pengendara terutama pada malam hari.",
-                "Budi Santoso", "28 Apr 2025",
-                "30 Apr 2025 17:00", "Sisa 6 jam", "text-red-600",
-                "1,2 km", null, null));
-        list.add(buildTask("TGS-002",
-                "Penggantian Lampu Jalan Gang Melati",
-                "Penerangan",
-                "in_progress", "medium",
-                "Gang Melati No. 5, Medan Baru",
-                "Lampu jalan di sepanjang gang mati total sejak 3 hari lalu. Warga meminta segera diganti agar tidak terjadi kecelakaan.",
-                "Sari Dewi", "27 Apr 2025",
-                "02 Mei 2025 17:00", "Sisa 2 hari", "text-yellow-600",
-                "2,5 km", null, "28 Apr 2025 10:15"));
-        list.add(buildTask("TGS-003",
-                "Pembersihan Saluran Drainase Jl. Gatot Subroto",
-                "Drainase",
-                "new", "high",
-                "Jl. Gatot Subroto No. 8, Medan Petisah",
-                "Saluran drainase tersumbat sampah dan lumpur sepanjang 50 meter. Menyebabkan genangan air saat hujan deras.",
-                "Rina Hartati", "26 Apr 2025",
-                "01 Mei 2025 17:00", "Sisa 1 hari", "text-orange-600",
-                "3,8 km", null, null));
-        list.add(buildTask("TGS-004",
-                "Pemasangan Trotoar Rusak Jl. Imam Bonjol",
-                "Trotoar",
-                "pending", "medium",
-                "Jl. Imam Bonjol, Medan Polonia",
-                "Trotoar sepanjang 20 meter mengalami retak dan amblas. Pejalan kaki terpaksa berjalan di badan jalan.",
-                "Hendra Wijaya", "25 Apr 2025",
-                "05 Mei 2025 17:00", "Sisa 5 hari", "text-green-600",
-                "4,1 km", "Menunggu material aspal dari gudang. Estimasi tiba 2 Mei 2025.", null));
-        list.add(buildTask("TGS-005",
-                "Perbaikan Taman Bermain Taman Sari",
-                "Taman",
-                "new", "low",
-                "Taman Sari, Medan Maimun",
-                "Beberapa fasilitas bermain anak rusak berat dan berkarat. Ayunan putus dan perosotan retak.",
-                "Dewi Lestari", "24 Apr 2025",
-                "07 Mei 2025 17:00", "Sisa 7 hari", "text-green-600",
-                "5,0 km", null, null));
-        list.add(buildTask("TGS-006",
-                "Pemasangan Rambu Lalu Lintas Jl. Sisingamangaraja",
-                "Rambu Jalan",
-                "in_progress", "high",
-                "Jl. Sisingamangaraja No. 15, Medan Kota",
-                "Rambu lalu lintas di persimpangan roboh akibat angin kencang. Perlu segera dipasang ulang untuk keamanan.",
-                "Ahmad Fauzi", "28 Apr 2025",
-                "29 Apr 2025 17:00", "Sisa 4 jam", "text-red-600",
-                "0,8 km", null, "28 Apr 2025 11:30"));
-        list.add(buildTask("TGS-007",
-                "Perbaikan Jembatan Kayu Kampung Sei Sikambing",
-                "Jembatan",
-                "pending", "critical",
-                "Kampung Sei Sikambing, Medan Selatan",
-                "Jembatan kayu penghubung antar kampung mulai lapuk dan beberapa papan sudah bolong. Sangat berbahaya bagi warga.",
-                "M. Rizki", "23 Apr 2025",
-                "26 Apr 2025 17:00", "Sisa 1 hari", "text-orange-600",
-                "6,2 km", "Menunggu persetujuan anggaran dari dinas terkait.", null));
-        return list;
+    private String dummyReportImage() {
+        return "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='800' viewBox='0 0 1200 800'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop offset='0%25' stop-color='%231d4ed8'/%3E%3Cstop offset='100%25' stop-color='%230f766e'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='1200' height='800' fill='url(%23g)'/%3E%3Crect x='70' y='70' width='1060' height='660' rx='36' fill='white' fill-opacity='0.12'/%3E%3Ctext x='600' y='390' text-anchor='middle' fill='white' font-family='Arial, sans-serif' font-size='64' font-weight='700'%3EAduAja%3C/text%3E%3Ctext x='600' y='460' text-anchor='middle' fill='white' font-family='Arial, sans-serif' font-size='28' fill-opacity='0.9'%3EDummy Report Image%3C/text%3E%3C/svg%3E";
     }
 
     private Map<String, Object> buildAttendanceRecord(
@@ -2235,98 +2111,45 @@ public String adminSengketaPanelAliasPost(
     }
 
     // ==========================================
-    // PRIVATE HELPERS — WARGA DUMMY DATA
+    // PRIVATE HELPERS — ENTITY TO VIEW MAP CONVERTERS
     // ==========================================
 
-    private List<Map<String, Object>> allDummyWargaReports() {
-        List<Map<String, Object>> list = new ArrayList<>();
-        LocalDateTime now = LocalDateTime.now();
-
-        list.add(buildReport("RPT-001","Jalan Berlubang di Jl. Sudirman","Infrastruktur Jalan","Diproses",
-                "bg-yellow-100 text-yellow-700","Jl. Sudirman, Medan Kota",LocalDate.of(2025,4,20),
-                "alert-triangle","text-yellow-600",
-                "Jalan berlubang besar diameter ±50cm, kedalaman ±15cm. Sudah terjadi sejak 2 minggu lalu dan semakin membesar.",
-                "Dekat Indomaret Sudirman","3.5891","98.6738",
-                now.minusDays(14), now.plusDays(3), null,
-                "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=800&h=600&fit=crop"));
-
-        list.add(buildReport("RPT-002","Lampu Jalan Mati di Gang Melati","Listrik Publik","Selesai",
-                "bg-green-100 text-green-700","Gang Melati, Medan Baru",LocalDate.of(2025,4,15),
-                "zap","text-green-600",
-                "Tiang lampu nomor 3 dari ujung jalan tidak menyala sejak 1 bulan terakhir.",
-                "Seberang Musholla Al-Ikhlas","3.5823","98.6701",
-                now.minusDays(30), now.minusDays(5), null));
-
-        list.add(buildReport("RPT-003","Saluran Drainase Tersumbat","Sistem Drainase","Menunggu",
-                "bg-gray-100 text-gray-700","Jl. Gatot Subroto, Medan Petisah",LocalDate.of(2025,4,28),
-                "droplets","text-blue-600",
-                "Drainase tersumbat sampah dan lumpur, menyebabkan genangan air saat hujan deras.",
-                "Depan Kantor Pos","3.5912","98.6645",
-                now.minusDays(2), now.plusDays(12), null));
-
-        list.add(buildReport("RPT-004","Taman Bermain Rusak di Taman Sari","Taman dan Ruang Publik","Ditolak",
-                "bg-red-100 text-red-700","Taman Sari, Medan Maimun",LocalDate.of(2025,3,10),
-                "tree-pine","text-red-600",
-                "Perosotan dan ayunan di taman bermain sudah berkarat dan rusak. Berbahaya untuk anak-anak.",
-                "Dalam area Taman Sari","3.5789","98.6812",
-                now.minusDays(25), now.minusDays(10),
-                "Kategori salah. Taman bermain bukan wewenang Dinas PU. Harap laporkan ke Dinas Pariwisata dan Kebudayaan.",
-                "https://images.unsplash.com/photo-1564429238961-bf8b83c3c690?w=800&h=600&fit=crop"));
-
-        list.add(buildReport("RPT-005","Trotoar Retak Jl. Imam Bonjol","Infrastruktur Jalan","Selesai",
-                "bg-green-100 text-green-700","Jl. Imam Bonjol, Medan Polonia",LocalDate.of(2025,3,5),
-                "alert-triangle","text-green-600",
-                "Trotoar sepanjang ±10 meter retak dan naik, menyebabkan pejalan kaki tersandung.",
-                "Dekat RS Columbia Asia","3.5756","98.6889",
-                now.minusDays(40), now.minusDays(15), null));
-
-        list.add(buildReport("RPT-006","Jalan Berlubang di Jl. Sisingamangaraja","Infrastruktur Jalan","Sedang Diproses",
-                "bg-orange-100 text-orange-700","Jl. Sisingamangaraja, Medan Kota",LocalDate.of(2025,5,1),
-                "alert-triangle","text-orange-600",
-                "Lubang jalan besar di tengah ruas jalan utama, sudah menyebabkan beberapa kecelakaan ringan.",
-                "Dekat Bank Sumut","3.5905","98.6755",
-                now.minusDays(3), now.plusDays(4), null));
-
-        return list;
+    private String formatDuration(Duration d) {
+        long hours = d.toHours();
+        long mins = d.toMinutes() % 60;
+        long secs = d.getSeconds() % 60;
+        return String.format("%02d:%02d:%02d", hours, mins, secs);
     }
 
-    private Map<String, Object> buildReport(
-            String id, String title, String category, String status, String statusColor,
-            String location, LocalDate date, String icon, String iconColor,
-            String description, String landmark, String latitude, String longitude,
-            LocalDateTime createdDate, LocalDateTime slaDeadline, String rejectionReason
-    ) {
-        return buildReport(id, title, category, status, statusColor, location, date,
-                icon, iconColor, description, landmark, latitude, longitude,
-                createdDate, slaDeadline, rejectionReason, null);
-    }
-
-    private Map<String, Object> buildReport(
-            String id, String title, String category, String status, String statusColor,
-            String location, LocalDate date, String icon, String iconColor,
-            String description, String landmark, String latitude, String longitude,
-            LocalDateTime createdDate, LocalDateTime slaDeadline, String rejectionReason, String photoUrl
-    ) {
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm");
-        Map<String, Object> r = new HashMap<>();
-        r.put("id", id);
-        r.put("title", title);
-        r.put("category", category);
-        r.put("status", status);
-        r.put("statusColor", statusColor);
-        r.put("location", location);
-        r.put("date", date);
-        r.put("icon", icon);
-        r.put("iconColor", iconColor);
-        r.put("description", description);
-        r.put("landmark", landmark);
-        r.put("latitude", latitude);
-        r.put("longitude", longitude);
-        r.put("createdDate", createdDate.format(fmt));
-        r.put("slaDeadline", slaDeadline.format(fmt));
-        r.put("rejectionReason", rejectionReason);
-        r.put("photoUrl", photoUrl);
-        return r;
+    private Map<String, Object> toPetugasTaskMap(FieldTask task) {
+        Map<String, Object> m = new HashMap<>();
+        m.put("id", task.getTaskId());
+        m.put("title", task.getReport() != null ? task.getReport().getDescription() : "Tugas #" + task.getTaskId().substring(0, 8));
+        m.put("category", task.getReport() != null && task.getReport().getCategory() != null
+            ? task.getReport().getCategory().getCategoryName() : "Lainnya");
+        String status = switch (task.getTaskStatus()) {
+            case BARU -> "new";
+            case SEDANG_DIKERJAKAN -> "in_progress";
+            case TERTUNDA -> "pending";
+            case SELESAI -> "completed";
+            case DITUGASKAN_ULANG -> "new";
+        };
+        m.put("status", status);
+        m.put("priority", "medium");
+        m.put("location", task.getReport() != null ? task.getReport().getLocationHint() : "-");
+        m.put("description", task.getReport() != null ? task.getReport().getDescription() : "-");
+        m.put("reporterName", task.getReport() != null && task.getReport().getReporter() != null
+            ? task.getReport().getReporter().getFullName() : "-");
+        m.put("reportDate", task.getReport() != null && task.getReport().getSubmittedAt() != null
+            ? task.getReport().getSubmittedAt().format(DateTimeFormatter.ofPattern("dd MMM yyyy")) : "-");
+        m.put("slaDeadline", "-");
+        m.put("slaStatusText", "-");
+        m.put("slaStatusClass", "text-gray-600");
+        m.put("distanceToTask", "-");
+        if (task.getStartedAt() != null) m.put("startedAt", task.getStartedAt().format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm")));
+        m.put("officerLatitude", task.getOfficerLatitude());
+        m.put("officerLongitude", task.getOfficerLongitude());
+        return m;
     }
 
     // ==========================================

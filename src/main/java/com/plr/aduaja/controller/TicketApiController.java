@@ -34,7 +34,7 @@ public class TicketApiController {
 
     @GetMapping("/status/{status}")
     public ResponseEntity<List<FieldTask>> getTasksByStatus(@PathVariable TaskStatus status) {
-        return ResponseEntity.ok(fieldTaskService.getTasksByOfficerAndStatus("", status));
+        return ResponseEntity.ok(fieldTaskService.getTasksByStatus(status));
     }
 
     @GetMapping("/petugas/{petugasId}")

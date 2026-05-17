@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "field_tasks")
-public class FieldTask {
+public class FieldTask extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

@@ -1,0 +1,894 @@
+[INFO] Scanning for projects...
+Downloading from central: https://repo.maven.apache.org/maven2/org/flywaydb/maven-metadata.xml
+Downloading from central: https://repo.maven.apache.org/maven2/io/github/git-commit-id/maven-metadata.xml
+Downloading from central: https://repo.maven.apache.org/maven2/org/cyclonedx/maven-metadata.xml
+Downloading from central: https://repo.maven.apache.org/maven2/org/springframework/boot/maven-metadata.xml
+Progress (1): 255 BProgress (2): 255 B | 234 BProgress (3): 255 B | 234 B | 249 BProgress (4): 255 B | 234 B | 249 B | 243 B                                           Downloaded from central: https://repo.maven.apache.org/maven2/org/springframework/boot/maven-metadata.xml (249 B at 270 B/s)
+Downloaded from central: https://repo.maven.apache.org/maven2/org/flywaydb/maven-metadata.xml (234 B at 252 B/s)
+Downloaded from central: https://repo.maven.apache.org/maven2/org/cyclonedx/maven-metadata.xml (243 B at 261 B/s)
+Downloading from central: https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/maven-metadata.xml
+Downloading from central: https://repo.maven.apache.org/maven2/org/liquibase/maven-metadata.xml
+Downloaded from central: https://repo.maven.apache.org/maven2/io/github/git-commit-id/maven-metadata.xml (255 B at 274 B/s)
+Downloading from central: https://repo.maven.apache.org/maven2/org/jooq/maven-metadata.xml
+Downloading from central: https://repo.maven.apache.org/maven2/org/graalvm/buildtools/maven-metadata.xml
+Progress (1): 375 B                   Downloaded from central: https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/maven-metadata.xml (375 B at 2.9 kB/s)
+Downloading from central: https://repo.maven.apache.org/maven2/org/apache/maven/plugins/maven-metadata.xml
+Progress (1): 394 BProgress (2): 394 B | 398 B                           Downloaded from central: https://repo.maven.apache.org/maven2/org/liquibase/maven-metadata.xml (394 B at 2.9 kB/s)
+Downloaded from central: https://repo.maven.apache.org/maven2/org/jooq/maven-metadata.xml (398 B at 2.9 kB/s)
+Downloading from central: https://repo.maven.apache.org/maven2/org/codehaus/mojo/maven-metadata.xml
+Progress (1): 242 BProgress (2): 242 B | 4.8 kBProgress (2): 242 B | 7.3 kBProgress (3): 242 B | 7.3 kB | 3.1 kBProgress (3): 242 B | 7.3 kB | 7.7 kBProgress (3): 242 B | 14 kB | 7.7 kB Progress (3): 242 B | 14 kB | 7.7 kBProgress (3): 242 B | 14 kB | 12 kB Progress (3): 242 B | 14 kB | 17 kBProgress (3): 242 B | 14 kB | 20 kBProgress (3): 242 B | 14 kB | 21 kB                                   Downloaded from central: https://repo.maven.apache.org/maven2/org/graalvm/buildtools/maven-metadata.xml (242 B at 1.4 kB/s)
+Downloaded from central: https://repo.maven.apache.org/maven2/org/apache/maven/plugins/maven-metadata.xml (14 kB at 166 kB/s)
+Downloaded from central: https://repo.maven.apache.org/maven2/org/codehaus/mojo/maven-metadata.xml (21 kB at 122 kB/s)
+[INFO] 
+[INFO] ---------------------------< com.plr:AduAja >---------------------------
+[INFO] Building AduAja 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:4.0.6:run (default-cli) > test-compile @ AduAja >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ AduAja ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 40 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ AduAja ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ AduAja ---
+[INFO] skip non existing resourceDirectory D:\Pemrograman\Semester 4\Projek-AduAja\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ AduAja ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] <<< spring-boot:4.0.6:run (default-cli) < test-compile @ AduAja <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:4.0.6:run (default-cli) @ AduAja ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.0.6)
+
+2026-05-17T01:03:38.674+07:00  INFO 21372 --- [AduAja] [  restartedMain] com.plr.aduaja.AduAjaApplication         : Starting AduAjaApplication using Java 25.0.3 with PID 21372 (D:\Pemrograman\Semester 4\Projek-AduAja\target\classes started by VIVOBOOK in D:\Pemrograman\Semester 4\Projek-AduAja)
+2026-05-17T01:03:38.678+07:00  INFO 21372 --- [AduAja] [  restartedMain] com.plr.aduaja.AduAjaApplication         : No active profile set, falling back to 1 default profile: "default"
+2026-05-17T01:03:38.874+07:00  INFO 21372 --- [AduAja] [  restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2026-05-17T01:03:38.903+07:00  INFO 21372 --- [AduAja] [  restartedMain] .e.DevToolsPropertyDefaultsPostProcessor : For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2026-05-17T01:03:39.621+07:00  INFO 21372 --- [AduAja] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-05-17T01:03:39.801+07:00  INFO 21372 --- [AduAja] [  restartedMain] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 131 ms. Found 23 JPA repository interfaces.
+2026-05-17T01:03:40.487+07:00  INFO 21372 --- [AduAja] [  restartedMain] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-05-17T01:03:40.504+07:00  INFO 21372 --- [AduAja] [  restartedMain] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-05-17T01:03:40.504+07:00  INFO 21372 --- [AduAja] [  restartedMain] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.21]
+2026-05-17T01:03:40.536+07:00  INFO 21372 --- [AduAja] [  restartedMain] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1618 ms
+2026-05-17T01:03:40.728+07:00  INFO 21372 --- [AduAja] [  restartedMain] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-05-17T01:03:40.805+07:00  INFO 21372 --- [AduAja] [  restartedMain] org.hibernate.orm.core                   : HHH000001: Hibernate ORM core version 7.2.12.Final
+2026-05-17T01:03:41.265+07:00  INFO 21372 --- [AduAja] [  restartedMain] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-05-17T01:03:41.338+07:00  INFO 21372 --- [AduAja] [  restartedMain] com.zaxxer.hikari.HikariDataSource       : H2Pool-AduAja - Starting...
+2026-05-17T01:03:41.571+07:00  INFO 21372 --- [AduAja] [  restartedMain] com.zaxxer.hikari.pool.HikariPool        : H2Pool-AduAja - Added connection conn0: url=jdbc:h2:file:./data/aduaja user=SA
+2026-05-17T01:03:41.573+07:00  INFO 21372 --- [AduAja] [  restartedMain] com.zaxxer.hikari.HikariDataSource       : H2Pool-AduAja - Start completed.
+2026-05-17T01:03:41.594+07:00  WARN 21372 --- [AduAja] [  restartedMain] org.hibernate.orm.deprecation            : HHH90000025: H2Dialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-05-17T01:03:41.614+07:00  INFO 21372 --- [AduAja] [  restartedMain] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:h2:file:./data/aduaja]
+	Database driver: H2 JDBC Driver
+	Database dialect: H2Dialect
+	Database version: 2.4.240
+	Default catalog/schema: ADUAJA/PUBLIC
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: 100
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-05-17T01:03:42.763+07:00  INFO 21372 --- [AduAja] [  restartedMain] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-05-17T01:03:42.791+07:00  INFO 21372 --- [AduAja] [  restartedMain] org.hibernate.orm.jdbc.batch             : HHH100501: Automatic JDBC statement batching enabled (maximum batch size 20)
+Hibernate: 
+    create table active_sessions (
+        session_id varchar(255) not null,
+        created_at timestamp(6) not null,
+        updated_at timestamp(6) not null,
+        expires_at timestamp(6) not null,
+        ip_address varchar(45),
+        is_active boolean not null,
+        last_activity timestamp(6),
+        session_token varchar(255) not null,
+        user_agent varchar(500),
+        user_id varchar(255) not null,
+        primary key (session_id)
+    )
+Hibernate: 
+    create table agencies (
+        agency_id varchar(255) not null,
+        created_at timestamp(6) not null,
+        updated_at timestamp(6) not null,
+        agency_name varchar(255) not null,
+        contact_email varchar(255),
+        is_active boolean not null,
+        region_id varchar(255),
+        primary key (agency_id)
+    )
+Hibernate: 
+    create table audit_logs (
+        log_id varchar(255) not null,
+        action_type varchar(100) not null,
+        device_info varchar(255),
+        ip_address varchar(45),
+        logged_at timestamp(6) not null,
+        new_value TEXT,
+        old_value TEXT,
+        actor_id varchar(255),
+        report_id varchar(255),
+        task_id varchar(255),
+        primary key (log_id)
+    )
+Hibernate: 
+    create table confirmation_requests (
+        confirmation_id varchar(255) not null,
+        deadline_at timestamp(6) not null,
+        is_locked boolean not null,
+        responded_at timestamp(6),
+        response enum ('TERIMA','TIMEOUT','TOLAK'),
+        report_id varchar(255) not null,
+        warga_id varchar(255) not null,
+        primary key (confirmation_id)
+    )
+Hibernate: 
+    create table dispositions (
+        disposition_id varchar(255) not null,
+        created_at timestamp(6) not null,
+        updated_at timestamp(6) not null,
+        dispatched_at timestamp(6) not null,
+        notes TEXT,
+        dispatched_by varchar(255) not null,
+        report_id varchar(255) not null,
+        target_agency_id varchar(255) not null,
+        primary key (disposition_id)
+    )
+Hibernate: 
+    create table dispute_records (
+        dispute_id varchar(255) not null,
+        evidence_photo_url varchar(255) not null,
+        filed_at timestamp(6) not null,
+        reason_text TEXT not null,
+        resolution enum ('TUGASKAN_KEMBALI','TUTUP_LAPORAN'),
+        resolution_notes TEXT,
+        resolved_at timestamp(6),
+        filed_by varchar(255) not null,
+        report_id varchar(255) not null,
+        resolved_by varchar(255),
+        primary key (dispute_id)
+    )
+Hibernate: 
+    create table field_tasks (
+        task_id varchar(255) not null,
+        created_at timestamp(6) not null,
+        updated_at timestamp(6) not null,
+        completed_at timestamp(6),
+        officer_latitude numeric(10,8),
+        officer_longitude numeric(11,8),
+        started_at timestamp(6),
+        task_status enum ('BARU','DITUGASKAN_ULANG','SEDANG_DIKERJAKAN','SELESAI','TERTUNDA') not null,
+        assigned_by varchar(255) not null,
+        officer_id varchar(255) not null,
+        report_id varchar(255) not null,
+        sla_id varchar(255),
+        primary key (task_id)
+    )
+Hibernate: 
+    create table login_attempts (
+        attempt_id varchar(255) not null,
+        created_at timestamp(6) not null,
+        updated_at timestamp(6) not null,
+        attempted_at timestamp(6) not null,
+        email varchar(150) not null,
+        ip_address varchar(45),
+        is_success boolean not null,
+        primary key (attempt_id)
+    )
+Hibernate: 
+    create table merge_records (
+        merge_id varchar(255) not null,
+        is_active boolean not null,
+        merge_reason TEXT,
+        merged_at timestamp(6) not null,
+        child_report_id varchar(255) not null,
+        merged_by varchar(255) not null,
+        parent_report_id varchar(255) not null,
+        primary key (merge_id)
+    )
+Hibernate: 
+    create table notifications (
+        notification_id varchar(255) not null,
+        created_at timestamp(6) not null,
+        updated_at timestamp(6) not null,
+        is_read boolean not null,
+        message_text TEXT not null,
+        notification_type enum ('LAPORAN_DITERIMA','LAPORAN_DITOLAK','LAPORAN_DIVALIDASI','LAPORAN_PERLU_REVISI','SELESAI_OTOMATIS','SENGKETA_DIPUTUS','SENGKETA_MASUK','SLA_WARNING','STATUS_BERUBAH','TUGAS_BARU'),
+        reference_id varchar(255),
+        reference_type varchar(50),
+        sent_at timestamp(6) not null,
+        title varchar(200) not null,
+        recipient_id varchar(255) not null,
+        report_id varchar(255),
+        primary key (notification_id)
+    )
+Hibernate: 
+    create table officer_attendance (
+        attendance_id varchar(255) not null,
+        created_at timestamp(6) not null,
+        updated_at timestamp(6) not null,
+        check_in_at timestamp(6) not null,
+        check_in_latitude numeric(10,8),
+        check_in_longitude numeric(11,8),
+        check_out_at timestamp(6),
+        device_info varchar(255),
+        shift_status enum ('AKTIF','ISTIRAHAT','SELESAI_SHIFT') not null,
+        officer_id varchar(255) not null,
+        primary key (attendance_id)
+    )
+Hibernate: 
+    create table otp_verifications (
+        otp_id varchar(255) not null,
+        created_at timestamp(6) not null,
+        updated_at timestamp(6) not null,
+        expires_at timestamp(6) not null,
+        is_used boolean not null,
+        is_verified boolean not null,
+        otp_code varchar(6) not null,
+        otp_type enum ('FORGOT_PASSWORD','LOGIN','REGISTRATION') not null,
+        user_id varchar(255) not null,
+        primary key (otp_id)
+    )
+Hibernate: 
+    create table regions (
+        region_id varchar(255) not null,
+        boundary_geojson TEXT,
+        region_level enum ('KECAMATAN','KELURAHAN','KOTA') not null,
+        region_name varchar(255) not null,
+        parent_region_id varchar(255),
+        primary key (region_id)
+    )
+Hibernate: 
+    create table report_categories (
+        category_id varchar(255) not null,
+        created_at timestamp(6) not null,
+        updated_at timestamp(6) not null,
+        category_name varchar(100) not null,
+        description TEXT,
+        icon_name varchar(50),
+        is_active boolean not null,
+        sla_duration_hours integer not null,
+        primary key (category_id)
+    )
+Hibernate: 
+    create table report_revisions (
+        revision_id varchar(255) not null,
+        created_at timestamp(6) not null,
+        updated_at timestamp(6) not null,
+        changed_at timestamp(6) not null,
+        changed_by varchar(100) not null,
+        new_status varchar(50),
+        notes TEXT,
+        old_status varchar(50),
+        revised_description TEXT,
+        submitted_at timestamp(6),
+        report_id varchar(255) not null,
+        primary key (revision_id)
+    )
+Hibernate: 
+    create table reports (
+        report_id varchar(255) not null,
+        created_at timestamp(6) not null,
+        updated_at timestamp(6) not null,
+        admin_notes TEXT,
+        description TEXT not null,
+        latitude numeric(10,8),
+        location_hint varchar(255),
+        longitude numeric(11,8),
+        photo_base64 TEXT,
+        photo_taken_at timestamp(6),
+        rejection_reason TEXT,
+        status enum ('DIDISPOSISI','DITOLAK','DITUGASKAN','DITUTUP','DIVALIDASI','MENUNGGU_KONFIRMASI','MENUNGGU_VALIDASI','PERLU_REVISI','SEDANG_DIKERJAKAN','SELESAI','SENGKETA','TERTUNDA') not null,
+        submitted_at timestamp(6),
+        ticket_number varchar(20) not null,
+        category_id varchar(255),
+        parent_report_id varchar(255),
+        region_id varchar(255),
+        reporter_id varchar(255) not null,
+        primary key (report_id)
+    )
+Hibernate: 
+    create table sla_pause_logs (
+        pause_log_id varchar(255) not null,
+        pause_reason TEXT not null,
+        paused_at timestamp(6) not null,
+        paused_duration_minutes integer,
+        resumed_at timestamp(6),
+        paused_by varchar(255) not null,
+        sla_id varchar(255) not null,
+        primary key (pause_log_id)
+    )
+Hibernate: 
+    create table sla_records (
+        sla_id varchar(255) not null,
+        completed_at timestamp(6),
+        current_status enum ('BERJALAN','SELESAI','TERLAMBAT','TERTUNDA') not null,
+        sla_deadline_at timestamp(6) not null,
+        sla_start_at timestamp(6) not null,
+        total_paused_minutes integer not null,
+        report_id varchar(255) not null,
+        primary key (sla_id)
+    )
+Hibernate: 
+    create table task_evidence (
+        evidence_id varchar(255) not null,
+        created_at timestamp(6) not null,
+        updated_at timestamp(6) not null,
+        evidence_type enum ('SEBELUM','SESUDAH') not null,
+        latitude numeric(10,8),
+        longitude numeric(11,8),
+        photo_url varchar(255) not null,
+        taken_at timestamp(6) not null,
+        task_id varchar(255) not null,
+        primary key (evidence_id)
+    )
+Hibernate: 
+    create table task_postponements (
+        postponement_id varchar(255) not null,
+        created_at timestamp(6) not null,
+        updated_at timestamp(6) not null,
+        approval_status enum ('DISETUJUI','DITOLAK','MENUNGGU') not null,
+        estimated_resume_at timestamp(6),
+        reason TEXT not null,
+        requested_at timestamp(6) not null,
+        approved_by varchar(255),
+        requested_by varchar(255) not null,
+        task_id varchar(255) not null,
+        primary key (postponement_id)
+    )
+Hibernate: 
+    create table user_profiles (
+        profile_id varchar(255) not null,
+        created_at timestamp(6) not null,
+        updated_at timestamp(6) not null,
+        alamat_lengkap TEXT,
+        nik varchar(16),
+        profile_photo_url varchar(255),
+        domisili_region_id varchar(255),
+        user_id varchar(255) not null,
+        primary key (profile_id)
+    )
+Hibernate: 
+    create table users (
+        user_id varchar(255) not null,
+        created_at timestamp(6) not null,
+        updated_at timestamp(6) not null,
+        account_status enum ('ACTIVE','PENDING','SUSPENDED') not null,
+        email varchar(150) not null,
+        full_name varchar(100) not null,
+        password_hash varchar(255) not null,
+        phone_number varchar(20),
+        role enum ('ADMIN_DINAS','ADMIN_PUSAT','PETUGAS','WARGA') not null,
+        primary key (user_id)
+    )
+Hibernate: 
+    create table validation_decisions (
+        decision_id varchar(255) not null,
+        decided_at timestamp(6) not null,
+        decision enum ('DALAM_PENINJAUAN','DIREVISI','DITERIMA','DITOLAK') not null,
+        rejection_reason TEXT,
+        admin_id varchar(255) not null,
+        report_id varchar(255) not null,
+        primary key (decision_id)
+    )
+Hibernate: 
+    alter table if exists active_sessions 
+       drop constraint if exists UKtaaxqe5fr4ysjoy8swv8jrx5n
+Hibernate: 
+    alter table if exists active_sessions 
+       add constraint UKtaaxqe5fr4ysjoy8swv8jrx5n unique (session_token)
+Hibernate: 
+    alter table if exists confirmation_requests 
+       drop constraint if exists UK4odevnxqmebfmbo793hawuhvc
+Hibernate: 
+    alter table if exists confirmation_requests 
+       add constraint UK4odevnxqmebfmbo793hawuhvc unique (report_id)
+Hibernate: 
+    alter table if exists dispute_records 
+       drop constraint if exists UKtd9fr4gkwlg5te2hpa1vtmiv7
+Hibernate: 
+    alter table if exists dispute_records 
+       add constraint UKtd9fr4gkwlg5te2hpa1vtmiv7 unique (report_id)
+Hibernate: 
+    alter table if exists reports 
+       drop constraint if exists UKh8mbwy00me7xb02x9pb5hxvuv
+Hibernate: 
+    alter table if exists reports 
+       add constraint UKh8mbwy00me7xb02x9pb5hxvuv unique (ticket_number)
+Hibernate: 
+    alter table if exists sla_records 
+       drop constraint if exists UKe0kdvw8p52i8lx3r64swqrmrx
+Hibernate: 
+    alter table if exists sla_records 
+       add constraint UKe0kdvw8p52i8lx3r64swqrmrx unique (report_id)
+Hibernate: 
+    alter table if exists user_profiles 
+       drop constraint if exists UK5rebael4se4q9nhljcau456f5
+Hibernate: 
+    alter table if exists user_profiles 
+       add constraint UK5rebael4se4q9nhljcau456f5 unique (nik)
+Hibernate: 
+    alter table if exists user_profiles 
+       drop constraint if exists UKe5h89rk3ijvdmaiig4srogdc6
+Hibernate: 
+    alter table if exists user_profiles 
+       add constraint UKe5h89rk3ijvdmaiig4srogdc6 unique (user_id)
+Hibernate: 
+    alter table if exists users 
+       drop constraint if exists UK6dotkott2kjsp8vw4d0m25fb7
+Hibernate: 
+    alter table if exists users 
+       add constraint UK6dotkott2kjsp8vw4d0m25fb7 unique (email)
+Hibernate: 
+    alter table if exists users 
+       drop constraint if exists UK9q63snka3mdh91as4io72espi
+Hibernate: 
+    alter table if exists users 
+       add constraint UK9q63snka3mdh91as4io72espi unique (phone_number)
+Hibernate: 
+    alter table if exists active_sessions 
+       add constraint FKi160hxodalwko5kwgd80oeyq8 
+       foreign key (user_id) 
+       references users
+Hibernate: 
+    alter table if exists agencies 
+       add constraint FK1rjtk7282bvuggsirfijxg8ws 
+       foreign key (region_id) 
+       references regions
+Hibernate: 
+    alter table if exists audit_logs 
+       add constraint FKf2uqqjmo7gvd8fq7ac81fgc0m 
+       foreign key (actor_id) 
+       references users
+Hibernate: 
+    alter table if exists audit_logs 
+       add constraint FKxkaope2fppfeb9uckn85a631 
+       foreign key (report_id) 
+       references reports
+Hibernate: 
+    alter table if exists audit_logs 
+       add constraint FKqr7x4nu5g257ltt55gjgx4hdc 
+       foreign key (task_id) 
+       references field_tasks
+Hibernate: 
+    alter table if exists confirmation_requests 
+       add constraint FKfmkx58uvaeq18hly8qpcjf6j4 
+       foreign key (report_id) 
+       references reports
+Hibernate: 
+    alter table if exists confirmation_requests 
+       add constraint FK8prh0uxoxo9iwfa7te9cw4pey 
+       foreign key (warga_id) 
+       references users
+Hibernate: 
+    alter table if exists dispositions 
+       add constraint FKgmop77r1wmf5qijg8ti2bkleh 
+       foreign key (dispatched_by) 
+       references users
+Hibernate: 
+    alter table if exists dispositions 
+       add constraint FK9fiuwk96n6rrg2tdye3vm9n5w 
+       foreign key (report_id) 
+       references reports
+Hibernate: 
+    alter table if exists dispositions 
+       add constraint FKqsrb3ppqdgs4vivbv9vxu4u0f 
+       foreign key (target_agency_id) 
+       references agencies
+Hibernate: 
+    alter table if exists dispute_records 
+       add constraint FKrl7olrbka4jnm7p5bady83k0e 
+       foreign key (filed_by) 
+       references users
+Hibernate: 
+    alter table if exists dispute_records 
+       add constraint FK6tckwy05y73f3crgevtx4xinw 
+       foreign key (report_id) 
+       references reports
+Hibernate: 
+    alter table if exists dispute_records 
+       add constraint FKmmyn0r40uggf8tf0mf7bgygb 
+       foreign key (resolved_by) 
+       references users
+Hibernate: 
+    alter table if exists field_tasks 
+       add constraint FKomk6gsnqkudwfu8i7dv39pbv2 
+       foreign key (assigned_by) 
+       references users
+Hibernate: 
+    alter table if exists field_tasks 
+       add constraint FKjuwd7m8k34wmjjcig3cex2u8e 
+       foreign key (officer_id) 
+       references users
+Hibernate: 
+    alter table if exists field_tasks 
+       add constraint FKb9vm8ik06l6plqbu3u1oupafx 
+       foreign key (report_id) 
+       references reports
+Hibernate: 
+    alter table if exists field_tasks 
+       add constraint FKm6djrv8rja4nj0bomqbi1omsd 
+       foreign key (sla_id) 
+       references sla_records
+Hibernate: 
+    alter table if exists merge_records 
+       add constraint FK77ojd771ddm5jibtga5f61tya 
+       foreign key (child_report_id) 
+       references reports
+Hibernate: 
+    alter table if exists merge_records 
+       add constraint FKhi96dcs40bxjug9fy48vlvfqm 
+       foreign key (merged_by) 
+       references users
+Hibernate: 
+    alter table if exists merge_records 
+       add constraint FKr7met7u8co5ttva63n4bq3ypb 
+       foreign key (parent_report_id) 
+       references reports
+Hibernate: 
+    alter table if exists notifications 
+       add constraint FKqqnsjxlwleyjbxlmm213jaj3f 
+       foreign key (recipient_id) 
+       references users
+Hibernate: 
+    alter table if exists notifications 
+       add constraint FKlvaaim6ke3cq9amqt86icuhd8 
+       foreign key (report_id) 
+       references reports
+Hibernate: 
+    alter table if exists officer_attendance 
+       add constraint FKedy5gai0a9eog8p49w6aj9pwj 
+       foreign key (officer_id) 
+       references users
+Hibernate: 
+    alter table if exists otp_verifications 
+       add constraint FKssn2wgmijxelm0u26ti271lcf 
+       foreign key (user_id) 
+       references users
+Hibernate: 
+    alter table if exists regions 
+       add constraint FKe2r9t7cmxr0y2jip5yoqqh6ii 
+       foreign key (parent_region_id) 
+       references regions
+Hibernate: 
+    alter table if exists report_revisions 
+       add constraint FKixwyt1vodcleblrili85yxco1 
+       foreign key (report_id) 
+       references reports
+Hibernate: 
+    alter table if exists reports 
+       add constraint FKfbhu3raban69qm5v3hogustwd 
+       foreign key (category_id) 
+       references report_categories
+Hibernate: 
+    alter table if exists reports 
+       add constraint FKp9d74ven12uv19dcnc3y7hxtd 
+       foreign key (parent_report_id) 
+       references reports
+Hibernate: 
+    alter table if exists reports 
+       add constraint FKilaxfl448o27ssdy9phgjyfgx 
+       foreign key (region_id) 
+       references regions
+Hibernate: 
+    alter table if exists reports 
+       add constraint FKd3qiw2om5d2oh5xb7fbdcq225 
+       foreign key (reporter_id) 
+       references users
+Hibernate: 
+    alter table if exists sla_pause_logs 
+       add constraint FKer3yq75nqqfwvakl3kplpgki3 
+       foreign key (paused_by) 
+       references users
+Hibernate: 
+    alter table if exists sla_pause_logs 
+       add constraint FKp5sdhp9mbnioyl1bjl0lffqlp 
+       foreign key (sla_id) 
+       references sla_records
+Hibernate: 
+    alter table if exists sla_records 
+       add constraint FKbg1le0hlsbeqj8xyrlm4wettk 
+       foreign key (report_id) 
+       references reports
+Hibernate: 
+    alter table if exists task_evidence 
+       add constraint FKcgg5r279al4pldsn8eui2he8c 
+       foreign key (task_id) 
+       references field_tasks
+Hibernate: 
+    alter table if exists task_postponements 
+       add constraint FKf5m7hg15ffvh7mmv95y67vid2 
+       foreign key (approved_by) 
+       references users
+Hibernate: 
+    alter table if exists task_postponements 
+       add constraint FKa231d2nlbbp78r6xggvkh3ss7 
+       foreign key (requested_by) 
+       references users
+Hibernate: 
+    alter table if exists task_postponements 
+       add constraint FKrd864yw77wn13ripl1mnryutu 
+       foreign key (task_id) 
+       references field_tasks
+Hibernate: 
+    alter table if exists user_profiles 
+       add constraint FK6swmebky047aungggm7gf3jgi 
+       foreign key (domisili_region_id) 
+       references regions
+Hibernate: 
+    alter table if exists user_profiles 
+       add constraint FKjcad5nfve11khsnpwj1mv8frj 
+       foreign key (user_id) 
+       references users
+Hibernate: 
+    alter table if exists validation_decisions 
+       add constraint FKs0mre6ha0w4u7aogurfwrjef4 
+       foreign key (admin_id) 
+       references users
+Hibernate: 
+    alter table if exists validation_decisions 
+       add constraint FK1uurkb8w0cct4cialdklc47ib 
+       foreign key (report_id) 
+       references reports
+2026-05-17T01:03:42.949+07:00  INFO 21372 --- [AduAja] [  restartedMain] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-05-17T01:03:43.035+07:00  INFO 21372 --- [AduAja] [  restartedMain] o.s.d.j.r.query.QueryEnhancerFactories   : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-05-17T01:03:44.295+07:00  WARN 21372 --- [AduAja] [  restartedMain] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-05-17T01:03:44.381+07:00  INFO 21372 --- [AduAja] [  restartedMain] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name inMemoryUserDetailsManager
+2026-05-17T01:03:44.551+07:00  INFO 21372 --- [AduAja] [  restartedMain] o.s.b.w.a.WelcomePageHandlerMapping      : Adding welcome page template: index
+2026-05-17T01:03:45.037+07:00  INFO 21372 --- [AduAja] [  restartedMain] o.s.b.h.a.H2ConsoleAutoConfiguration     : H2 console available at '/h2-console'. Database available at 'jdbc:h2:file:./data/aduaja'
+2026-05-17T01:03:45.114+07:00  INFO 21372 --- [AduAja] [  restartedMain] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-05-17T01:03:45.121+07:00  INFO 21372 --- [AduAja] [  restartedMain] com.plr.aduaja.AduAjaApplication         : Started AduAjaApplication in 6.957 seconds (process running for 7.502)
+Hibernate: 
+    /* select
+        count(*) 
+    from
+        User x */ select
+            count(*) 
+        from
+            users u1_0
+Hibernate: 
+    /* SELECT
+        s 
+    FROM
+        SlaRecord s 
+    WHERE
+        s.slaDeadlineAt < :now 
+        AND s.currentStatus != :completedStatus */ select
+            sr1_0.sla_id,
+            sr1_0.completed_at,
+            sr1_0.current_status,
+            sr1_0.report_id,
+            sr1_0.sla_deadline_at,
+            sr1_0.sla_start_at,
+            sr1_0.total_paused_minutes 
+        from
+            sla_records sr1_0 
+        where
+            sr1_0.sla_deadline_at<? 
+            and sr1_0.current_status<>?
+Hibernate: 
+    /* insert 
+    for
+        com.plr.aduaja.model.Region
+        */insert 
+    into
+        regions (boundary_geojson, parent_region_id, region_level, region_name, region_id) 
+    values
+        (?, ?, ?, ?, ?)
+Hibernate: 
+    /* insert 
+    for
+        com.plr.aduaja.model.Region
+        */insert 
+    into
+        regions (boundary_geojson, parent_region_id, region_level, region_name, region_id) 
+    values
+        (?, ?, ?, ?, ?)
+Hibernate: 
+    /* insert 
+    for
+        com.plr.aduaja.model.Agency
+        */insert 
+    into
+        agencies (agency_name, contact_email, created_at, is_active, region_id, updated_at, agency_id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?)
+Hibernate: 
+    /* insert 
+    for
+        com.plr.aduaja.model.Agency
+        */insert 
+    into
+        agencies (agency_name, contact_email, created_at, is_active, region_id, updated_at, agency_id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?)
+Hibernate: 
+    /* insert 
+    for
+        com.plr.aduaja.model.Agency
+        */insert 
+    into
+        agencies (agency_name, contact_email, created_at, is_active, region_id, updated_at, agency_id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?)
+Hibernate: 
+    /* insert 
+    for
+        com.plr.aduaja.model.ReportCategory
+        */insert 
+    into
+        report_categories (category_name, created_at, description, icon_name, is_active, sla_duration_hours, updated_at, category_id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?)
+Hibernate: 
+    /* insert 
+    for
+        com.plr.aduaja.model.ReportCategory
+        */insert 
+    into
+        report_categories (category_name, created_at, description, icon_name, is_active, sla_duration_hours, updated_at, category_id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?)
+Hibernate: 
+    /* insert 
+    for
+        com.plr.aduaja.model.ReportCategory
+        */insert 
+    into
+        report_categories (category_name, created_at, description, icon_name, is_active, sla_duration_hours, updated_at, category_id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?)
+Hibernate: 
+    /* insert 
+    for
+        com.plr.aduaja.model.User
+        */insert 
+    into
+        users (account_status, created_at, email, full_name, password_hash, phone_number, role, updated_at, user_id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?)
+Hibernate: 
+    /* insert 
+    for
+        com.plr.aduaja.model.User
+        */insert 
+    into
+        users (account_status, created_at, email, full_name, password_hash, phone_number, role, updated_at, user_id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?)
+Hibernate: 
+    /* insert 
+    for
+        com.plr.aduaja.model.User
+        */insert 
+    into
+        users (account_status, created_at, email, full_name, password_hash, phone_number, role, updated_at, user_id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?)
+Hibernate: 
+    /* insert 
+    for
+        com.plr.aduaja.model.User
+        */insert 
+    into
+        users (account_status, created_at, email, full_name, password_hash, phone_number, role, updated_at, user_id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?)
+Hibernate: 
+    /* insert 
+    for
+        com.plr.aduaja.model.User
+        */insert 
+    into
+        users (account_status, created_at, email, full_name, password_hash, phone_number, role, updated_at, user_id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?)
+Hibernate: 
+    /* insert 
+    for
+        com.plr.aduaja.model.User
+        */insert 
+    into
+        users (account_status, created_at, email, full_name, password_hash, phone_number, role, updated_at, user_id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?)
+Hibernate: 
+    /* insert 
+    for
+        com.plr.aduaja.model.Report
+        */insert 
+    into
+        reports (admin_notes, category_id, created_at, description, latitude, location_hint, longitude, parent_report_id, photo_base64, photo_taken_at, region_id, rejection_reason, reporter_id, status, submitted_at, ticket_number, updated_at, report_id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+Hibernate: 
+    /* insert 
+    for
+        com.plr.aduaja.model.Report
+        */insert 
+    into
+        reports (admin_notes, category_id, created_at, description, latitude, location_hint, longitude, parent_report_id, photo_base64, photo_taken_at, region_id, rejection_reason, reporter_id, status, submitted_at, ticket_number, updated_at, report_id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+Hibernate: 
+    /* insert 
+    for
+        com.plr.aduaja.model.Report
+        */insert 
+    into
+        reports (admin_notes, category_id, created_at, description, latitude, location_hint, longitude, parent_report_id, photo_base64, photo_taken_at, region_id, rejection_reason, reporter_id, status, submitted_at, ticket_number, updated_at, report_id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+Hibernate: 
+    /* insert 
+    for
+        com.plr.aduaja.model.SlaRecord
+        */insert 
+    into
+        sla_records (completed_at, current_status, report_id, sla_deadline_at, sla_start_at, total_paused_minutes, sla_id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?)
+Hibernate: 
+    /* insert 
+    for
+        com.plr.aduaja.model.SlaRecord
+        */insert 
+    into
+        sla_records (completed_at, current_status, report_id, sla_deadline_at, sla_start_at, total_paused_minutes, sla_id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?)
+Hibernate: 
+    /* insert 
+    for
+        com.plr.aduaja.model.FieldTask
+        */insert 
+    into
+        field_tasks (assigned_by, completed_at, created_at, officer_id, officer_latitude, officer_longitude, report_id, sla_id, started_at, task_status, updated_at, task_id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+Hibernate: 
+    /* insert 
+    for
+        com.plr.aduaja.model.FieldTask
+        */insert 
+    into
+        field_tasks (assigned_by, completed_at, created_at, officer_id, officer_latitude, officer_longitude, report_id, sla_id, started_at, task_status, updated_at, task_id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+Hibernate: 
+    /* insert 
+    for
+        com.plr.aduaja.model.OfficerAttendance
+        */insert 
+    into
+        officer_attendance (check_in_at, check_in_latitude, check_in_longitude, check_out_at, created_at, device_info, officer_id, shift_status, updated_at, attendance_id) 
+    values
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+=== Data Seeder: Initial data loaded successfully ===
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  08:48 min
+[INFO] Finished at: 2026-05-17T01:12:21+07:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.springframework.boot:spring-boot-maven-plugin:4.0.6:run (default-cli) on project AduAja: Process terminated with exit code: -1 -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException
