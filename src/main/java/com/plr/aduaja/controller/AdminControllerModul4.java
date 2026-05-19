@@ -4,7 +4,6 @@ import com.plr.aduaja.dto.DisputeDTO;
 import com.plr.aduaja.dto.MergeDTO;
 import com.plr.aduaja.model.DisputeRecord;
 import com.plr.aduaja.model.DisputeRecord.ResolutionType;
-import com.plr.aduaja.model.ValidationDecision.Decision;
 import com.plr.aduaja.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -26,15 +25,6 @@ public class AdminControllerModul4 {
 
     @Autowired
     private MergeRecordService mergeRecordService;            // ← Interface (ABSTRACTION)
-
-    @Autowired
-    private ValidationDecisionService validationDecisionService; // ← Interface (ABSTRACTION)
-
-    @Autowired
-    private ConfirmationService confirmationService;           // ← Interface (ABSTRACTION)
-
-    @Autowired
-    private AuditLogService auditLogService;                  // ← Interface (ABSTRACTION)
 
     @Autowired
     private SlaRecordService slaRecordService;                // ← Interface (ABSTRACTION)
@@ -80,23 +70,6 @@ public class AdminControllerModul4 {
                                @RequestParam(required = false, defaultValue = "system") String userId) {
         mergeRecordService.createMerge(mergeDTO, userId);
         return "redirect:/admin/merge";
-    }
-
-    // ============ VALIDATION ============ //
-
-    @GetMapping("/validation")
-    public String validationPanel(Model model) {
-        model.addAttribute("decisions", validationDecisionService.getDecisions());
-        return "admin/validation-panel";
-    }
-
-    @PostMapping("/validation")
-    public String prosesValidasi(@RequestParam String reportId,
-                                  @RequestParam String adminId,
-                                  @RequestParam Decision decision,
-                                  @RequestParam(required = false) String reason) {
-        validationDecisionService.createDecision(reportId, adminId, decision, reason);
-        return "redirect:/admin/validation";
     }
 
     // ============ SLA MONITORING ============ //
