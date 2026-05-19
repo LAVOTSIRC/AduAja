@@ -3,6 +3,7 @@ package com.plr.aduaja.controller;
 import com.plr.aduaja.model.FieldTask;
 import com.plr.aduaja.model.FieldTask.TaskStatus;
 import com.plr.aduaja.service.FieldTaskService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/tickets")
 public class TicketApiController {
@@ -50,6 +52,7 @@ public class TicketApiController {
             FieldTask task = fieldTaskService.createTask(reportId, officerId, assignedById);
             return ResponseEntity.status(HttpStatus.CREATED).body(task);
         } catch (Exception e) {
+            log.error("Gagal buat tugas: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
     }
@@ -61,6 +64,7 @@ public class TicketApiController {
         try {
             return ResponseEntity.ok(fieldTaskService.startTask(id, latitude, longitude));
         } catch (Exception e) {
+            log.error("Gagal start tugas {}: {}", id, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
     }
@@ -70,6 +74,7 @@ public class TicketApiController {
         try {
             return ResponseEntity.ok(fieldTaskService.completeTask(id));
         } catch (Exception e) {
+            log.error("Gagal complete tugas {}: {}", id, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
     }

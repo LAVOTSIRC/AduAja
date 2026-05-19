@@ -8,6 +8,7 @@ import com.plr.aduaja.dto.ProfileDTO;
 import com.plr.aduaja.service.UserService;
 import com.plr.aduaja.service.AuthService;
 import com.plr.aduaja.service.OtpService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -23,6 +24,7 @@ import java.util.Optional;
 // Controller TIDAK mengakses Repository langsung
 // Controller TIDAK tahu bagaimana password di-hash, OTP dibuat, dll.
 // ============================================================
+@Slf4j
 @Controller
 public class WargaAuthController {
 

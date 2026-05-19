@@ -4,6 +4,7 @@ import com.plr.aduaja.dto.DisputeDTO;
 import com.plr.aduaja.model.DisputeRecord;
 import com.plr.aduaja.model.DisputeRecord.ResolutionType;
 import com.plr.aduaja.service.DisputeService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/sengketa")
 public class SengketaApiController {
@@ -56,6 +58,7 @@ public class SengketaApiController {
             DisputeRecord dispute = disputeService.createDispute(dto, filedById);
             return ResponseEntity.status(HttpStatus.CREATED).body(dispute);
         } catch (Exception e) {
+            log.error("Gagal buat sengketa: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
     }
@@ -69,6 +72,7 @@ public class SengketaApiController {
             return ResponseEntity.ok(disputeService.resolveDispute(
                     id, resolution, resolvedById, resolutionNotes != null ? resolutionNotes : ""));
         } catch (Exception e) {
+            log.error("Gagal resolve sengketa {}: {}", id, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
     }

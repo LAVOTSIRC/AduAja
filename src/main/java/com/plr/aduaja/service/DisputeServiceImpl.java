@@ -99,4 +99,9 @@ public class DisputeServiceImpl implements DisputeService {
     public List<DisputeRecord> getAllDisputes() {
         return disputeRecordRepository.findAll();
     }
+
+    @Override
+    public List<DisputeRecord> getPendingDisputes() {
+        return disputeRecordRepository.findByResolutionIsNull();
+    }
 }

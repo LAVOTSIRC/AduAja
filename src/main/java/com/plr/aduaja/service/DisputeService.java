@@ -21,4 +21,6 @@ public interface DisputeService {
     List<DisputeRecord> getDisputes(ResolutionType resolution);   // 1 parameter ResolutionType — OVERLOAD
 
     List<DisputeRecord> getAllDisputes();
+
+    List<DisputeRecord> getPendingDisputes();
 }

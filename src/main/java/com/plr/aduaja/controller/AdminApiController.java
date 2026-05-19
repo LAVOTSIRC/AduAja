@@ -4,6 +4,7 @@ import com.plr.aduaja.dto.MergeDTO;
 import com.plr.aduaja.model.MergeRecord;
 import com.plr.aduaja.service.MergeRecordService;
 import com.plr.aduaja.service.SlaMonitoringService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequestMapping("/api")
 public class AdminApiController {
@@ -60,6 +62,7 @@ public class AdminApiController {
             return ResponseEntity.status(HttpStatus.CREATED).body(
                     mergeRecordService.createMerge(dto, mergedById));
         } catch (Exception e) {
+            log.error("Gagal create merge record: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
     }
@@ -70,6 +73,7 @@ public class AdminApiController {
             mergeRecordService.cancelMerge(id);
             return ResponseEntity.ok("Merge dibatalkan");
         } catch (Exception e) {
+            log.error("Gagal undo merge {}: {}", id, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
     }

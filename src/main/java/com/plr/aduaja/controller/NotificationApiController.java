@@ -3,6 +3,7 @@ package com.plr.aduaja.controller;
 import com.plr.aduaja.model.Notification;
 import com.plr.aduaja.model.Notification.NotificationType;
 import com.plr.aduaja.service.NotificationService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/notifications")
 public class NotificationApiController {
@@ -40,6 +42,7 @@ public class NotificationApiController {
             return ResponseEntity.status(HttpStatus.CREATED).body(
                     notificationService.createNotification(userId, message, type));
         } catch (Exception e) {
+            log.error("Gagal buat notifikasi: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
     }
@@ -59,6 +62,7 @@ public class NotificationApiController {
             notificationService.markAllAsRead(userId);
             return ResponseEntity.ok().build();
         } catch (Exception e) {
+            log.error("Gagal mark all read {}: {}", userId, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }

@@ -3,6 +3,7 @@ package com.plr.aduaja.controller;
 import com.plr.aduaja.model.User;
 import com.plr.aduaja.dto.LoginDTO;
 import com.plr.aduaja.service.AuthService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -17,6 +18,7 @@ import java.util.Optional;
 // ABSTRACTION (Abstraksi): AdminAuthController hanya tahu Interface Service
 // Controller TIDAK mengakses Repository atau implementasi langsung
 // ============================================================
+@Slf4j
 @Controller
 public class AdminAuthController {
 
