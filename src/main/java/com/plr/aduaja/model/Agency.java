@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 
 @Entity
 @Table(name = "agencies")
-public class Agency {
+public class Agency extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

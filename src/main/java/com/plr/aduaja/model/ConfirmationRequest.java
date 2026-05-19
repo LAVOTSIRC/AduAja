@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "confirmation_requests")
-public class ConfirmationRequest {
+public class ConfirmationRequest extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

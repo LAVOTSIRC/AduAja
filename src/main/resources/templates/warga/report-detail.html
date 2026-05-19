@@ -54,7 +54,7 @@
             </a>
             <div class="flex-1">
               <h1 class="font-bold text-gray-900">Detail Laporan</h1>
-              <p class="text-xs text-gray-500" th:text="${report['id']}">ID</p>
+              <p class="text-xs text-gray-500" th:text="${report['ticketNumber']}">Nomor Tiket</p>
             </div>
             <span
               th:class="|px-3 py-1 rounded-full text-xs font-medium ${report['statusColor']}|"
@@ -127,9 +127,9 @@
         >
           <h2
             class="text-xl font-bold text-gray-900 mb-4"
-            th:text="${report['title']}"
+            th:text="${report['ticketNumber']}"
           >
-            Judul
+            Nomor Tiket
           </h2>
           <div class="space-y-4">
             <div class="flex items-start gap-3">
@@ -173,7 +173,7 @@
                 <p class="text-sm text-gray-500">Lokasi</p>
                 <p
                   class="font-medium text-gray-900"
-                  th:text="${report['location']}"
+                  th:text="${report['locationHint']}"
                 >
                   Lokasi
                 </p>
@@ -210,51 +210,36 @@
           </div>
         </div>
 
-        <!-- Timeline Status -->
-        <div
-          class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6"
-        >
-          <h3 class="font-semibold text-gray-900 mb-4">Timeline Status</h3>
+        <!-- Timeline: gunakan revisions dari DB jika ada -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
+          <h3 class="font-semibold text-gray-900 mb-4">Riwayat Perubahan Status</h3>
           <div class="space-y-4">
-            <div th:each="item : ${timeline}" class="flex gap-4">
-              <div
-                th:class="|w-10 h-10 rounded-lg flex items-center justify-center ${item['color']}|"
-              >
-                <i th:attr="data-lucide=${item['icon']}" class="w-5 h-5"></i>
+            <!-- Status Diajukan selalu ada -->
+            <div class="flex gap-4">
+              <div class="w-10 h-10 rounded-lg flex items-center justify-center bg-blue-100">
+                <i data-lucide="file-text" class="w-5 h-5 text-blue-600"></i>
               </div>
               <div class="flex-1">
-                <div class="flex items-center justify-between">
-                  <h4
-                    class="font-semibold text-gray-900"
-                    th:text="${item['title']}"
-                  >
-                    Judul
-                  </h4>
-                  <span class="text-xs text-gray-500" th:text="${item['date']}"
-                    >Tanggal</span
-                  >
-                </div>
-                <p class="text-sm text-gray-600" th:text="${item['description']}">
-                  Deskripsi
-                </p>
-                <div
-                  th:if="${item['note'] != null}"
-                  class="mt-2 text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded p-2"
-                  th:text="${item['note']}"
-                ></div>
-                <div
-                  th:if="${item['relatedTicket'] != null}"
-                  class="mt-2 text-xs text-blue-700"
-                >
-                  Tiket terkait:
-                  <span th:text="${item['relatedTicket']}">TKT-000</span>
-                </div>
+                <h4 class="font-semibold text-gray-900">Laporan Diajukan</h4>
+                <p class="text-sm text-gray-600" th:text="${report['submittedAt']}">-</p>
+              </div>
+            </div>
+            <!-- Revision history dari DB -->
+            <div th:each="rev : ${report['revisions']}" class="flex gap-4">
+              <div class="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-100">
+                <i data-lucide="refresh-cw" class="w-5 h-5 text-gray-600"></i>
+              </div>
+              <div class="flex-1">
+                <h4 class="font-semibold text-gray-900"
+                    th:text="|Status berubah: ${rev.oldStatus} → ${rev.newStatus}|">Status</h4>
+                <p class="text-sm text-gray-600"
+                   th:text="${rev.changedAt != null ? #temporals.format(rev.changedAt, 'd MMM yyyy HH:mm') : '-'}">-</p>
+                <p class="text-xs text-gray-500 mt-1" th:text="${rev.notes}" th:if="${rev.notes != null}"></p>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Notifikasi Ditolak / Revisi -->
         <div
           th:if="${report['status'] == 'Ditolak'}"
           class="bg-red-50 border border-red-200 rounded-xl p-5 mb-6"
@@ -265,26 +250,23 @@
             </div>
             <div class="flex-1">
               <h3 class="font-semibold text-red-900 mb-1">Laporan Ditolak</h3>
-              <p class="text-sm text-red-700 mb-3" th:text="${report['rejectionReason']}">
+              <p class="text-sm text-red-700 mb-3" th:text="${report['rejectionReason']}"
+                 th:if="${report['rejectionReason'] != null}">
                 Alasan penolakan dari admin akan ditampilkan di sini.
               </p>
-              <button
-                type="button"
-                x-on:click="showRevisionDialog = true"
-                class="bg-red-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-700 transition-colors flex items-center gap-2"
-              >
-                <i data-lucide="edit-3" class="w-4 h-4"></i>
-                Revisi Laporan
-              </button>
+              <!-- Admin notes if any -->
+              <p class="text-sm text-orange-700 mb-3" th:text="${report['adminNotes']}"
+                 th:if="${report['adminNotes'] != null}"></p>
             </div>
           </div>
         </div>
 
         <!-- Tindakan -->
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <div th:if="${report['status'] == 'Diproses' or report['status'] == 'Ditugaskan' or report['status'] == 'Selesai'}"
+             class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 class="font-semibold text-gray-900 mb-4">Tindakan</h3>
           <div class="flex flex-col sm:flex-row gap-3">
-            <button
+            <button th:if="${report['status'] == 'Diproses' or report['status'] == 'Ditugaskan'}"
               type="button"
               x-on:click="showConfirmDialog = true"
               class="flex-1 bg-green-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
@@ -292,7 +274,7 @@
               <i data-lucide="check-circle" class="w-5 h-5"></i>
               Konfirmasi Selesai
             </button>
-            <button
+            <button th:if="${report['status'] == 'Selesai'}"
               type="button"
               x-on:click="showDisputeDialog = true"
               class="flex-1 border border-red-500 text-red-600 px-4 py-3 rounded-lg font-medium hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
@@ -318,7 +300,7 @@
             Apakah Anda yakin laporan ini sudah selesai ditangani?
           </p>
           <form th:action="@{/warga/dashboard}" method="post">
-            <input type="hidden" name="id" th:value="${report['id']}" />
+            <input type="hidden" name="id" th:value="${report['reportId']}" />
             <div class="flex gap-3">
               <button
                 type="button"
@@ -706,10 +688,10 @@
           showDisputeDialog: false,
           showRevisionDialog: false,
           reportStatus: [[${report != null ? report['status'] : ''}]],
-          slaDeadline: [[${report != null ? report['slaDeadline'] : null}]],
-          createdDate: [[${report != null ? report['createdDate'] : null}]],
-          latitude: [[${report != null ? report['latitude'] : '3.5952'}]],
-          longitude: [[${report != null ? report['longitude'] : '98.6722'}]],
+          slaDeadline: null,
+          createdDate: [[${report != null ? report['submittedAt'] : null}]],
+          latitude: [[${report != null and report['latitude'] != null ? report['latitude'] : '3.5952'}]],
+          longitude: [[${report != null and report['longitude'] != null ? report['longitude'] : '98.6722'}]],
           countdown: { days: 0, hours: 0, minutes: 0, seconds: 0 },
           timer: null,
           init() {
@@ -779,7 +761,7 @@
             return pct.toFixed(1);
           },
           showSLA() {
-            return ['Diterima', 'Sedang Diproses', 'Dalam Perjalanan', 'Selesai'].includes(this.reportStatus);
+            return ['Divalidasi', 'Didisposisi', 'Ditugaskan', 'Diproses'].includes(this.reportStatus);
           }
         };
       }

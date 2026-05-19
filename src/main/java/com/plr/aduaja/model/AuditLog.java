@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "audit_logs")
-public class AuditLog {
+public class AuditLog extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -20,9 +20,12 @@ public class AuditLog {
     @JoinColumn(name = "report_id")
     private Report report;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "task_id")
-    private FieldTask task;
+    // Fix 2: Ganti FieldTask task → targetType + targetId (lebih fleksibel, tidak bergantung modul lain)
+    @Column(name = "target_type")
+    private String targetType;
+
+    @Column(name = "target_id")
+    private String targetId;
 
     @Column(name = "action_type", nullable = false, length = 100)
     private String actionType;
@@ -42,33 +45,30 @@ public class AuditLog {
     @Column(name = "logged_at", nullable = false)
     private LocalDateTime loggedAt = LocalDateTime.now();
 
+    // ============ GETTER (PUBLIC) ============ //
     public String getLogId() { return logId; }
-    public void setLogId(String logId) { this.logId = logId; }
-
     public User getActor() { return actor; }
-    public void setActor(User actor) { this.actor = actor; }
-
     public Report getReport() { return report; }
-    public void setReport(Report report) { this.report = report; }
-
-    public FieldTask getTask() { return task; }
-    public void setTask(FieldTask task) { this.task = task; }
-
+    public String getTargetType() { return targetType; }
+    public String getTargetId() { return targetId; }
     public String getActionType() { return actionType; }
-    public void setActionType(String actionType) { this.actionType = actionType; }
-
     public String getOldValue() { return oldValue; }
-    public void setOldValue(String oldValue) { this.oldValue = oldValue; }
-
     public String getNewValue() { return newValue; }
-    public void setNewValue(String newValue) { this.newValue = newValue; }
-
     public String getIpAddress() { return ipAddress; }
-    public void setIpAddress(String ipAddress) { this.ipAddress = ipAddress; }
-
     public String getDeviceInfo() { return deviceInfo; }
-    public void setDeviceInfo(String deviceInfo) { this.deviceInfo = deviceInfo; }
-
     public LocalDateTime getLoggedAt() { return loggedAt; }
-    public void setLoggedAt(LocalDateTime loggedAt) { this.loggedAt = loggedAt; }
+
+    // ============ PACKAGE-PRIVATE SETTER (IMMUTABLE — ENCAPSULATION) ============ //
+    // Fix 1: Setter package-private (tanpa 'public') → hanya bisa diakses dalam package com.plr.aduaja.model
+    void setLogId(String logId) { this.logId = logId; }
+    void setActor(User actor) { this.actor = actor; }
+    void setReport(Report report) { this.report = report; }
+    void setTargetType(String targetType) { this.targetType = targetType; }
+    void setTargetId(String targetId) { this.targetId = targetId; }
+    void setActionType(String actionType) { this.actionType = actionType; }
+    void setOldValue(String oldValue) { this.oldValue = oldValue; }
+    void setNewValue(String newValue) { this.newValue = newValue; }
+    void setIpAddress(String ipAddress) { this.ipAddress = ipAddress; }
+    void setDeviceInfo(String deviceInfo) { this.deviceInfo = deviceInfo; }
+    void setLoggedAt(LocalDateTime loggedAt) { this.loggedAt = loggedAt; }
 }

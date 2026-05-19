@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "task_postponements")
-public class TaskPostponement {
+public class TaskPostponement extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

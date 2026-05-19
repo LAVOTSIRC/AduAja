@@ -116,8 +116,9 @@
           </div>
 
           <div th:if="${attendance.checkedIn}" class="space-y-2">
-            <form th:action="@{/petugas/dashboard}" method="get">
-              <input type="hidden" name="status" value="Siap Bertugas" />
+            <form th:action="@{/petugas/dashboard}" method="post">
+              <input type="hidden" name="action" value="resume" />
+              <input type="hidden" name="attendanceId" th:value="${attendance.attendanceId}" />
               <button
                 class="w-full px-3 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700"
                 type="submit"
@@ -125,8 +126,9 @@
                 Siap Bertugas
               </button>
             </form>
-            <form th:action="@{/petugas/dashboard}" method="get">
-              <input type="hidden" name="status" value="Istirahat" />
+            <form th:action="@{/petugas/dashboard}" method="post">
+              <input type="hidden" name="action" value="break" />
+              <input type="hidden" name="attendanceId" th:value="${attendance.attendanceId}" />
               <button
                 class="w-full px-3 py-2 bg-yellow-600 text-white rounded-lg text-sm hover:bg-yellow-700"
                 type="submit"
@@ -180,7 +182,9 @@
                 >00:00:00</span
               >
             </div>
-            <form th:action="@{/petugas/dashboard}" method="get">
+            <form th:action="@{/petugas/dashboard}" method="post">
+              <input type="hidden" name="action" value="checkout" />
+              <input type="hidden" name="attendanceId" th:value="${attendance.attendanceId}" />
               <button
                 class="w-full px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 flex items-center justify-center"
                 type="submit"
@@ -574,8 +578,11 @@
           >
             Batal
           </button>
-          <form th:action="@{/petugas/dashboard}" method="get" class="flex-1">
+          <form th:action="@{/petugas/dashboard}" method="post" class="flex-1">
             <input type="hidden" name="checkIn" value="true" />
+            <input type="hidden" name="latitude" x-bind:value="gpsValid ? gpsCoords.split(',')[0] : ''" />
+            <input type="hidden" name="longitude" x-bind:value="gpsValid ? gpsCoords.split(',')[1] : ''" />
+            <input type="hidden" name="deviceInfo" value="AduAja Web" />
             <button
               class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               type="submit"

@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "dispositions")
-public class Disposition {
+public class Disposition extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

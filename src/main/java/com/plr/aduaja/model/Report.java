@@ -6,9 +6,13 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+// ============================================================
+// INHERITANCE (Pewarisan): Report extends BaseEntity
+// Mendapatkan createdAt dan updatedAt otomatis dari parent
+// ============================================================
 @Entity
 @Table(name = "reports")
-public class Report {
+public class Report extends BaseEntity {  // ← INHERITANCE sejati
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -42,8 +46,8 @@ public class Report {
     @Column(precision = 11, scale = 8)
     private BigDecimal longitude;
 
-    @Column(name = "photo_url")
-    private String photoUrl;
+    @Column(name = "photo_base64", columnDefinition = "TEXT")
+    private String photoBase64;
 
     @Column(name = "photo_taken_at")
     private LocalDateTime photoTakenAt;
@@ -52,6 +56,13 @@ public class Report {
     @Column(nullable = false)
     private ReportStatus status = ReportStatus.MENUNGGU_VALIDASI;
 
+    // ENKAPSULASI: field catatan admin (private)
+    @Column(name = "admin_notes", columnDefinition = "TEXT")
+    private String adminNotes;
+
+    @Column(name = "rejection_reason", columnDefinition = "TEXT")
+    private String rejectionReason;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_report_id")
     private Report parentReport;
@@ -59,8 +70,6 @@ public class Report {
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt = LocalDateTime.now();
 
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt = LocalDateTime.now();
 
     @OneToMany(mappedBy = "report", cascade = CascadeType.ALL)
     private List<ReportRevision> revisions = new ArrayList<>();
@@ -122,8 +131,8 @@ public class Report {
     public BigDecimal getLongitude() { return longitude; }
     public void setLongitude(BigDecimal longitude) { this.longitude = longitude; }
 
-    public String getPhotoUrl() { return photoUrl; }
-    public void setPhotoUrl(String photoUrl) { this.photoUrl = photoUrl; }
+    public String getPhotoBase64() { return photoBase64; }
+    public void setPhotoBase64(String photoBase64) { this.photoBase64 = photoBase64; }
 
     public LocalDateTime getPhotoTakenAt() { return photoTakenAt; }
     public void setPhotoTakenAt(LocalDateTime photoTakenAt) { this.photoTakenAt = photoTakenAt; }
@@ -131,14 +140,18 @@ public class Report {
     public ReportStatus getStatus() { return status; }
     public void setStatus(ReportStatus status) { this.status = status; }
 
+    public String getAdminNotes() { return adminNotes; }
+    public void setAdminNotes(String adminNotes) { this.adminNotes = adminNotes; }
+
+    public String getRejectionReason() { return rejectionReason; }
+    public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
+
     public Report getParentReport() { return parentReport; }
     public void setParentReport(Report parentReport) { this.parentReport = parentReport; }
 
     public LocalDateTime getSubmittedAt() { return submittedAt; }
     public void setSubmittedAt(LocalDateTime submittedAt) { this.submittedAt = submittedAt; }
 
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 
     public List<ReportRevision> getRevisions() { return revisions; }
     public void setRevisions(List<ReportRevision> revisions) { this.revisions = revisions; }

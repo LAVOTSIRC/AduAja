@@ -1,95 +1,95 @@
 package com.plr.aduaja.service;
 
-import com.plr.aduaja.model.*;
-import com.plr.aduaja.repository.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import com.plr.aduaja.model.Report;
+import com.plr.aduaja.dto.CreateReportDTO;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 
-@Service
-public class ReportService {
+// ============================================================
+// ABSTRACTION (Abstraksi): ReportService Interface sebagai kontrak
+// Controller hanya tahu interface ini, tidak tahu implementasinya
+//
+// POLYMORPHISM (Compile-time / Overloading):
+// - getReportsByStatus(status)
+// - getReportsByWarga(wargaId)
+// - getReportsByDateRange(start, end)           ← Overload
+// - getReportsByStatusAndDateRange(...)         ← Overload
+// - updateStatus(id, status, notes, changedBy)
+// - updateStatus(id, status, rej, notes, changedBy) ← Overload
+// ============================================================
+public interface ReportService {
 
-    @Autowired
-    private ReportRepository reportRepository;
+    // ===========================
+    // OVERLOADING (Compile-time Polymorphism)
+    // Method sama, parameter beda
+    // ===========================
+    Optional<Report> findById(String id);
+    Optional<Report> findByTicketNumber(String ticketNumber);
+    List<Report> getAllReports();
+    List<Report> getReportsByStatus(Report.ReportStatus status);
+    List<Report> getReportsByWarga(String wargaId);
+    List<Report> getReportsByDateRange(LocalDate start, LocalDate end);        // OVERLOAD
+    List<Report> getReportsByStatusAndDateRange(Report.ReportStatus status,    // OVERLOAD
+                                                 LocalDate start, LocalDate end);
 
-    @Autowired
-    private UserRepository userRepository;
+    // ===========================
+    // METHOD UTAMA
+    // ===========================
+    Report createReport(CreateReportDTO dto, String wargaId);
 
-    @Autowired
-    private ReportCategoryRepository categoryRepository;
+    // OVERLOADING: updateStatus dengan parameter beda
+    Report updateStatus(String reportId, Report.ReportStatus newStatus, String notes, String changedBy);
+    Report updateStatus(String reportId, Report.ReportStatus newStatus,
+                        String rejectionReason, String adminNotes, String changedBy);  // OVERLOAD
 
-    @Autowired
-    private RegionRepository regionRepository;
+    Report saveReportPhoto(String reportId, String photoBase64);
+    long countByStatus(Report.ReportStatus status);
+    String generateTicketNumber();
 
-    private final AtomicInteger ticketCounter = new AtomicInteger(1);
-
-    public List<Report> getAllReports() {
-        return reportRepository.findAll();
+    // ===========================
+    // BACKWARD COMPATIBILITY (untuk WebController lama)
+    // ===========================
+    default Report updateStatus(String id, Report.ReportStatus status) {
+        return updateStatus(id, status, null, "SYSTEM");
     }
 
-    public List<Report> getReportsByStatus(Report.ReportStatus status) {
-        return reportRepository.findByStatusOrderBySubmittedAtDesc(status);
+    default List<Report> searchReports(String query) {
+        return getAllReports().stream()
+            .filter(r -> r.getDescription() != null &&
+                         r.getDescription().toLowerCase().contains(query.toLowerCase()))
+            .toList();
     }
 
-    public List<Report> getReportsByUser(String userId) {
-        return reportRepository.findByReporterUserId(userId);
+    default List<Report> getReportsForDisposisi() {
+        return getReportsByStatus(Report.ReportStatus.DIVALIDASI);
     }
 
-    public Optional<Report> getReportById(String id) {
-        return reportRepository.findById(id);
+    default Optional<Report> getReportById(String id) {
+        return findById(id);
     }
 
-    public Optional<Report> getReportByTicketNumber(String ticketNumber) {
-        return reportRepository.findByTicketNumber(ticketNumber);
+    default Optional<Report> getReportByTicketNumber(String ticketNumber) {
+        return findByTicketNumber(ticketNumber);
     }
 
-    public Report createReport(Report report, String userId) {
-        User reporter = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        report.setReporter(reporter);
-        report.setSubmittedAt(LocalDateTime.now());
-        report.setUpdatedAt(LocalDateTime.now());
-        report.setStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
-        report.setTicketNumber(generateTicketNumber());
-        return reportRepository.save(report);
+    default List<Report> getReportsByUser(String userId) {
+        return getReportsByWarga(userId);
     }
 
-    public Report updateStatus(String id, Report.ReportStatus status) {
-        Report report = reportRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Report not found"));
-        report.setStatus(status);
-        report.setUpdatedAt(LocalDateTime.now());
-        return reportRepository.save(report);
-    }
+    default long countByReporterUserId(String userId) { return 0L; }
 
-    public long countByStatus(Report.ReportStatus status) {
-        return reportRepository.countByStatus(status);
-    }
-
-    public List<Report> searchReports(String query) {
-        return reportRepository.findByDescriptionContainingIgnoreCase(query);
-    }
-
-    public List<Report> getReportsForDisposisi() {
-        return reportRepository.findByStatus(Report.ReportStatus.DIVALIDASI);
-    }
-
-    public List<Report> getReportsByRegion(String regionId) {
-        return reportRepository.findByRegionRegionId(regionId);
-    }
-
-    public List<Report> getReportsByCategory(String categoryId) {
-        return reportRepository.findByCategoryCategoryId(categoryId);
-    }
-
-    private String generateTicketNumber() {
-        String year = String.valueOf(LocalDateTime.now().getYear());
-        int number = ticketCounter.getAndIncrement();
-        return String.format("ADJ-%s-%05d", year, number);
+    // Backward compat: old WebController passes Report entity directly
+    default Report createReport(Report report, String userId) {
+        CreateReportDTO dto = new CreateReportDTO();
+        dto.setDescription(report.getDescription());
+        dto.setLocationHint(report.getLocationHint());
+        dto.setLatitude(report.getLatitude());
+        dto.setLongitude(report.getLongitude());
+        dto.setPhotoBase64(report.getPhotoBase64());
+        if (report.getCategory() != null) {
+            dto.setCategoryId(report.getCategory().getCategoryId());
+        }
+        return createReport(dto, userId);
     }
 }

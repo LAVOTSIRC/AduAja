@@ -1,44 +1,33 @@
 package com.plr.aduaja.service;
 
 import com.plr.aduaja.model.Agency;
-import com.plr.aduaja.repository.AgencyRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
 
-@Service
-public class AgencyService {
+public interface AgencyService {
 
-    @Autowired
-    private AgencyRepository agencyRepository;
+    // OVERLOADING: 3 versi getAgencies dengan parameter berbeda (Compile-time Polymorphism)
+    List<Agency> getAgencies();
 
-    public List<Agency> getAllAgencies() {
-        return agencyRepository.findAll();
-    }
+    List<Agency> getAgencies(boolean activeOnly);  // OVERLOAD
 
-    public List<Agency> getActiveAgencies() {
-        return agencyRepository.findByIsActiveTrue();
-    }
+    List<Agency> getAgencies(String regionId);  // OVERLOAD
 
-    public Optional<Agency> getAgencyById(String id) {
-        return agencyRepository.findById(id);
-    }
+    List<Agency> getAgencies(String regionId, boolean activeOnly);  // OVERLOAD
 
-    public List<Agency> getAgenciesByRegion(String regionId) {
-        return agencyRepository.findByRegionRegionId(regionId);
-    }
+    // Alias lama — backward compatibility
+    List<Agency> getAllAgencies();
 
-    public List<Agency> getActiveAgenciesByRegion(String regionId) {
-        return agencyRepository.findByIsActiveTrueAndRegionRegionId(regionId);
-    }
+    List<Agency> getActiveAgencies();
 
-    public Agency createAgency(Agency agency) {
-        return agencyRepository.save(agency);
-    }
+    Optional<Agency> getAgencyById(String id);
 
-    public Agency updateAgency(Agency agency) {
-        return agencyRepository.save(agency);
-    }
+    List<Agency> getAgenciesByRegion(String regionId);
+
+    List<Agency> getActiveAgenciesByRegion(String regionId);
+
+    Agency createAgency(Agency agency);
+
+    Agency updateAgency(Agency agency);
 }
