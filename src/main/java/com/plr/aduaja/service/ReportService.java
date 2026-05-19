@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import jakarta.annotation.PostConstruct;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -26,7 +27,12 @@ public class ReportService {
     @Autowired
     private RegionRepository regionRepository;
 
-    private final AtomicInteger ticketCounter = new AtomicInteger(1);
+    private AtomicInteger ticketCounter;
+
+    @PostConstruct
+    private void initTicketCounter() {
+        ticketCounter = new AtomicInteger((int) reportRepository.count() + 1);
+    }
 
     public List<Report> getAllReports() {
         return reportRepository.findAll();

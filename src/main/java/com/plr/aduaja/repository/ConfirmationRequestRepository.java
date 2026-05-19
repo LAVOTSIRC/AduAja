@@ -19,4 +19,7 @@ public interface ConfirmationRequestRepository extends JpaRepository<Confirmatio
     List<ConfirmationRequest> findByDeadlineAtBeforeAndResponseIsNull(LocalDateTime now);
 
     List<ConfirmationRequest> findByIsLockedFalse();
+
+    List<ConfirmationRequest> findByResponse(ResponseType response);
 }
+
