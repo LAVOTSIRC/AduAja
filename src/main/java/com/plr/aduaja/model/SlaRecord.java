@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "sla_records")
-public class SlaRecord {
+public class SlaRecord extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

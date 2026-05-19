@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "validation_decisions")
-public class ValidationDecision {
+public class ValidationDecision extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

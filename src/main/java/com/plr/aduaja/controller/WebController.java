@@ -461,27 +461,63 @@ public class WebController {
         return "admin/validation-panel";
     }
 
-@PostMapping("/admin/validation")
-public String adminValidationPost(
-        @RequestParam(value = "id", required = false) String id,
-        @RequestParam(value = "action", required = false) String action,
-        @RequestParam(value = "reason", required = false) String reason,
-        @RequestParam(value = "rejectionReason", required = false) String rejectionReason
-) {
-    String ticketId = id != null ? id.trim() : null;
-    String normalizedAction = action != null ? action.trim().toLowerCase() : null;
-    String note = (reason != null && !reason.trim().isEmpty())
-            ? reason.trim()
-            : (rejectionReason != null && !rejectionReason.trim().isEmpty() ? rejectionReason.trim() : null);
+    @PostMapping("/admin/validation")
+    public String adminValidationPost(
+            @RequestParam(value = "id", required = false) String id,
+            @RequestParam(value = "action", required = false) String action,
+            @RequestParam(value = "reason", required = false) String reason,
+            @RequestParam(value = "rejectionReason", required = false) String rejectionReason
+    ) {
+        String ticketId = id != null ? id.trim() : null;
+        String normalizedAction = action != null ? action.trim().toLowerCase() : null;
+        String note = (reason != null && !reason.trim().isEmpty())
+                ? reason.trim()
+                : (rejectionReason != null && !rejectionReason.trim().isEmpty() ? rejectionReason.trim() : null);
 
     if (ticketId == null || ticketId.isEmpty() || normalizedAction == null) {
+        return "redirect:/admin/dashboard?tab=queue";
+    }
+
+    if (cachedValidationReports != null) {
+        Map<String, Object> report = null;
+        for (Map<String, Object> r : cachedValidationReports) {
+            Object rid = r.get("id");
+            if (rid != null && ticketId.equals(String.valueOf(rid))) {
+                report = r;
+                break;
+            }
+        }
+
+        if (report != null) {
+            cachedValidationReports.remove(report);
+            if ("approved".equals(normalizedAction) || "approve".equals(normalizedAction)) {
+                if (cachedDisposisiReports == null) {
+                    dummyDisposisiReports();
+                }
+                Map<String, Object> disp = new HashMap<>(report);
+                disp.put("status", "Tervalidasi");
+                disp.put("prioritasSistem", report.getOrDefault("prioritas", "Sedang"));
+                disp.put("dinasRekomendasi", "Dinas Terkait");
+                if (note != null) {
+                    disp.put("catatanValidasi", note);
+                }
+                cachedDisposisiReports.add(disp);
+                return "redirect:/admin/dashboard?tab=disposisi";
+            }
+
+            if ("rejected".equals(normalizedAction) || "revision".equals(normalizedAction)) {
+                if (note != null) {
+                    report.put("alasanPenolakan", note);
+                }
+            }
+        }
         return "redirect:/admin/dashboard?tab=queue";
     }
 
     try {
         boolean approved = "approved".equals(normalizedAction) || "approve".equals(normalizedAction);
         if (ticketId != null) {
-            Report r = reportService.updateStatus(ticketId, approved ? ReportStatus.DIVALIDASI : ReportStatus.DITOLAK, note, note);
+            Report r = reportService.updateStatus(ticketId, approved ? ReportStatus.DIVALIDASI : ReportStatus.DITOLAK);
             if (r != null && r.getReporter() != null) {
                 String notifTitle = approved ? "Laporan Divalidasi" : "Laporan Ditolak";
                 String notifMsg = approved
@@ -501,7 +537,7 @@ public String adminValidationPost(
     @GetMapping("/admin/validation-panel")
     public String adminValidationPanelAlias(Model model,
                                             @RequestParam(value = "id", required = false) String id) {
-        return adminValidationPanel(model, id);
+        return "redirect:/admin/validation" + (id != null ? "?id=" + id : "");
     }
 
     @PostMapping("/admin/validation-panel")
@@ -514,10 +550,8 @@ public String adminValidationPost(
 /** GET /admin/merge — panel merge tiket duplikat */
 @GetMapping("/admin/merge")
 public String adminMergeTicketPanel(Model model) {
-    List<Map<String, Object>> mergeTickets = getAdminValidationList();
-    mergeTickets = mergeTickets.stream().filter(t -> "Diterima".equals(t.get("status"))).collect(Collectors.toList());
-    model.addAttribute("mergeTickets", mergeTickets);
-    model.addAttribute("clusters", new ArrayList<>());
+    model.addAttribute("mergeTickets", dummyMergeTickets());
+    model.addAttribute("clusters", dummyClusters());
     model.addAttribute("selectedTickets", new ArrayList<>());
     return "admin/merge-ticket-panel";
 }
@@ -535,10 +569,26 @@ public String adminMergeTicketPanelAlias(Model model) {
             @RequestParam(value = "primaryTicket", required = false) String primaryTicket,
             @RequestParam(value = "mergeReason", required = false) String mergeReason
     ) {
+        // Merge selected tickets
         if (selectedTickets != null && selectedTickets.size() >= 2 && mergeReason != null && !mergeReason.trim().isEmpty()) {
+            // Validate merge reason length
             if (mergeReason.trim().length() < 10) {
                 return "redirect:/admin/dashboard?tab=merge&mergeError=shortReason";
             }
+            // Check: no ticket can be in disposisi or in-progress
+            List<String> blockedTickets = new ArrayList<>();
+            for (String tid : selectedTickets) {
+                String status = ticketLifecycleStatus.get(tid);
+                if ("disposisi".equals(status) || "in-progress".equals(status)) {
+                    blockedTickets.add(tid);
+                }
+            }
+            if (!blockedTickets.isEmpty()) {
+                // Reject merge: some tickets are already being processed
+                return "redirect:/admin/dashboard?tab=merge&mergeError=blocked&blocked=" + String.join(",", blockedTickets);
+            }
+
+            // Validate primaryTicket is selected
             if (primaryTicket == null || primaryTicket.trim().isEmpty()) {
                 return "redirect:/admin/dashboard?tab=merge&mergeError=noParent";
             }
@@ -546,31 +596,36 @@ public String adminMergeTicketPanelAlias(Model model) {
                 return "redirect:/admin/dashboard?tab=merge&mergeError=invalidParent";
             }
 
-            try {
-                String adminId = userService.getUserByEmail("admin@aduaja.go.id")
-                        .map(User::getUserId).orElse(null);
-                for (String childId : selectedTickets) {
-                    if (!childId.equals(primaryTicket)) {
-                        mergeRecordService.createMerge(primaryTicket, childId, adminId, mergeReason);
+            List<Map<String, Object>> newCluster = new ArrayList<>();
+            if (cachedMergeTickets != null) {
+                for (String tid : selectedTickets) {
+                    Map<String, Object> t = cachedMergeTickets.stream()
+                            .filter(r -> tid.equals(r.get("id"))).findFirst().orElse(null);
+                    if (t != null) {
+                        cachedMergeTickets.remove(t);
+                        // Mark child tickets (not the primary) as merged/hidden
+                        if (!tid.equals(primaryTicket)) {
+                            mergedTicketMap.put(tid, primaryTicket);
+                        }
+                        newCluster.add(t);
                     }
                 }
-            } catch (Exception ignored) {
+            }
+            if (!newCluster.isEmpty() && cachedClusters != null) {
+                cachedClusters.add(newCluster);
             }
             return "redirect:/admin/dashboard?tab=merge&merged=true";
         }
 
-        if (clusterIndex != null) {
-            try {
-                List<MergeRecord> records = mergeRecordService.getActiveMergeRecords();
-                int idx = 0;
-                for (MergeRecord mr : records) {
-                    if (idx == clusterIndex) {
-                        mergeRecordService.undoMerge(mr.getMergeId());
-                        break;
-                    }
-                    idx++;
+        // Separate a cluster
+        if (clusterIndex != null && cachedClusters != null && clusterIndex >= 0 && clusterIndex < cachedClusters.size()) {
+            List<Map<String, Object>> separated = cachedClusters.remove((int) clusterIndex);
+            if (cachedMergeTickets != null) {
+                for (Map<String, Object> t : separated) {
+                    String tid = (String) t.get("id");
+                    mergedTicketMap.remove(tid); // un-hide from queue
+                    cachedMergeTickets.add(t);
                 }
-            } catch (Exception ignored) {
             }
             return "redirect:/admin/dashboard?tab=merge&separated=true";
         }
@@ -696,38 +751,14 @@ public String adminSengketaPanel(
         Model model,
         @RequestParam(value = "id", required = false) String id
 ) {
-    List<DisputeRecord> realDisputes = disputeService.getPendingDisputes();
-    DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
-    List<Map<String, Object>> disputes = realDisputes.stream().map(d -> {
-        Map<String, Object> m = new HashMap<>();
-        m.put("id", d.getDisputeId());
-        m.put("ticketId", d.getReport() != null ? d.getReport().getReportId() : "-");
-        m.put("judul", d.getReasonText() != null ? d.getReasonText() : "Sengketa #" + d.getDisputeId().substring(0, 8));
-        m.put("statusSengketa", d.getResolution() == null ? "Menunggu Tinjauan" : "Selesai");
-        m.put("prioritas", "Sedang");
-        m.put("tanggalSengketa", d.getFiledAt() != null ? d.getFiledAt().format(fmt) : "-");
-        m.put("pelapor", d.getReport() != null && d.getReport().getReporter() != null ? d.getReport().getReporter().getFullName() : "-");
-        m.put("tanggalLaporan", "-");
-        m.put("tanggalSelesai", d.getResolvedAt() != null ? d.getResolvedAt().format(fmt) : "-");
-        m.put("statusSebelum", "Selesai");
-        m.put("alasanSengketa", d.getReasonText() != null ? d.getReasonText() : "-");
-        m.put("fotoBuktiSengketa", dummyReportImage());
-        m.put("fotoBuktiPerbaikan", dummyReportImage());
-        m.put("keteranganDinas", d.getResolutionNotes() != null ? d.getResolutionNotes() : "-");
-        m.put("dinas", "Dinas Terkait");
-        m.put("petugasId", "-");
-        m.put("petugasNama", "-");
-        return m;
-    }).collect(Collectors.toList());
+    List<Map<String, Object>> disputes = dummyDisputeList();
     model.addAttribute("disputes", disputes);
 
     Map<String, Object> selected = null;
-    if (id != null && !disputes.isEmpty()) {
+    if (id != null) {
         selected = disputes.stream()
                 .filter(d -> d.get("id").equals(id))
                 .findFirst().orElse(disputes.get(0));
-    } else if (!disputes.isEmpty()) {
-        selected = disputes.get(0);
     }
     model.addAttribute("selectedDispute", selected);
     return "admin/sengketa-panel";
@@ -759,12 +790,12 @@ public String adminSengketaPanelAlias(Model model,
     return adminSengketaPanel(model, id);
 }
 
-@PostMapping("/admin/sengketa-panel")
-public String adminSengketaPanelAliasPost(
-        @RequestParam(value = "id", required = false) String id
-) {
-    return "redirect:/admin/sengketa" + (id != null ? "?id=" + id : "");
-}
+    @PostMapping("/admin/sengketa-panel")
+    public String adminSengketaPanelAliasPost(
+            @RequestParam(value = "id", required = false) String id
+    ) {
+        return "redirect:/admin/sengketa" + (id != null ? "?id=" + id : "");
+    }
     // ==========================================
     // ADMIN ROUTES — ADMIN DINAS
     // ==========================================

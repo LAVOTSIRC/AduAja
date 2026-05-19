@@ -11,7 +11,8 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, String> {
 
     List<AuditLog> findByReportReportId(String reportId);
 
-    List<AuditLog> findByTaskTaskId(String taskId);
+    // Fix 4: Ganti findByTaskTaskId → findByTargetTypeAndTargetId
+    List<AuditLog> findByTargetTypeAndTargetId(String targetType, String targetId);
 
     List<AuditLog> findByActorUserId(String actorId);
 
