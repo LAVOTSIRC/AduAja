@@ -12,107 +12,82 @@
     <header class="bg-white shadow-sm sticky top-0 z-10">
       <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center gap-3 h-16">
-          <a
-            th:href="@{/warga/dashboard}"
-            class="p-2 hover:bg-gray-100 rounded-lg"
-          >
+          <a th:href="@{/warga/dashboard}" class="p-2 hover:bg-gray-100 rounded-lg">
             <i data-lucide="arrow-left" class="w-5 h-5 text-gray-600"></i>
           </a>
           <div class="flex-1">
             <h1 class="font-bold text-gray-900">Notifikasi</h1>
-            <p
-              class="text-xs text-gray-500"
-              th:text="${unreadCount > 0 ? unreadCount + ' notifikasi belum dibaca' : 'Semua notifikasi sudah dibaca'}"
-            >
+            <p class="text-xs text-gray-500"
+               th:text="${unreadCount > 0 ? unreadCount + ' notifikasi belum dibaca' : 'Semua notifikasi sudah dibaca'}">
               Status notifikasi
             </p>
           </div>
+          <!-- Tombol tandai semua dibaca -->
+          <form th:if="${unreadCount > 0}" th:action="@{/warga/notifications/mark-read}" method="post">
+            <button type="submit"
+                    class="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+              Tandai Semua Dibaca
+            </button>
+          </form>
         </div>
       </div>
     </header>
 
     <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div class="flex gap-2 mb-6">
-        <a
-          th:href="@{/warga/notifications(filter='semua')}"
-          th:class="${filter == 'semua'} ? 'px-4 py-2 rounded-lg font-medium text-sm transition-colors bg-blue-600 text-white' : 'px-4 py-2 rounded-lg font-medium text-sm transition-colors bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'"
-        >
+        <a th:href="@{/warga/notifications(filter='semua')}"
+           th:class="${filter == 'semua'} ? 'px-4 py-2 rounded-lg font-medium text-sm transition-colors bg-blue-600 text-white' : 'px-4 py-2 rounded-lg font-medium text-sm transition-colors bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'">
           Semua (<span th:text="${totalCount}">0</span>)
         </a>
-        <a
-          th:href="@{/warga/notifications(filter='belum-dibaca')}"
-          th:class="${filter == 'belum-dibaca'} ? 'px-4 py-2 rounded-lg font-medium text-sm transition-colors bg-blue-600 text-white' : 'px-4 py-2 rounded-lg font-medium text-sm transition-colors bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'"
-        >
+        <a th:href="@{/warga/notifications(filter='belum-dibaca')}"
+           th:class="${filter == 'belum-dibaca'} ? 'px-4 py-2 rounded-lg font-medium text-sm transition-colors bg-blue-600 text-white' : 'px-4 py-2 rounded-lg font-medium text-sm transition-colors bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'">
           Belum Dibaca (<span th:text="${unreadCount}">0</span>)
         </a>
       </div>
 
-      <div
-        th:if="${notifications != null and !#lists.isEmpty(notifications)}"
-        class="space-y-3"
-      >
-        <div
-          th:each="notification : ${notifications}"
-          th:class="${notification.isRead} ? 'bg-white p-4 rounded-xl border cursor-pointer transition-all hover:shadow-md border-gray-100' : 'bg-white p-4 rounded-xl border cursor-pointer transition-all hover:shadow-md border-blue-200 bg-blue-50/30'"
-        >
+      <!-- Daftar Notifikasi dari DB (Notification entity) -->
+      <div th:if="${notifications != null and !#lists.isEmpty(notifications)}" class="space-y-3">
+        <div th:each="notif : ${notifications}"
+             th:class="${notif.isRead} ? 'bg-white p-4 rounded-xl border border-gray-100 transition-all hover:shadow-md' : 'bg-blue-50/30 p-4 rounded-xl border border-blue-200 transition-all hover:shadow-md'">
           <div class="flex gap-4">
-            <div
-              th:class="|w-12 h-12 ${notification.bgColor} rounded-lg flex items-center justify-center flex-shrink-0|"
-            >
-              <i
-                th:attr="data-lucide=${notification.icon}"
-                th:class="|w-6 h-6 ${notification.iconColor}|"
-              ></i>
+            <!-- Icon berdasarkan tipe notifikasi -->
+            <div class="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
+                 th:classappend="${notif.notificationType != null and notif.notificationType.name().contains('SELESAI')} ? 'bg-green-100' : (${notif.notificationType != null and notif.notificationType.name().contains('DITOLAK')} ? 'bg-red-100' : 'bg-blue-100')">
+              <i class="w-6 h-6"
+                 th:attr="data-lucide=${notif.notificationType != null and notif.notificationType.name().contains('SELESAI') ? 'check-circle' : (notif.notificationType != null and notif.notificationType.name().contains('DITOLAK') ? 'x-circle' : 'bell')}"
+                 th:classappend="${notif.notificationType != null and notif.notificationType.name().contains('SELESAI')} ? 'text-green-600' : (${notif.notificationType != null and notif.notificationType.name().contains('DITOLAK')} ? 'text-red-600' : 'text-blue-600')">
+              </i>
             </div>
             <div class="flex-1 min-w-0">
               <div class="flex items-start justify-between gap-2 mb-1">
-                <h3
-                  th:class="${notification.isRead} ? 'font-semibold text-gray-900' : 'font-semibold text-blue-900'"
-                  th:text="${notification.title}"
-                >
-                  Judul
-                </h3>
-                <span
-                  th:if="${!notification.isRead}"
-                  class="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0 mt-1.5"
-                ></span>
+                <h3 th:class="${notif.isRead} ? 'font-semibold text-gray-900' : 'font-semibold text-blue-900'"
+                    th:text="${notif.title}">Judul</h3>
+                <span th:if="${!notif.isRead}" class="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0 mt-1.5"></span>
               </div>
-              <p
-                class="text-sm text-gray-600 mb-2 line-clamp-2"
-                th:text="${notification.message}"
-              >
-                Pesan
-              </p>
+              <p class="text-sm text-gray-600 mb-2 line-clamp-2" th:text="${notif.messageText}">Pesan</p>
               <div class="flex items-center justify-between">
-                <p class="text-xs text-gray-500" th:text="${notification.time}">
+                <p class="text-xs text-gray-500"
+                   th:text="${notif.sentAt != null ? #temporals.format(notif.sentAt, 'd MMM yyyy HH:mm') : '-'}">
                   Waktu
                 </p>
-                <a
-                  th:if="${notification.action}"
-                  th:href="@{/warga/report-detail(id=${notification.reportId})}"
-                  class="text-xs font-medium text-blue-600 hover:underline"
-                  >Lihat Detail</a
-                >
+                <a th:if="${notif.referenceType == 'REPORT' and notif.referenceId != null}"
+                   th:href="@{/warga/report-detail(id=${notif.referenceId})}"
+                   class="text-xs font-medium text-blue-600 hover:underline">Lihat Detail</a>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div
-        th:if="${notifications == null or #lists.isEmpty(notifications)}"
-        class="bg-white p-12 rounded-xl text-center"
-      >
-        <div
-          class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4"
-        >
+      <!-- Kosong -->
+      <div th:if="${notifications == null or #lists.isEmpty(notifications)}"
+           class="bg-white p-12 rounded-xl text-center">
+        <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <i data-lucide="bell" class="w-10 h-10 text-gray-400"></i>
         </div>
         <h3 class="font-semibold text-gray-900 mb-2">Tidak Ada Notifikasi</h3>
-        <p
-          class="text-gray-500"
-          th:text="${filter == 'belum-dibaca' ? 'Semua notifikasi sudah dibaca' : 'Belum ada notifikasi untuk ditampilkan'}"
-        >
+        <p class="text-gray-500"
+           th:text="${filter == 'belum-dibaca' ? 'Semua notifikasi sudah dibaca' : 'Belum ada notifikasi untuk ditampilkan'}">
           Belum ada notifikasi untuk ditampilkan
         </p>
       </div>

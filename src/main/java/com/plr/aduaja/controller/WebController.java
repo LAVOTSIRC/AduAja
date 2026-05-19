@@ -3,8 +3,10 @@ package com.plr.aduaja.controller;
 import com.plr.aduaja.model.*;
 import com.plr.aduaja.model.Report.ReportStatus;
 import com.plr.aduaja.model.FieldTask.TaskStatus;
+import com.plr.aduaja.repository.ReportCategoryRepository;
 import com.plr.aduaja.repository.UserProfileRepository;
 import com.plr.aduaja.repository.UserRepository;
+import com.plr.aduaja.dto.CreateReportDTO;
 import com.plr.aduaja.dto.LoginDTO;
 import com.plr.aduaja.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,6 +62,9 @@ public class WebController {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private ReportCategoryRepository reportCategoryRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -131,15 +136,18 @@ public class WebController {
             model.addAttribute("pendingAssignments", dummyIncomingReportsForDinas());
             model.addAttribute("availablePetugas", dummyPetugasList());
         } else {
-            // Stat cards for admin_pusat
+            long laporanMasuk = reportService.countByStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
+            long menungguValidasi = reportService.countByStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
+            long dalamAntreanDinas = reportService.countByStatus(Report.ReportStatus.DIVALIDASI);
+            long selesaiHariIni = reportService.countByStatus(Report.ReportStatus.SELESAI);
             List<Map<String, Object>> stats = new ArrayList<>();
-            stats.add(Map.of("title", "Laporan Masuk", "value", dummyQueueReports().size(),
+            stats.add(Map.of("title", "Laporan Masuk", "value", laporanMasuk,
                     "icon", "file-text", "bgColor", "bg-blue-100", "color", "text-blue-600"));
-            stats.add(Map.of("title", "Menunggu Validasi", "value", dummyValidationReports().size(),
+            stats.add(Map.of("title", "Menunggu Validasi", "value", menungguValidasi,
                     "icon", "clock", "bgColor", "bg-yellow-100", "color", "text-yellow-600"));
-            stats.add(Map.of("title", "Dalam Antrean Dinas", "value", dummyDisposisiReports().size(),
+            stats.add(Map.of("title", "Dalam Antrean Dinas", "value", dalamAntreanDinas,
                     "icon", "alert-triangle", "bgColor", "bg-red-100", "color", "text-red-600"));
-            stats.add(Map.of("title", "Selesai Hari Ini", "value", 5,
+            stats.add(Map.of("title", "Selesai Hari Ini", "value", selesaiHariIni,
                     "icon", "check-circle", "bgColor", "bg-green-100", "color", "text-green-600"));
             model.addAttribute("stats", stats);
         }
@@ -184,20 +192,23 @@ public class WebController {
         model.addAttribute("panels", panels);
 
         // Queue reports (for "Antrean Laporan" tab) — sorted FIFO, exclude merged child tickets
-        List<Map<String, Object>> queueReports = new ArrayList<>(dummyQueueReports());
+        List<Map<String, Object>> queueReports = getAdminValidationList();
         queueReports.removeIf(r -> mergedTicketMap.containsKey(r.get("id")));
         DateTimeFormatter queueFmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
-        queueReports.sort(Comparator.comparing(r -> LocalDate.parse((String) r.get("tanggalMasuk"), queueFmt)));
+        queueReports.sort(Comparator.comparing(r -> {
+            try { return LocalDate.parse((String) r.get("tanggalMasuk"), queueFmt); }
+            catch (Exception e) { return LocalDate.MIN; }
+        }));
         model.addAttribute("queueReports", queueReports);
 
         // Reports for validation tab (now merged into queue)
-        List<Map<String, Object>> validationReports = dummyValidationReports();
+        List<Map<String, Object>> validationReports = getAdminValidationList();
         model.addAttribute("validationReports", validationReports);
         
         Map<String, Object> selected = null;
         if (id != null) {
             selected = validationReports.stream()
-                    .filter(r -> r.get("id").equals(id))
+                    .filter(r -> id.equals(String.valueOf(r.get("id"))))
                     .findFirst().orElse(null);
         }
         model.addAttribute("selectedReport", selected);
@@ -243,7 +254,7 @@ public class WebController {
             Model model,
             @RequestParam(value = "id", required = false) String id
     ) {
-        List<Map<String, Object>> validationReports = dummyValidationReports();
+        List<Map<String, Object>> validationReports = getAdminValidationList();
         List<Map<String, Object>> disposisiReports = dummyDisposisiReports();
         
         Map<String, Object> selectedReport = null;
@@ -296,10 +307,13 @@ public class WebController {
     /** GET /admin/laporan-queue — antrean laporan masuk */
     @GetMapping("/admin/laporan-queue")
     public String adminLaporanQueue(Model model) {
-        List<Map<String, Object>> reports = new ArrayList<>(dummyQueueReports());
+        List<Map<String, Object>> reports = getAdminValidationList();
         // Sort FIFO: laporan paling lama (tanggal masuk paling awal) di atas
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
-        reports.sort(Comparator.comparing(r -> LocalDate.parse((String) r.get("tanggalMasuk"), fmt)));
+        reports.sort(Comparator.comparing(r -> {
+            try { return LocalDate.parse((String) r.get("tanggalMasuk"), fmt); }
+            catch (Exception e) { return LocalDate.MIN; }
+        }));
         model.addAttribute("queueReports", reports);
         return "admin/laporan-queue";
     }
@@ -310,12 +324,12 @@ public class WebController {
             Model model,
             @RequestParam(value = "id", required = false) String id
     ) {
-        List<Map<String, Object>> reports = dummyValidationReports();
+        List<Map<String, Object>> reports = getAdminValidationList();
         model.addAttribute("reports", reports);
         model.addAttribute("pendingCount", reports.size());
 
         Map<String, Object> selected = null;
-        if (id != null) {
+        if (id != null && !reports.isEmpty()) {
             selected = reports.stream()
                     .filter(r -> r.get("id").equals(id))
                     .findFirst().orElse(reports.get(0));
@@ -380,7 +394,16 @@ public String adminValidationPost(
     try {
         boolean approved = "approved".equals(normalizedAction) || "approve".equals(normalizedAction);
         if (ticketId != null) {
-            reportService.updateStatus(ticketId, approved ? ReportStatus.DIVALIDASI : ReportStatus.DITOLAK);
+            Report r = reportService.updateStatus(ticketId, approved ? ReportStatus.DIVALIDASI : ReportStatus.DITOLAK);
+            if (r != null && r.getReporter() != null) {
+                String notifTitle = approved ? "Laporan Divalidasi" : "Laporan Ditolak";
+                String notifMsg = approved
+                    ? "Laporan Anda nomor " + r.getTicketNumber() + " telah divalidasi."
+                    : "Laporan Anda nomor " + r.getTicketNumber() + " ditolak." + (note != null ? " Alasan: " + note : "");
+                notificationService.createNotification(
+                    r.getReporter().getUserId(), notifTitle, notifMsg, "REPORT", r.getReportId()
+                );
+            }
         }
     } catch (Exception ignored) {
     }
@@ -1276,7 +1299,8 @@ public String adminSengketaPanelAliasPost(
         userMap.put("id", user.getUserId());
         model.addAttribute("user", userMap);
 
-        List<Report> dbReports = reportService.getAllReports();
+        // ABSTRACTION: hanya laporan milik warga ini (via service)
+        List<Report> dbReports = reportService.getReportsByWarga(userId);
         long total = dbReports.size();
         long diproses = dbReports.stream().filter(r -> r.getStatus() == ReportStatus.DITUGASKAN || r.getStatus() == ReportStatus.SEDANG_DIKERJAKAN).count();
         long selesai = dbReports.stream().filter(r -> r.getStatus() == ReportStatus.SELESAI).count();
@@ -1292,13 +1316,12 @@ public String adminSengketaPanelAliasPost(
         model.addAttribute("stats", stats);
 
         List<Map<String, Object>> recentReports = new ArrayList<>();
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
-        for (Report r : dbReports) {
+        for (Report r : dbReports.stream().limit(5).toList()) {
             Map<String, Object> map = new HashMap<>();
-            map.put("id", r.getReportId().substring(0, Math.min(8, r.getReportId().length())));
+            map.put("id", r.getReportId());
             map.put("title", r.getTicketNumber());
             map.put("category", r.getCategory() != null ? r.getCategory().getCategoryName() : "Lainnya");
-            map.put("status", r.getStatus().toString());
+            map.put("status", toWargaStatusLabel(r.getStatus()));
             String colorClass = switch (r.getStatus()) {
                 case MENUNGGU_VALIDASI -> "bg-gray-100 text-gray-700";
                 case DIVALIDASI, DITUGASKAN, SEDANG_DIKERJAKAN -> "bg-yellow-100 text-yellow-700";
@@ -1308,64 +1331,74 @@ public String adminSengketaPanelAliasPost(
             };
             map.put("statusColor", colorClass);
             map.put("location", r.getLocationHint());
-            map.put("date", r.getSubmittedAt().toLocalDate());
+            map.put("date", r.getSubmittedAt() != null ? r.getSubmittedAt().toLocalDate() : java.time.LocalDate.now());
             recentReports.add(map);
         }
         model.addAttribute("recentReports", recentReports);
+        // Notifikasi unread count (ABSTRACTION via NotificationService)
+        model.addAttribute("unreadCount", notificationService.countUnreadByUser(userId));
         return "warga/dashboard";
     }
 
     @GetMapping("/warga/create-report")
-    public String wargaCreateReport(Model model) {
-        model.addAttribute("reportForm", new ReportForm());
+    public String wargaCreateReport(Model model, HttpSession session) {
+        String userId = (String) session.getAttribute("userId");
+        if (userId == null) return "redirect:/warga/login";
+        model.addAttribute("createReportDTO", new com.plr.aduaja.dto.CreateReportDTO());
+        model.addAttribute("categories", reportCategoryRepository.findByIsActiveTrue());
         return "warga/create-report";
     }
 
-    /** POST /warga/create-report — kirim laporan baru dari warga */
     @PostMapping("/warga/create-report")
     public String wargaCreateReportPost(
-            @ModelAttribute ReportForm reportForm,
-            Model model
+            @ModelAttribute CreateReportDTO dto,
+            HttpSession session,
+            RedirectAttributes redirectAttributes
     ) {
+        String userId = (String) session.getAttribute("userId");
+        if (userId == null) return "redirect:/warga/login";
+
         try {
-            // For now, use a fixed user ID. In production, get from session/authentication
-            String userId = userService.getUserByEmail("budi.santoso@email.com")
-                    .map(User::getUserId).orElse(null);
-
-            if (userId != null) {
-                Report report = new Report();
-                report.setDescription(reportForm.getDescription());
-                report.setLocationHint(reportForm.getLandmark());
-                try {
-                    report.setLatitude(new java.math.BigDecimal(reportForm.getLatitude()));
-                    report.setLongitude(new java.math.BigDecimal(reportForm.getLongitude()));
-                } catch (Exception ignored) {}
-
-                reportService.createReport(report, userId);
+            Report report = reportService.createReport(dto, userId);
+            // Notifikasi ke semua admin pusat
+            List<User> admins = userRepository.findByRole(User.Role.ADMIN_PUSAT);
+            for (User admin : admins) {
+                notificationService.createNotification(
+                    admin.getUserId(),
+                    "Laporan Baru",
+                    "Laporan baru nomor " + report.getTicketNumber() + " telah dibuat dan menunggu validasi.",
+                    "REPORT",
+                    report.getReportId()
+                );
             }
+            redirectAttributes.addFlashAttribute("success", "Laporan berhasil dikirim!");
+            return "redirect:/warga/report-detail?id=" + report.getReportId();
         } catch (Exception e) {
-            model.addAttribute("error", "Gagal mengirim laporan: " + e.getMessage());
-            return "warga/create-report";
+            redirectAttributes.addFlashAttribute("error", "Gagal mengirim laporan: " + e.getMessage());
+            return "redirect:/warga/create-report";
         }
-        return "redirect:/warga/report-history";
     }
 
     @GetMapping("/warga/report-history")
     public String wargaReportHistory(
             Model model,
+            HttpSession session,
             @RequestParam(value = "status", required = false, defaultValue = "Semua") String filterStatus,
             @RequestParam(value = "q",      required = false, defaultValue = "") String searchQuery
     ) {
-        List<Report> dbReports = reportService.getAllReports();
+        String userId = (String) session.getAttribute("userId");
+        if (userId == null) return "redirect:/warga/login";
+        // ABSTRACTION: hanya laporan warga ini
+        List<Report> dbReports = reportService.getReportsByWarga(userId);
 
         List<Map<String, Object>> allReports = new ArrayList<>();
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
         for (Report r : dbReports) {
             Map<String, Object> map = new HashMap<>();
-            map.put("id", r.getReportId().substring(0, Math.min(8, r.getReportId().length())));
+            map.put("id", r.getReportId());
             map.put("title", r.getTicketNumber());
             map.put("category", r.getCategory() != null ? r.getCategory().getCategoryName() : "Lainnya");
-            map.put("status", r.getStatus().toString());
+            map.put("status", toWargaStatusLabel(r.getStatus()));
             map.put("location", r.getLocationHint());
             map.put("date", r.getSubmittedAt().toLocalDate());
             map.put("description", r.getDescription());
@@ -1424,124 +1457,173 @@ public String adminSengketaPanelAliasPost(
     @GetMapping("/warga/report-detail")
     public String wargaReportDetail(
             Model model,
+            HttpSession session,
             @RequestParam(value = "id", required = false) String id
     ) {
-        Map<String, Object> report = null;
-        List<Report> dbReports = reportService.getAllReports();
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm");
+        String userId = (String) session.getAttribute("userId");
+        if (userId == null) return "redirect:/warga/login";
 
-        for (Report r : dbReports) {
-            if (r.getReportId().equals(id) || r.getReportId().substring(0, Math.min(8, r.getReportId().length())).equals(id)) {
-                report = new HashMap<>();
-                report.put("id", r.getReportId().substring(0, Math.min(8, r.getReportId().length())));
-                report.put("title", r.getTicketNumber());
-                report.put("category", r.getCategory() != null ? r.getCategory().getCategoryName() : "Lainnya");
-                report.put("status", r.getStatus().toString());
-                report.put("location", r.getLocationHint());
-                report.put("date", r.getSubmittedAt().toLocalDate());
-                report.put("description", r.getDescription());
-                report.put("landmark", r.getLocationHint());
-                report.put("rejectionReason", "");
-                report.put("createdAt", r.getSubmittedAt().format(fmt));
-                report.put("slaDeadline", r.getSlaRecord() != null ? r.getSlaRecord().getSlaDeadlineAt().format(fmt) : "-");
-                break;
-            }
-        }
-        if (report != null) {
-            String status = (String) report.get("status");
-            List<Map<String, Object>> timeline = new ArrayList<>();
-            timeline.add(new HashMap<>(Map.of(
-                    "icon","file-text","color","bg-blue-100 text-blue-600",
-                    "title","Laporan Diterima","date","20 Apr 2025",
-                    "description","Laporan Anda telah berhasil dikirim dan sedang menunggu validasi."
-            )));
-            if (!"Menunggu".equals(status) && !"Ditolak".equals(status)) {
-                timeline.add(new HashMap<>(Map.of(
-                        "icon","search","color","bg-yellow-100 text-yellow-600",
-                        "title","Validasi Laporan","date","21 Apr 2025",
-                        "description","Admin telah memvalidasi dan meneruskan laporan ke dinas terkait.",
-                        "note","Estimasi penyelesaian: 3 hari kerja"
-                )));
-            }
-            if ("Diproses".equals(status) || "Sedang Diproses".equals(status)) {
-                timeline.add(new HashMap<>(Map.of(
-                        "icon","tool","color","bg-orange-100 text-orange-600",
-                        "title","Diproses Dinas","date","22 Apr 2025",
-                        "description","Laporan sedang dikerjakan oleh petugas lapangan Dinas Pekerjaan Umum.",
-                        "relatedTicket","TKT-2025-042"
-                )));
-            }
-            if ("Selesai".equals(status)) {
-                timeline.add(new HashMap<>(Map.of(
-                        "icon","tool","color","bg-orange-100 text-orange-600",
-                        "title","Diproses Dinas","date","22 Apr 2025",
-                        "description","Laporan telah dikerjakan oleh petugas lapangan.",
-                        "relatedTicket","TKT-2025-042"
-                )));
-                timeline.add(new HashMap<>(Map.of(
-                        "icon","check-circle","color","bg-green-100 text-green-600",
-                        "title","Penyelesaian","date","25 Apr 2025",
-                        "description","Petugas telah menyelesaikan perbaikan di lokasi. Menunggu konfirmasi Anda."
-                )));
-            }
-            if ("Ditolak".equals(status)) {
-                timeline.add(new HashMap<>(Map.of(
-                        "icon","x-circle","color","bg-red-100 text-red-600",
-                        "title","Laporan Ditolak","date","21 Apr 2025",
-                        "description","Laporan ditolak oleh admin. Silakan revisi sesuai catatan admin.",
-                        "note",(String) report.get("rejectionReason")
-                )));
-            }
-            model.addAttribute("timeline", timeline);
-        }
-        model.addAttribute("report", report);
+        if (id == null || id.isBlank()) return "redirect:/warga/report-history";
+
+        // ABSTRACTION: cari laporan via service, bukan Repository langsung
+        Report report = reportService.findById(id).orElse(null);
+        if (report == null) return "redirect:/warga/report-history";
+
+        // Siapkan data untuk view
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm");
+        Map<String, Object> reportMap = new HashMap<>();
+        reportMap.put("id", report.getReportId());
+        reportMap.put("reportId", report.getReportId());
+        reportMap.put("ticketNumber", report.getTicketNumber());
+        reportMap.put("title", report.getTicketNumber());
+        reportMap.put("description", report.getDescription());
+        reportMap.put("locationHint", report.getLocationHint());
+        reportMap.put("landmark", report.getLocationHint());
+        reportMap.put("location", report.getLocationHint());
+        reportMap.put("latitude", report.getLatitude());
+        reportMap.put("longitude", report.getLongitude());
+        reportMap.put("photoUrl", report.getPhotoBase64());
+        reportMap.put("photoBase64", report.getPhotoBase64());
+        reportMap.put("adminNotes", report.getAdminNotes());
+        reportMap.put("rejectionReason", report.getRejectionReason());
+        reportMap.put("status", toWargaStatusLabel(report.getStatus()));
+        reportMap.put("category", report.getCategory() != null ? report.getCategory().getCategoryName() : "Lainnya");
+        reportMap.put("submittedAt", report.getSubmittedAt() != null ? report.getSubmittedAt().format(fmt) : "-");
+        reportMap.put("createdDate", report.getSubmittedAt() != null ? report.getSubmittedAt().format(fmt) : "-");
+        reportMap.put("date", report.getSubmittedAt() != null ? report.getSubmittedAt().toLocalDate() : java.time.LocalDate.now());
+        reportMap.put("slaDeadline", "-");
+        reportMap.put("revisions", report.getRevisions());
+        String cc = switch (report.getStatus()) {
+            case MENUNGGU_VALIDASI -> "bg-gray-100 text-gray-700";
+            case DIVALIDASI, DITUGASKAN, SEDANG_DIKERJAKAN -> "bg-yellow-100 text-yellow-700";
+            case SELESAI -> "bg-green-100 text-green-700";
+            case DITOLAK -> "bg-red-100 text-red-700";
+            default -> "bg-gray-100 text-gray-700";
+        };
+        reportMap.put("statusColor", cc);
+
+        model.addAttribute("report", reportMap);
         return "warga/report-detail";
     }
+
+
+
 
     @GetMapping("/warga/notifications")
     public String wargaNotifications(
             Model model,
+            HttpSession session,
             @RequestParam(value = "filter", required = false, defaultValue = "semua") String filter
     ) {
-        List<Map<String, Object>> allNotifs = new ArrayList<>();
-        allNotifs.add(Map.of(
-                "title","Laporan Anda Diproses",
-                "message","Laporan 'Jalan Berlubang di Jl. Sudirman' (RPT-001) sedang diproses oleh Dinas PU.",
-                "time","2 jam lalu","isRead",false,
-                "bgColor","bg-blue-100","icon","tool","iconColor","text-blue-600",
-                "action",true,"reportId","RPT-001"
-        ));
-        allNotifs.add(Map.of(
-                "title","Laporan Selesai",
-                "message","Laporan 'Lampu Jalan Mati di Gang Melati' (RPT-002) telah selesai ditangani.",
-                "time","1 hari lalu","isRead",false,
-                "bgColor","bg-green-100","icon","check-circle","iconColor","text-green-600",
-                "action",true,"reportId","RPT-002"
-        ));
-        allNotifs.add(Map.of(
-                "title","Laporan Diterima",
-                "message","Laporan 'Saluran Drainase Tersumbat' (RPT-003) berhasil dikirim.",
-                "time","3 hari lalu","isRead",true,
-                "bgColor","bg-gray-100","icon","file-text","iconColor","text-gray-600",
-                "action",true,"reportId","RPT-003"
-        ));
+        String userId = (String) session.getAttribute("userId");
+        if (userId == null) return "redirect:/warga/login";
 
-        long unreadCount = allNotifs.stream().filter(n -> !(boolean) n.get("isRead")).count();
-        List<Map<String, Object>> displayed = filter.equals("belum-dibaca")
-                ? allNotifs.stream().filter(n -> !(boolean) n.get("isRead")).toList()
-                : allNotifs;
+        // ABSTRACTION: ambil notifikasi dari DB via service
+        List<com.plr.aduaja.model.Notification> notifs = filter.equals("belum-dibaca")
+                ? notificationService.getUnreadNotificationsByUser(userId)
+                : notificationService.getNotificationsByUser(userId);
+        long unreadCount = notificationService.countUnreadByUser(userId);
 
-        model.addAttribute("notifications", displayed);
-        model.addAttribute("totalCount",  allNotifs.size());
-        model.addAttribute("unreadCount", (int) unreadCount);
+        model.addAttribute("notifications", notifs);
+        model.addAttribute("totalCount",  notifs.size());
+        model.addAttribute("unreadCount", unreadCount);
         model.addAttribute("filter",      filter);
         return "warga/notifications";
+    }
+
+    /** POST /warga/notifications/mark-read — tandai semua notifikasi sudah dibaca */
+    @PostMapping("/warga/notifications/mark-read")
+    public String wargaMarkAllRead(HttpSession session) {
+        String userId = (String) session.getAttribute("userId");
+        if (userId == null) return "redirect:/warga/login";
+        notificationService.markAllAsReadByUser(userId);
+        return "redirect:/warga/notifications";
     }
 
     // GET /warga/profile — Ditangani oleh WargaAuthController (berbasis session)
     // POST /warga/profile — Ditangani oleh WargaAuthController (via /warga/profile/edit)
 
 
+
+    // ==========================================
+    // PRIVATE HELPERS — WARGA STATUS LABEL
+    // ==========================================
+
+    private String toWargaStatusLabel(Report.ReportStatus status) {
+        if (status == null) return "Menunggu";
+        return switch (status) {
+            case MENUNGGU_VALIDASI -> "Menunggu";
+            case PERLU_REVISI -> "Perlu Revisi";
+            case DITOLAK -> "Ditolak";
+            case DIVALIDASI -> "Divalidasi";
+            case DIDISPOSISI -> "Didisposisi";
+            case DITUGASKAN -> "Ditugaskan";
+            case SEDANG_DIKERJAKAN -> "Diproses";
+            case TERTUNDA -> "Tertunda";
+            case MENUNGGU_KONFIRMASI -> "Menunggu Konfirmasi";
+            case SELESAI -> "Selesai";
+            case SENGKETA -> "Sengketa";
+            case DITUTUP -> "Ditutup";
+        };
+    }
+
+    // ==========================================
+    // PRIVATE HELPERS — ADMIN DATA CONVERSION
+    // ==========================================
+
+    private String toStatusLabel(Report.ReportStatus status) {
+        if (status == null) return "Menunggu";
+        return switch (status) {
+            case MENUNGGU_VALIDASI -> "Diterima";
+            case PERLU_REVISI -> "Revisi";
+            case DITOLAK -> "Ditolak";
+            case DIVALIDASI -> "Tervalidasi";
+            case DIDISPOSISI -> "Didisposisi";
+            case DITUGASKAN -> "Ditugaskan";
+            case SEDANG_DIKERJAKAN -> "Dalam Penanganan";
+            case TERTUNDA -> "Tertunda";
+            case MENUNGGU_KONFIRMASI -> "Menunggu Konfirmasi";
+            case SELESAI -> "Selesai";
+            case SENGKETA -> "Sengketa";
+            case DITUTUP -> "Ditutup";
+        };
+    }
+
+    private String toDateStr(LocalDateTime dt) {
+        if (dt == null) return "-";
+        return dt.format(DateTimeFormatter.ofPattern("dd MMM yyyy"));
+    }
+
+    private Map<String, Object> toAdminValidationMap(Report r) {
+        Map<String, Object> m = new HashMap<>();
+        m.put("id", r.getReportId());
+        m.put("judul", r.getTicketNumber());
+        m.put("kategori", r.getCategory() != null ? r.getCategory().getCategoryName() : "Lainnya");
+        m.put("pelapor", r.getReporter() != null ? r.getReporter().getFullName() : "-");
+        m.put("kontakPelapor", r.getReporter() != null ? r.getReporter().getEmail() : "-");
+        m.put("wilayah", r.getLocationHint() != null ? r.getLocationHint() : "-");
+        m.put("tanggalMasuk", toDateStr(r.getSubmittedAt()));
+        m.put("status", toStatusLabel(r.getStatus()));
+        m.put("prioritas", "Sedang");
+        m.put("sisaWaktuSLA", "-");
+        m.put("foto", r.getPhotoBase64() != null ? r.getPhotoBase64() : dummyReportImage());
+        String lat = r.getLatitude() != null ? r.getLatitude().toPlainString() : "0";
+        String lng = r.getLongitude() != null ? r.getLongitude().toPlainString() : "0";
+        m.put("koordinatStr", lat + "," + lng);
+        m.put("patokan", r.getLocationHint());
+        m.put("waktuKejadian", r.getSubmittedAt() != null ? r.getSubmittedAt().format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm")) : "-");
+        m.put("deskripsi", r.getDescription() != null ? r.getDescription() : "-");
+        return m;
+    }
+
+    private List<Map<String, Object>> getAdminValidationList() {
+        List<Report> real = reportService.getReportsByStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
+        if (!real.isEmpty()) {
+            real.sort(Comparator.nullsLast(Comparator.comparing(Report::getSubmittedAt, Comparator.nullsLast(Comparator.naturalOrder()))));
+            return real.stream().map(this::toAdminValidationMap).collect(java.util.stream.Collectors.toList());
+        }
+        return new ArrayList<>(dummyValidationReports());
+    }
 
     // ==========================================
     // PRIVATE HELPERS — ADMIN PUSAT DUMMY DATA

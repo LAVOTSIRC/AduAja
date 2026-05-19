@@ -17,11 +17,20 @@ public interface ReportRepository extends JpaRepository<Report, String> {
 
     List<Report> findByStatus(Report.ReportStatus status);
 
+    // findByReporterUserId — dipakai service lama
     List<Report> findByReporterUserId(String reporterId);
+
+    // Ordered variant untuk service baru
+    List<Report> findByReporterUserIdOrderBySubmittedAtDesc(String reporterId);
 
     List<Report> findByStatusOrderBySubmittedAtDesc(Report.ReportStatus status);
 
+    List<Report> findAllByOrderBySubmittedAtDesc();
+
     List<Report> findByDescriptionContainingIgnoreCase(String description);
+
+    List<Report> findByDescriptionContainingIgnoreCaseOrLocationHintContainingIgnoreCase(
+            String description, String locationHint);
 
     @Query("SELECT r FROM Report r WHERE r.status = :status AND r.submittedAt BETWEEN :start AND :end")
     List<Report> findByStatusAndDateRange(
@@ -29,6 +38,18 @@ public interface ReportRepository extends JpaRepository<Report, String> {
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end
     );
+
+    @Query("SELECT r FROM Report r WHERE r.submittedAt BETWEEN :start AND :end")
+    List<Report> findByDateRange(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
+    // Alias for backward compatibility with old service
+    default List<Report> findByStatusAndSubmittedAtBetween(Report.ReportStatus status,
+                                                            LocalDateTime start, LocalDateTime end) {
+        return findByStatusAndDateRange(status, start, end);
+    }
 
     long countByStatus(Report.ReportStatus status);
 
