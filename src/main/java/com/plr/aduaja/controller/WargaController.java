@@ -6,7 +6,6 @@ import com.plr.aduaja.model.Report;
 import com.plr.aduaja.model.Report.ReportStatus;
 import com.plr.aduaja.model.User;
 import com.plr.aduaja.repository.ReportCategoryRepository;
-import com.plr.aduaja.repository.UserRepository;
 import com.plr.aduaja.service.NotificationService;
 import com.plr.aduaja.service.ReportService;
 import com.plr.aduaja.service.UserService;
@@ -20,7 +19,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -40,8 +38,9 @@ public class WargaController {
     @Autowired
     private ReportCategoryRepository reportCategoryRepository;
 
-    @Autowired
-    private UserRepository userRepository;
+    // PERBAIKAN ABSTRAKSI: Controller tidak boleh inject Repository langsung!
+    // Sebelumnya ada: @Autowired UserRepository userRepository;
+    // Kini findByRole() dipanggil via UserService (Abstraction principle)
 
     @GetMapping("/warga/module")
     public String wargaModule() {
@@ -53,7 +52,7 @@ public class WargaController {
         String userId = (String) session.getAttribute("userId");
         if (userId == null) return "redirect:/warga/login";
 
-        Optional<User> userOpt = userRepository.findById(userId);
+        Optional<User> userOpt = userService.findById(userId);
         if (userOpt.isEmpty()) {
             session.invalidate();
             return "redirect:/warga/login";
@@ -64,6 +63,9 @@ public class WargaController {
         userMap.put("name", user.getFullName());
         userMap.put("email", user.getEmail());
         userMap.put("id", user.getUserId());
+        if (user.getUserProfile() != null) {
+            userMap.put("profilePhotoUrl", user.getUserProfile().getProfilePhotoUrl());
+        }
         model.addAttribute("user", userMap);
 
         List<Report> dbReports = reportService.getReportsByWarga(userId);
@@ -125,7 +127,8 @@ public class WargaController {
 
         try {
             Report report = reportService.createReport(dto, userId);
-            List<User> admins = userRepository.findByRole(User.Role.ADMIN_PUSAT);
+            // ABSTRAKSI: userService.findByRole() gantikan userRepository.findByRole()
+            List<User> admins = userService.findByRole(User.Role.ADMIN_PUSAT);
             for (User admin : admins) {
                 notificationService.createNotification(
                     admin.getUserId(),
@@ -156,7 +159,7 @@ public class WargaController {
 
         List<Report> dbReports = reportService.getReportsByWarga(userId);
         List<Map<String, Object>> allReports = new ArrayList<>();
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
+        // DRY: gunakan konstanta DATE_FMT dari ControllerHelper
         for (Report r : dbReports) {
             Map<String, Object> map = new HashMap<>();
             map.put("id", r.getReportId());
@@ -201,18 +204,34 @@ public class WargaController {
             if (matchStatus && matchQuery) filtered.add(r);
         }
 
-        List<String> statusOptions = List.of("Semua","Menunggu","Diproses","Selesai","Ditolak","Sengketa");
-        Map<String, Integer> statusCounts = new HashMap<>();
-        statusCounts.put("Semua", allReports.size());
-        for (String s : List.of("Menunggu","Diproses","Selesai","Ditolak","Sengketa"))
-            statusCounts.put(s, (int) allReports.stream().filter(r -> r.get("status").equals(s)).count());
+        List<Map<String, Object>> statusOptions = new ArrayList<>();
+        Map<String, Object> allOpt = new LinkedHashMap<>();
+        allOpt.put("name", "Semua");
+        allOpt.put("count", allReports.size());
+        statusOptions.add(allOpt);
+
+        String[] allLabels = {
+            "Menunggu","Perlu Revisi","Ditolak","Divalidasi",
+            "Didisposisi","Ditugaskan","Diproses","Tertunda",
+            "Menunggu Konfirmasi","Selesai","Sengketa","Ditutup"
+        };
+        for (String label : allLabels) {
+            int cnt = 0;
+            for (Map<String, Object> r : allReports) {
+                if (label.equals(r.get("status"))) cnt++;
+            }
+            Map<String, Object> opt = new LinkedHashMap<>();
+            opt.put("name", label);
+            opt.put("count", cnt);
+            statusOptions.add(opt);
+        }
 
         model.addAttribute("reports",      filtered);
-        model.addAttribute("totalCount",   allReports.size());
+        model.addAttribute("totalCount",   filtered.size());
+        model.addAttribute("allCount",     allReports.size());
         model.addAttribute("filterStatus", filterStatus);
         model.addAttribute("searchQuery",  searchQuery);
         model.addAttribute("statusOptions",statusOptions);
-        model.addAttribute("statusCounts", statusCounts);
         return "warga/report-history";
     }
 
@@ -229,7 +248,7 @@ public class WargaController {
         Report report = reportService.findById(id).orElse(null);
         if (report == null) return "redirect:/warga/report-history";
 
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm");
+        // DRY: gunakan konstanta DATETIME_FMT dari ControllerHelper
         Map<String, Object> reportMap = new HashMap<>();
         reportMap.put("id", report.getReportId());
         reportMap.put("reportId", report.getReportId());
@@ -247,8 +266,8 @@ public class WargaController {
         reportMap.put("rejectionReason", report.getRejectionReason());
         reportMap.put("status", toWargaStatusLabel(report.getStatus()));
         reportMap.put("category", report.getCategory() != null ? report.getCategory().getCategoryName() : "Lainnya");
-        reportMap.put("submittedAt", report.getSubmittedAt() != null ? report.getSubmittedAt().format(fmt) : "-");
-        reportMap.put("createdDate", report.getSubmittedAt() != null ? report.getSubmittedAt().format(fmt) : "-");
+        reportMap.put("submittedAt", report.getSubmittedAt() != null ? report.getSubmittedAt().format(ControllerHelper.DATETIME_FMT) : "-");
+        reportMap.put("createdDate", report.getSubmittedAt() != null ? report.getSubmittedAt().format(ControllerHelper.DATETIME_FMT) : "-");
         reportMap.put("date", report.getSubmittedAt() != null ? report.getSubmittedAt().toLocalDate() : java.time.LocalDate.now());
         reportMap.put("slaDeadline", "-");
         reportMap.put("revisions", report.getRevisions());

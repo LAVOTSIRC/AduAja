@@ -32,6 +32,9 @@ public class FieldTaskServiceImpl implements FieldTaskService {
     @Autowired
     private TaskPostponementRepository taskPostponementRepository;  // FIX: inject repo untuk simpan record penundaan
 
+    @Autowired
+    private ConfirmationRequestRepository confirmationRequestRepository;  // FIX: untuk buat ConfirmationRequest saat task selesai
+
     @Override
     public List<FieldTask> getAllTasks() {
         return fieldTaskRepository.findAll();
@@ -119,6 +122,26 @@ public class FieldTaskServiceImpl implements FieldTaskService {
             evidence.setPhotoUrl(evidencePhotoUrl);
             evidence.setTakenAt(LocalDateTime.now());
             taskEvidenceRepository.save(evidence);
+        }
+
+        // CRITICAL FIX: Update status laporan ke MENUNGGU_KONFIRMASI (SRS Flow 5.5)
+        // dan buat ConfirmationRequest dengan deadline 72 jam
+        Report report = task.getReport();
+        if (report != null) {
+            report.setStatus(Report.ReportStatus.MENUNGGU_KONFIRMASI);
+            reportRepository.save(report);
+
+            // Buat ConfirmationRequest jika belum ada
+            boolean alreadyExists = confirmationRequestRepository
+                    .findByReportReportId(report.getReportId()).isPresent();
+            if (!alreadyExists && report.getReporter() != null) {
+                ConfirmationRequest confirmation = new ConfirmationRequest();
+                confirmation.setReport(report);
+                confirmation.setWarga(report.getReporter());
+                confirmation.setDeadlineAt(LocalDateTime.now().plusHours(72)); // 3x24 jam
+                confirmation.setIsLocked(false);
+                confirmationRequestRepository.save(confirmation);
+            }
         }
 
         return task;

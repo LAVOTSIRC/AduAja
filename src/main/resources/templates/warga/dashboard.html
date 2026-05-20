@@ -43,9 +43,11 @@
               class="flex items-center gap-2 hover:bg-gray-100 rounded-lg p-1 transition-colors"
             >
               <div
-                class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center"
+                class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center overflow-hidden"
               >
-                <i data-lucide="user" class="w-5 h-5 text-blue-600"></i>
+                <img th:if="${user.profilePhotoUrl}" th:src="@{${user.profilePhotoUrl}}"
+                     alt="Foto" class="w-full h-full object-cover" />
+                <i th:unless="${user.profilePhotoUrl}" data-lucide="user" class="w-5 h-5 text-blue-600"></i>
               </div>
               <div class="hidden sm:block text-left">
                 <p

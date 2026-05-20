@@ -11,6 +11,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.annotation.PostConstruct;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -33,6 +35,18 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @PostConstruct
+    public void activatePendingUsers() {
+        List<User> pending = userRepository.findByAccountStatus(User.AccountStatus.PENDING);
+        for (User u : pending) {
+            u.setAccountStatus(User.AccountStatus.ACTIVE);
+            userRepository.save(u);
+        }
+        if (!pending.isEmpty()) {
+            System.out.println("=== Aktifkan " + pending.size() + " akun PENDING menjadi ACTIVE ===");
+        }
+    }
 
     // ===========================
     // @Override — Run-time Polymorphism
@@ -82,7 +96,7 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
         // ENKAPSULASI: password di-hash, tidak pernah disimpan plaintext
         user.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
         user.setRole(User.Role.WARGA);
-        user.setAccountStatus(User.AccountStatus.PENDING);  // Harus OTP dulu
+        user.setAccountStatus(User.AccountStatus.ACTIVE);
 
         User savedUser = userRepository.save(user);
 
@@ -140,6 +154,12 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
         }
         if (dto.getAlamatLengkap() != null) {
             profile.setAlamatLengkap(dto.getAlamatLengkap());
+        }
+        if (dto.getDomisiliLatitude() != null && !dto.getDomisiliLatitude().isBlank()) {
+            profile.setDomisiliLatitude(new BigDecimal(dto.getDomisiliLatitude()));
+        }
+        if (dto.getDomisiliLongitude() != null && !dto.getDomisiliLongitude().isBlank()) {
+            profile.setDomisiliLongitude(new BigDecimal(dto.getDomisiliLongitude()));
         }
         if (dto.getProfilePhotoUrl() != null && !dto.getProfilePhotoUrl().isBlank()) {
             profile.setProfilePhotoUrl(dto.getProfilePhotoUrl());
