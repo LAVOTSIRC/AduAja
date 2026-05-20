@@ -49,7 +49,7 @@ public class WargaController {
 
     @GetMapping("/warga/dashboard")
     public String wargaDashboard(Model model, HttpSession session) {
-        String userId = (String) session.getAttribute("userId");
+        String userId = ControllerHelper.requireRole(session, "WARGA");
         if (userId == null) return "redirect:/warga/login";
 
         Optional<User> userOpt = userService.findById(userId);
@@ -63,9 +63,7 @@ public class WargaController {
         userMap.put("name", user.getFullName());
         userMap.put("email", user.getEmail());
         userMap.put("id", user.getUserId());
-        if (user.getUserProfile() != null) {
-            userMap.put("profilePhotoUrl", user.getUserProfile().getProfilePhotoUrl());
-        }
+        userMap.put("profilePhotoUrl", user.getUserProfile() != null ? user.getUserProfile().getProfilePhotoUrl() : null);
         model.addAttribute("user", userMap);
 
         List<Report> dbReports = reportService.getReportsByWarga(userId);
@@ -109,7 +107,7 @@ public class WargaController {
 
     @GetMapping("/warga/create-report")
     public String wargaCreateReport(Model model, HttpSession session) {
-        String userId = (String) session.getAttribute("userId");
+        String userId = ControllerHelper.requireRole(session, "WARGA");
         if (userId == null) return "redirect:/warga/login";
         model.addAttribute("createReportDTO", new CreateReportDTO());
         model.addAttribute("categories", reportCategoryRepository.findByIsActiveTrue());
@@ -122,7 +120,7 @@ public class WargaController {
             HttpSession session,
             RedirectAttributes redirectAttributes
     ) {
-        String userId = (String) session.getAttribute("userId");
+        String userId = ControllerHelper.requireRole(session, "WARGA");
         if (userId == null) return "redirect:/warga/login";
 
         try {
@@ -154,7 +152,7 @@ public class WargaController {
             @RequestParam(value = "status", required = false, defaultValue = "Semua") String filterStatus,
             @RequestParam(value = "q", required = false, defaultValue = "") String searchQuery
     ) {
-        String userId = (String) session.getAttribute("userId");
+        String userId = ControllerHelper.requireRole(session, "WARGA");
         if (userId == null) return "redirect:/warga/login";
 
         List<Report> dbReports = reportService.getReportsByWarga(userId);
@@ -241,7 +239,7 @@ public class WargaController {
             HttpSession session,
             @RequestParam(value = "id", required = false) String id
     ) {
-        String userId = (String) session.getAttribute("userId");
+        String userId = ControllerHelper.requireRole(session, "WARGA");
         if (userId == null) return "redirect:/warga/login";
         if (id == null || id.isBlank()) return "redirect:/warga/report-history";
 
@@ -290,7 +288,7 @@ public class WargaController {
             HttpSession session,
             @RequestParam(value = "filter", required = false, defaultValue = "semua") String filter
     ) {
-        String userId = (String) session.getAttribute("userId");
+        String userId = ControllerHelper.requireRole(session, "WARGA");
         if (userId == null) return "redirect:/warga/login";
 
         List<com.plr.aduaja.model.Notification> notifs = filter.equals("belum-dibaca")
@@ -307,7 +305,7 @@ public class WargaController {
 
     @PostMapping("/warga/notifications/mark-read")
     public String wargaMarkAllRead(HttpSession session) {
-        String userId = (String) session.getAttribute("userId");
+        String userId = ControllerHelper.requireRole(session, "WARGA");
         if (userId == null) return "redirect:/warga/login";
         notificationService.markAllAsReadByUser(userId);
         return "redirect:/warga/notifications";

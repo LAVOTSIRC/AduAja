@@ -46,10 +46,8 @@ public class AdminDinasController {
     @GetMapping("/admin/dinas/dashboard")
     public String adminDinasDashboard(Model model, HttpSession session) {
         // SESSION CHECK — semua halaman admin harus login
-        String sessionUserId = ControllerHelper.getSessionUserId(session);
+        String sessionUserId = ControllerHelper.requireAnyAdminSession(session);
         if (sessionUserId == null) return "redirect:/admin/login";
-        String sessionRole = ControllerHelper.getSessionUserRole(session);
-        if (sessionRole == null || !sessionRole.contains("ADMIN")) return "redirect:/admin/login";
 
         model.addAttribute("dinasName", "Dinas Pekerjaan Umum");
         long diterima = reportService.countByStatus(Report.ReportStatus.DIDISPOSISI);
@@ -110,7 +108,7 @@ public class AdminDinasController {
             @RequestParam(value = "page", required = false, defaultValue = "1") int page
     ) {
         // SESSION CHECK
-        if (ControllerHelper.getSessionUserId(session) == null) return "redirect:/admin/login";
+        if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
 
         model.addAttribute("dinasName", "Dinas Pekerjaan Umum");
         List<Map<String, Object>> laporanDinas = new ArrayList<>();
@@ -162,7 +160,7 @@ public class AdminDinasController {
             @RequestParam(value = "id", required = false) String id
     ) {
         // SESSION CHECK
-        if (ControllerHelper.getSessionUserId(session) == null) return "redirect:/admin/login";
+        if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
 
         List<Map<String, Object>> incomingReports = new ArrayList<>();
         List<Disposition> allDisp = dispositionService.getAllDispositions();
@@ -255,7 +253,7 @@ public class AdminDinasController {
             @RequestParam(value = "id", required = false) String id
     ) {
         // SESSION CHECK
-        if (ControllerHelper.getSessionUserId(session) == null) return "redirect:/admin/login";
+        if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
 
         List<Map<String, Object>> ticketsInProgress = new ArrayList<>();
         List<FieldTask> realTasks = fieldTaskService.getTasksByStatus(FieldTask.TaskStatus.SEDANG_DIKERJAKAN);
@@ -326,7 +324,7 @@ public class AdminDinasController {
             @RequestParam(value = "id", required = false) String id
     ) {
         // SESSION CHECK
-        if (ControllerHelper.getSessionUserId(session) == null) return "redirect:/admin/login";
+        if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
 
         List<Map<String, Object>> ticketsReady = new ArrayList<>();
         List<FieldTask> realTasks = fieldTaskService.getTasksByStatus(FieldTask.TaskStatus.SELESAI);
@@ -393,7 +391,7 @@ public class AdminDinasController {
             @RequestParam(value = "id", required = false) String id
     ) {
         // SESSION CHECK
-        if (ControllerHelper.getSessionUserId(session) == null) return "redirect:/admin/login";
+        if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
 
         List<DisputeRecord> realDisputes = disputeService.getPendingDisputes();
         // DRY: gunakan konstanta DATE_FMT dari ControllerHelper
@@ -464,7 +462,7 @@ public class AdminDinasController {
             @RequestParam(value = "petugasId", required = false) String petugasId,
             HttpSession session
     ) {
-        String adminId = (String) session.getAttribute("userId");
+        String adminId = ControllerHelper.requireAnyAdminSession(session);
         if (adminId == null) {
             adminId = userService.getUserByEmail("admin.pu@aduaja.go.id")
                     .map(User::getUserId).orElse(null);

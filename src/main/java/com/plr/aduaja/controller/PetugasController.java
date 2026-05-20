@@ -52,7 +52,7 @@ public class PetugasController {
             @RequestParam(value = "deviceInfo", required = false) String deviceInfo,
             HttpSession session
     ) {
-        String userId = (String) session.getAttribute("userId");
+        String userId = ControllerHelper.requireRole(session, "PETUGAS");
         if (userId == null) return "redirect:/petugas/login";
 
         try {
@@ -110,7 +110,7 @@ public class PetugasController {
             @RequestParam(value = "checkIn", required = false) Boolean checkIn
     ) {
         // SESSION CHECK — harus login sebelum akses dashboard
-        String userId = ControllerHelper.getSessionUserId(session);
+        String userId = ControllerHelper.requireRole(session, "PETUGAS");
         if (userId == null) return "redirect:/petugas/login";
 
         // Isi data dari DB nyata — tidak ada hardcoded dummy data
@@ -289,7 +289,7 @@ public class PetugasController {
     @GetMapping("/petugas/history")
     public String petugasHistory(Model model, HttpSession session) {
         // SESSION CHECK
-        String userId = ControllerHelper.getSessionUserId(session);
+        String userId = ControllerHelper.requireRole(session, "PETUGAS");
         if (userId == null) return "redirect:/petugas/login";
 
         // Selalu dari DB — TIDAK ada fallback ke data dummy hardcoded
@@ -438,7 +438,7 @@ public class PetugasController {
     @GetMapping("/petugas/attendance-history")
     public String petugasAttendanceHistory(Model model, HttpSession session) {
         // SESSION CHECK
-        String userId = ControllerHelper.getSessionUserId(session);
+        String userId = ControllerHelper.requireRole(session, "PETUGAS");
         if (userId == null) return "redirect:/petugas/login";
         {
             List<OfficerAttendance> realRecords = attendanceService.getAttendanceByOfficer(userId);

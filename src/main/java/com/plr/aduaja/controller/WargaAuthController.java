@@ -191,7 +191,7 @@ public class WargaAuthController {
     // ==========================================
     @GetMapping("/warga/profile")
     public String profilePage(HttpSession session, Model model) {
-        String userId = (String) session.getAttribute("userId");
+        String userId = ControllerHelper.requireRole(session, "WARGA");
         if (userId == null) {
             return "redirect:/warga/login";
         }
@@ -235,7 +235,7 @@ public class WargaAuthController {
     public String editProfile(@ModelAttribute ProfileDTO dto,
                               HttpSession session,
                               RedirectAttributes redirectAttributes) {
-        String userId = (String) session.getAttribute("userId");
+        String userId = ControllerHelper.requireRole(session, "WARGA");
         if (userId == null) {
             return "redirect:/warga/login";
         }
