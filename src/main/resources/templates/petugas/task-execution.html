@@ -11,33 +11,6 @@
       [x-cloak] {
         display: none !important;
       }
-      .phone-mockup {
-        max-width: 480px;
-        margin: 0 auto;
-        background: #1f2937;
-        border-radius: 40px;
-        padding: 12px;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-      }
-      .phone-screen {
-        background: #f9fafb;
-        border-radius: 32px;
-        overflow: hidden;
-        min-height: 700px;
-      }
-      .phone-header {
-        background: linear-gradient(135deg, #2563eb, #1d4ed8);
-        color: white;
-        padding: 16px;
-        position: relative;
-      }
-      .phone-notch {
-        width: 120px;
-        height: 24px;
-        background: #1f2937;
-        border-radius: 0 0 16px 16px;
-        margin: 0 auto 12px;
-      }
       .upload-slot {
         border: 2px dashed #d1d5db;
         border-radius: 12px;
@@ -59,55 +32,33 @@
   </th:block>
 
   <div layout:fragment="content" class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8">
-    <!-- Page Header -->
-    <div class="max-w-4xl mx-auto px-6 mb-6">
-      <div class="flex items-center gap-3 mb-2">
-        <a th:href="@{/petugas/tasks}" class="aduaja-btn-secondary inline-flex items-center gap-2 text-sm">
-          <i data-lucide="arrow-left" class="w-4 h-4"></i>
-          Kembali ke Daftar Tugas
-        </a>
-      </div>
-      <h1 class="text-2xl font-bold text-gray-900">Form Eksekusi & Unggah Bukti</h1>
-      <p class="text-sm text-gray-600 mt-1">
-        Mockup tampilan mobile untuk petugas lapangan saat mengerjakan tugas
-      </p>
-    </div>
-
-    <!-- Phone Mockup Container -->
-    <div class="phone-mockup">
-      <div class="phone-screen" x-data="{ step: 'start', photoBefore: false, photoAfter: false }">
-        
-        <!-- Phone Header -->
-        <div class="phone-header">
-          <div class="phone-notch"></div>
-          <div class="flex items-center justify-between mb-3">
-            <a th:href="@{/petugas/task-detail(id=${task['id']})}" class="p-2 hover:bg-blue-700 rounded-lg transition-colors">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-              </svg>
-            </a>
-            <div class="text-right">
-              <h2 class="text-lg font-semibold">Pengerjaan Tugas</h2>
-              <p class="text-xs text-blue-100" th:text="${task['id']}">TGS-001</p>
-            </div>
-            <div class="w-9"></div>
-          </div>
-
-          <!-- Progress Bar -->
-          <div class="flex items-center gap-2 mb-2">
-            <div class="flex-1 h-1.5 rounded-full" :class="step !== 'start' ? 'bg-white' : 'bg-blue-400'"></div>
-            <div class="flex-1 h-1.5 rounded-full" :class="step === 'after' || step === 'complete' ? 'bg-white' : 'bg-blue-400'"></div>
-            <div class="flex-1 h-1.5 rounded-full" :class="step === 'complete' ? 'bg-white' : 'bg-blue-400'"></div>
-          </div>
-          <div class="flex justify-between text-xs text-blue-100">
-            <span>Mulai</span>
-            <span>Foto Awal</span>
-            <span>Foto Akhir</span>
-          </div>
+    <div class="max-w-4xl mx-auto px-6" x-data="{ step: 'start', photoBefore: false, photoAfter: false }">
+      <!-- Page Header -->
+      <div class="mb-6">
+        <div class="flex items-center gap-3 mb-2">
+          <a th:href="@{/petugas/tasks}" class="aduaja-btn-secondary inline-flex items-center gap-2 text-sm">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+            Kembali ke Daftar Tugas
+          </a>
         </div>
+        <h1 class="text-2xl font-bold text-gray-900">Form Eksekusi & Unggah Bukti</h1>
+      </div>
 
-        <!-- Phone Content -->
-        <div class="px-4 py-4 space-y-4">
+      <!-- Progress Bar -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="flex-1 h-2 rounded-full bg-blue-200" :class="step !== 'start' ? 'bg-blue-600' : ''"></div>
+          <div class="flex-1 h-2 rounded-full bg-blue-200" :class="step === 'after' || step === 'complete' ? 'bg-blue-600' : ''"></div>
+          <div class="flex-1 h-2 rounded-full bg-blue-200" :class="step === 'complete' ? 'bg-blue-600' : ''"></div>
+        </div>
+        <div class="flex justify-between text-xs text-gray-600">
+          <span class="font-semibold" :class="step !== 'start' ? 'text-blue-600' : ''">Mulai</span>
+          <span class="font-semibold" :class="step === 'after' || step === 'complete' ? 'text-blue-600' : ''">Foto Awal</span>
+          <span class="font-semibold" :class="step === 'complete' ? 'text-blue-600' : ''">Foto Akhir</span>
+        </div>
+      </div>
+
+      <div class="space-y-4">
           
           <!-- Task Info Summary -->
           <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
@@ -303,7 +254,6 @@
             </div>
           </div>
 
-        </div>
       </div>
     </div>
   </div>

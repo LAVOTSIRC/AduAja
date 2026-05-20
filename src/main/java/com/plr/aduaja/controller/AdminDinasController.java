@@ -1,14 +1,17 @@
 package com.plr.aduaja.controller;
 
 import lombok.extern.slf4j.Slf4j;
+import com.plr.aduaja.dto.CreatePetugasDTO;
 import com.plr.aduaja.model.*;
 import com.plr.aduaja.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import jakarta.servlet.http.HttpSession;
 import java.time.LocalDateTime;
@@ -450,6 +453,9 @@ public class AdminDinasController {
             model.addAttribute("originalPetugasNama", selected.get("petugasNama"));
         }
 
+        if (selected == null && disputes.isEmpty()) {
+            return "redirect:/admin/dinas/dashboard";
+        }
         model.addAttribute("selectedDispute", selected);
         return "admin/dinas/sengketa-dinas";
     }
@@ -498,6 +504,43 @@ public class AdminDinasController {
         }
 
         return "redirect:/admin/dinas/sengketa" + (id != null ? "?id=" + id : "");
+    }
+
+    // ==========================================
+    // ADMIN DINAS — KELOLA PETUGAS
+    // ==========================================
+
+    @GetMapping("/admin/dinas/petugas")
+    public String adminDinasPetugas(Model model, HttpSession session) {
+        if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
+
+        List<User> petugasList = userService.findByRole(User.Role.PETUGAS);
+        model.addAttribute("petugasList", petugasList);
+        model.addAttribute("createPetugasDTO", new CreatePetugasDTO());
+        return "admin/dinas/petugas";
+    }
+
+    @PostMapping("/admin/dinas/petugas/create")
+    public String adminDinasCreatePetugas(
+            @ModelAttribute CreatePetugasDTO dto,
+            RedirectAttributes redirectAttributes,
+            HttpSession session
+    ) {
+        if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
+
+        if (dto.getPassword() == null || dto.getPassword().length() < 6) {
+            redirectAttributes.addFlashAttribute("error", "Password minimal 6 karakter");
+            return "redirect:/admin/dinas/petugas";
+        }
+
+        try {
+            userService.createPetugas(dto);
+            redirectAttributes.addFlashAttribute("success", "Petugas " + dto.getFullName() + " berhasil dibuat");
+        } catch (Exception e) {
+            log.error("Gagal buat petugas: {}", e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("error", "Gagal membuat petugas: " + e.getMessage());
+        }
+        return "redirect:/admin/dinas/petugas";
     }
 
     // DRY: didelegasikan ke ControllerHelper — tidak ada duplikasi dengan AdminPusatController

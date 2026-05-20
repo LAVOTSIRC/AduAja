@@ -4,6 +4,7 @@ import com.plr.aduaja.model.User;
 import com.plr.aduaja.model.UserProfile;
 import com.plr.aduaja.repository.UserRepository;
 import com.plr.aduaja.repository.UserProfileRepository;
+import com.plr.aduaja.dto.CreatePetugasDTO;
 import com.plr.aduaja.dto.RegisterDTO;
 import com.plr.aduaja.dto.ProfileDTO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -113,6 +114,27 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
         userProfileRepository.save(profile);
 
         return savedUser;
+    }
+
+    @Override
+    public User createPetugas(CreatePetugasDTO dto) {
+        if (userRepository.existsByEmail(dto.getEmail())) {
+            throw new RuntimeException("Email sudah terdaftar");
+        }
+        if (dto.getPhoneNumber() != null && !dto.getPhoneNumber().isBlank()
+                && userRepository.existsByPhoneNumber(dto.getPhoneNumber())) {
+            throw new RuntimeException("Nomor HP sudah terdaftar");
+        }
+
+        User user = new User();
+        user.setFullName(dto.getFullName());
+        user.setEmail(dto.getEmail());
+        user.setPhoneNumber(dto.getPhoneNumber());
+        user.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
+        user.setRole(User.Role.PETUGAS);
+        user.setAccountStatus(User.AccountStatus.ACTIVE);
+
+        return userRepository.save(user);
     }
 
     @Override  // ← POLYMORPHISM: Override dari interface

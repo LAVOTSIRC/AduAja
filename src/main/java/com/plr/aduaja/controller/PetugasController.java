@@ -85,7 +85,10 @@ public class PetugasController {
         if (id != null) {
             try {
                 switch (action) {
-                    case "start" -> fieldTaskService.startTask(id, latitude, longitude);
+                    case "start" -> {
+                        log.info("Memulai tugas {} dengan deskripsi: {}", id, description);
+                        fieldTaskService.startTask(id, latitude, longitude);
+                    }
                     case "complete" -> fieldTaskService.completeTask(id);
                     case "postpone" -> {
                         String reason = description != null && !description.isBlank() ? description : "Ditunda oleh petugas";
@@ -94,6 +97,14 @@ public class PetugasController {
                     case "reassign" -> {
                         String targetOfficer = newOfficerId != null ? newOfficerId : "";
                         if (!targetOfficer.isBlank()) fieldTaskService.reassignTask(id, targetOfficer);
+                    }
+                    case "reportback" -> {
+                        log.warn("Lapor balik (invalid) untuk tugas {}: {}", id, description);
+                        fieldTaskService.postponeTask(id, "Laporan invalid: " + (description != null ? description : "Tidak ada alasan"));
+                    }
+                    case "escalation" -> {
+                        log.warn("Eskalasi untuk tugas {}: {}", id, description);
+                        fieldTaskService.postponeTask(id, "Eskalasi: " + (description != null ? description : "Tidak ada alasan"));
                     }
                 }
             } catch (Exception e) {
@@ -165,22 +176,20 @@ public class PetugasController {
 
     @GetMapping("/petugas/tasks")
     public String petugasTasks(Model model, HttpSession session) {
+        String userId = ControllerHelper.requireRole(session, "PETUGAS");
+        if (userId == null) return "redirect:/petugas/login";
+
         List<Map<String, Object>> tasksNew = new ArrayList<>();
         List<Map<String, Object>> tasksInProgress = new ArrayList<>();
         List<Map<String, Object>> tasksPending = new ArrayList<>();
 
-        String userId = (String) session.getAttribute("userId");
-        if (userId != null) {
-            List<FieldTask> realTasks = fieldTaskService.getTasksByOfficer(userId);
-            if (!realTasks.isEmpty()) {
-                for (FieldTask t : realTasks) {
-                    switch (t.getTaskStatus()) {
-                        case BARU -> tasksNew.add(toPetugasTaskMap(t));
-                        case SEDANG_DIKERJAKAN -> tasksInProgress.add(toPetugasTaskMap(t));
-                        case TERTUNDA -> tasksPending.add(toPetugasTaskMap(t));
-                        default -> {}
-                    }
-                }
+        List<FieldTask> realTasks = fieldTaskService.getTasksByOfficer(userId);
+        for (FieldTask t : realTasks) {
+            switch (t.getTaskStatus()) {
+                case BARU -> tasksNew.add(toPetugasTaskMap(t));
+                case SEDANG_DIKERJAKAN -> tasksInProgress.add(toPetugasTaskMap(t));
+                case TERTUNDA -> tasksPending.add(toPetugasTaskMap(t));
+                default -> {}
             }
         }
         model.addAttribute("tasksNew", tasksNew);
@@ -195,45 +204,51 @@ public class PetugasController {
             HttpSession session,
             @RequestParam(value = "id", required = false, defaultValue = "TGS-001") String id
     ) {
-        String userId = (String) session.getAttribute("userId");
-        if (userId != null) {
-            Optional<FieldTask> realTask = fieldTaskService.getTaskById(id);
-            if (realTask.isPresent()) {
-                FieldTask ft = realTask.get();
-                Map<String, Object> task = toPetugasTaskMap(ft);
-                task.put("reporterPhone", ft.getReport() != null && ft.getReport().getReporter() != null
-                    ? ft.getReport().getReporter().getEmail() : "-");
+        String userId = ControllerHelper.requireRole(session, "PETUGAS");
+        if (userId == null) return "redirect:/petugas/login";
 
-                Map<String, Object> locationMap = new HashMap<>();
-                String addr = ft.getReport() != null ? (ft.getReport().getLocationHint() != null ? ft.getReport().getLocationHint() : "-") : "-";
-                locationMap.put("address", addr);
-                locationMap.put("latitude", ft.getOfficerLatitude() != null ? ft.getOfficerLatitude().toPlainString() : "3.5952");
-                locationMap.put("longitude", ft.getOfficerLongitude() != null ? ft.getOfficerLongitude().toPlainString() : "98.6722");
-                task.put("location", locationMap);
+        Optional<FieldTask> realTask = fieldTaskService.getTaskById(id);
+        if (realTask.isPresent()) {
+            FieldTask ft = realTask.get();
+            Map<String, Object> task = toPetugasTaskMap(ft);
+            task.put("reporterPhone", ft.getReport() != null && ft.getReport().getReporter() != null
+                ? ft.getReport().getReporter().getPhoneNumber() : "-");
 
-                List<Map<String, Object>> statusHistory = new ArrayList<>();
-                statusHistory.add(Map.of("status", "Tugas Dibuat", "time",
-                    ft.getCreatedAt() != null ? ft.getCreatedAt().format(ControllerHelper.DATETIME_FMT) : "-",
-                    "note", "Tugas diterima dari laporan warga"));
-                if (ft.getStartedAt() != null) {
-                    statusHistory.add(Map.of("status", "Mulai Dikerjakan", "time",
-                        ft.getStartedAt().format(ControllerHelper.DATETIME_FMT),
-                        "note", "Petugas memulai pengerjaan"));
-                }
-                if (ft.getCompletedAt() != null) {
-                    statusHistory.add(Map.of("status", "Selesai", "time",
-                        ft.getCompletedAt().format(ControllerHelper.DATETIME_FMT),
-                        "note", "Tugas telah selesai dikerjakan"));
-                }
-                task.put("statusHistory", statusHistory);
+            Map<String, Object> locationMap = new HashMap<>();
+            String addr = ft.getReport() != null ? (ft.getReport().getLocationHint() != null ? ft.getReport().getLocationHint() : "-") : "-";
+            locationMap.put("address", addr);
+            locationMap.put("latitude", ft.getOfficerLatitude() != null ? ft.getOfficerLatitude().toPlainString() : "3.5952");
+            locationMap.put("longitude", ft.getOfficerLongitude() != null ? ft.getOfficerLongitude().toPlainString() : "98.6722");
+            task.put("location", locationMap);
 
-                model.addAttribute("task", task);
-                model.addAttribute("user", userId != null ? userService.findById(userId)
-                    .map(u -> Map.of("name", u.getFullName())).orElse(Map.of("name", "Petugas"))
-                    : Map.of("name", "Petugas"));
-                model.addAttribute("attendance", Map.of("checkedIn", true));
-                return "petugas/task-detail";
+            List<Map<String, Object>> statusHistory = new ArrayList<>();
+            statusHistory.add(Map.of("status", "Tugas Dibuat", "time",
+                ft.getCreatedAt() != null ? ft.getCreatedAt().format(ControllerHelper.DATETIME_FMT) : "-",
+                "note", "Tugas diterima dari laporan warga"));
+            if (ft.getStartedAt() != null) {
+                statusHistory.add(Map.of("status", "Mulai Dikerjakan", "time",
+                    ft.getStartedAt().format(ControllerHelper.DATETIME_FMT),
+                    "note", "Petugas memulai pengerjaan"));
             }
+            if (ft.getCompletedAt() != null) {
+                statusHistory.add(Map.of("status", "Selesai", "time",
+                    ft.getCompletedAt().format(ControllerHelper.DATETIME_FMT),
+                    "note", "Tugas telah selesai dikerjakan"));
+            }
+            task.put("statusHistory", statusHistory);
+
+            model.addAttribute("task", task);
+            model.addAttribute("user", userService.findById(userId)
+                .map(u -> Map.of("name", u.getFullName())).orElse(Map.of("name", "Petugas")));
+
+            Map<String, Object> attendance = new HashMap<>();
+            attendance.put("checkedIn", false);
+            attendanceService.getCurrentShift(userId).ifPresent(shift -> {
+                attendance.put("checkedIn", shift.getCheckInAt() != null);
+            });
+            model.addAttribute("attendance", attendance);
+
+            return "petugas/task-detail";
         }
 
         return "redirect:/petugas/tasks";
@@ -245,23 +260,23 @@ public class PetugasController {
             HttpSession session,
             @RequestParam(value = "id", required = false, defaultValue = "TGS-001") String id
     ) {
-        String userId = (String) session.getAttribute("userId");
-        if (userId != null) {
-            Optional<FieldTask> realTask = fieldTaskService.getTaskById(id);
-            if (realTask.isPresent()) {
-                FieldTask ft = realTask.get();
-                Map<String, Object> task = toPetugasTaskMap(ft);
-                Map<String, Object> locationMap = new HashMap<>();
-                String addr = ft.getReport() != null ? (ft.getReport().getLocationHint() != null ? ft.getReport().getLocationHint() : "-") : "-";
-                locationMap.put("address", addr);
-                locationMap.put("latitude", ft.getOfficerLatitude() != null ? ft.getOfficerLatitude().toPlainString() : "3.5952");
-                locationMap.put("longitude", ft.getOfficerLongitude() != null ? ft.getOfficerLongitude().toPlainString() : "98.6722");
-                task.put("location", locationMap);
-                task.put("distanceToTask", "-");
-                model.addAttribute("task", task);
-                model.addAttribute("materials", new ArrayList<>());
-                return "petugas/task-execution";
-            }
+        String userId = ControllerHelper.requireRole(session, "PETUGAS");
+        if (userId == null) return "redirect:/petugas/login";
+
+        Optional<FieldTask> realTask = fieldTaskService.getTaskById(id);
+        if (realTask.isPresent()) {
+            FieldTask ft = realTask.get();
+            Map<String, Object> task = toPetugasTaskMap(ft);
+            Map<String, Object> locationMap = new HashMap<>();
+            String addr = ft.getReport() != null ? (ft.getReport().getLocationHint() != null ? ft.getReport().getLocationHint() : "-") : "-";
+            locationMap.put("address", addr);
+            locationMap.put("latitude", ft.getOfficerLatitude() != null ? ft.getOfficerLatitude().toPlainString() : "3.5952");
+            locationMap.put("longitude", ft.getOfficerLongitude() != null ? ft.getOfficerLongitude().toPlainString() : "98.6722");
+            task.put("location", locationMap);
+            task.put("distanceToTask", "-");
+            model.addAttribute("task", task);
+            model.addAttribute("materials", new ArrayList<>());
+            return "petugas/task-execution";
         }
 
         return "redirect:/petugas/tasks";
@@ -343,16 +358,16 @@ public class PetugasController {
             HttpSession session,
             @RequestParam(value = "period", required = false, defaultValue = "week") String period
     ) {
-        String userId = (String) session.getAttribute("userId");
+        String userId = ControllerHelper.requireRole(session, "PETUGAS");
+        if (userId == null) return "redirect:/petugas/login";
+
         Map<String, Object> user = new HashMap<>();
         user.put("name", "Petugas");
-        if (userId != null) {
-            userService.findById(userId).ifPresent(u -> user.put("name", u.getFullName()));
-        }
+        userService.findById(userId).ifPresent(u -> user.put("name", u.getFullName()));
         model.addAttribute("user", user);
         model.addAttribute("selectedPeriod", period);
 
-        List<FieldTask> allTasks = userId != null ? fieldTaskService.getTasksByOfficer(userId) : new ArrayList<>();
+        List<FieldTask> allTasks = fieldTaskService.getTasksByOfficer(userId);
         List<FieldTask> completed = allTasks.stream().filter(t -> t.getTaskStatus() == TaskStatus.SELESAI).collect(Collectors.toList());
         List<FieldTask> inProgress = allTasks.stream().filter(t -> t.getTaskStatus() == TaskStatus.SEDANG_DIKERJAKAN).collect(Collectors.toList());
 
