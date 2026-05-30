@@ -1,19 +1,20 @@
 package com.plr.aduaja.controller;
 
 import lombok.extern.slf4j.Slf4j;
+import com.plr.aduaja.dto.CreatePetugasDTO;
 import com.plr.aduaja.model.*;
 import com.plr.aduaja.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import jakarta.servlet.http.HttpSession;
-import java.time.Duration;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -46,7 +47,11 @@ public class AdminDinasController {
     private AgencyService agencyService;
 
     @GetMapping("/admin/dinas/dashboard")
-    public String adminDinasDashboard(Model model) {
+    public String adminDinasDashboard(Model model, HttpSession session) {
+        // SESSION CHECK — semua halaman admin harus login
+        String sessionUserId = ControllerHelper.requireAnyAdminSession(session);
+        if (sessionUserId == null) return "redirect:/admin/login";
+
         model.addAttribute("dinasName", "Dinas Pekerjaan Umum");
         long diterima = reportService.countByStatus(Report.ReportStatus.DIDISPOSISI);
         long diproses = fieldTaskService.countByStatus(FieldTask.TaskStatus.SEDANG_DIKERJAKAN);
@@ -95,20 +100,24 @@ public class AdminDinasController {
     }
 
     @GetMapping("/admin/dinas/dinas-dashboard")
-    public String adminDinasDashboardAlias(Model model) {
-        return adminDinasDashboard(model);
+    public String adminDinasDashboardAlias(Model model, HttpSession session) {
+        return adminDinasDashboard(model, session);
     }
 
     @GetMapping("/admin/dinas/queue")
     public String adminDinasQueue(
             Model model,
+            HttpSession session,
             @RequestParam(value = "page", required = false, defaultValue = "1") int page
     ) {
+        // SESSION CHECK
+        if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
+
         model.addAttribute("dinasName", "Dinas Pekerjaan Umum");
         List<Map<String, Object>> laporanDinas = new ArrayList<>();
         List<Disposition> realDispositions = dispositionService.getAllDispositions();
         if (!realDispositions.isEmpty()) {
-            DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
+            // DRY: gunakan konstanta DATE_FMT dari ControllerHelper
             for (Disposition d : realDispositions) {
                 Map<String, Object> m = new HashMap<>();
                 m.put("id", d.getReport() != null ? d.getReport().getReportId() : "-");
@@ -116,7 +125,7 @@ public class AdminDinasController {
                 m.put("kategori", d.getReport() != null && d.getReport().getCategory() != null ? d.getReport().getCategory().getCategoryName() : "Lainnya");
                 m.put("pelapor", d.getReport() != null && d.getReport().getReporter() != null ? d.getReport().getReporter().getFullName() : "-");
                 m.put("wilayah", d.getReport() != null && d.getReport().getLocationHint() != null ? d.getReport().getLocationHint() : "-");
-                m.put("tanggalDisposisi", d.getDispatchedAt() != null ? d.getDispatchedAt().format(fmt) : "-");
+                m.put("tanggalDisposisi", d.getDispatchedAt() != null ? d.getDispatchedAt().format(ControllerHelper.DATE_FMT) : "-");
                 m.put("status", "Belum Ditindaklanjuti");
                 m.put("prioritas", "Sedang");
                 m.put("sisaWaktu", "-");
@@ -142,19 +151,23 @@ public class AdminDinasController {
     }
 
     @GetMapping("/admin/dinas/dinas-queue")
-    public String adminDinasQueueAlias(Model model,
+    public String adminDinasQueueAlias(Model model, HttpSession session,
                                        @RequestParam(value = "page", required = false, defaultValue = "1") int page) {
-        return adminDinasQueue(model, page);
+        return adminDinasQueue(model, session, page);
     }
 
     @GetMapping("/admin/dinas/penugasan")
     public String adminDinasPenugasan(
             Model model,
+            HttpSession session,
             @RequestParam(value = "id", required = false) String id
     ) {
+        // SESSION CHECK
+        if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
+
         List<Map<String, Object>> incomingReports = new ArrayList<>();
         List<Disposition> allDisp = dispositionService.getAllDispositions();
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
+        // DRY: gunakan konstanta DATE_FMT dari ControllerHelper
         for (Disposition d : allDisp) {
             if (d.getReport() != null) {
                 List<FieldTask> existing = fieldTaskService.getTasksByReport(d.getReport().getReportId());
@@ -164,7 +177,7 @@ public class AdminDinasController {
                     m.put("judul", d.getReport().getTicketNumber() != null ? d.getReport().getTicketNumber() : "Laporan");
                     m.put("kategori", d.getReport().getCategory() != null ? d.getReport().getCategory().getCategoryName() : "Lainnya");
                     m.put("prioritas", "Sedang");
-                    m.put("tanggalDisposisi", d.getDispatchedAt() != null ? d.getDispatchedAt().format(fmt) : "-");
+                    m.put("tanggalDisposisi", d.getDispatchedAt() != null ? d.getDispatchedAt().format(ControllerHelper.DATE_FMT) : "-");
                     m.put("wilayah", d.getReport().getLocationHint() != null ? d.getReport().getLocationHint() : "-");
                     m.put("deadline", "-");
                     m.put("instruksiAdmin", d.getNotes() != null ? d.getNotes() : "-");
@@ -224,9 +237,9 @@ public class AdminDinasController {
     }
 
     @GetMapping("/admin/dinas/penugasan-petugas")
-    public String adminDinasPenugasanAlias(Model model,
+    public String adminDinasPenugasanAlias(Model model, HttpSession session,
                                            @RequestParam(value = "id", required = false) String id) {
-        return adminDinasPenugasan(model, id);
+        return adminDinasPenugasan(model, session, id);
     }
 
     @PostMapping("/admin/dinas/penugasan-petugas")
@@ -239,12 +252,16 @@ public class AdminDinasController {
     @GetMapping("/admin/dinas/progress")
     public String adminDinasProgress(
             Model model,
+            HttpSession session,
             @RequestParam(value = "id", required = false) String id
     ) {
+        // SESSION CHECK
+        if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
+
         List<Map<String, Object>> ticketsInProgress = new ArrayList<>();
         List<FieldTask> realTasks = fieldTaskService.getTasksByStatus(FieldTask.TaskStatus.SEDANG_DIKERJAKAN);
         if (!realTasks.isEmpty()) {
-            DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
+            // DRY: gunakan konstanta DATE_FMT dari ControllerHelper
             for (FieldTask t : realTasks) {
                 Map<String, Object> m = new HashMap<>();
                 m.put("id", t.getTaskId());
@@ -256,7 +273,7 @@ public class AdminDinasController {
                 m.put("foto", dummyReportImage());
                 List<Map<String, Object>> ph = new ArrayList<>();
                 if (t.getStartedAt() != null) {
-                    ph.add(Map.of("tanggal", t.getStartedAt().format(fmt), "petugas",
+                    ph.add(Map.of("tanggal", t.getStartedAt().format(ControllerHelper.DATE_FMT), "petugas",
                         t.getOfficer() != null ? t.getOfficer().getFullName() : "-",
                         "keterangan", "Pengerjaan dimulai", "estimasi", "-"));
                 }
@@ -291,9 +308,9 @@ public class AdminDinasController {
     }
 
     @GetMapping("/admin/dinas/progress-update")
-    public String adminDinasProgressAlias(Model model,
+    public String adminDinasProgressAlias(Model model, HttpSession session,
                                           @RequestParam(value = "id", required = false) String id) {
-        return adminDinasProgress(model, id);
+        return adminDinasProgress(model, session, id);
     }
 
     @PostMapping("/admin/dinas/progress-update")
@@ -306,12 +323,16 @@ public class AdminDinasController {
     @GetMapping("/admin/dinas/close")
     public String adminDinasClose(
             Model model,
+            HttpSession session,
             @RequestParam(value = "id", required = false) String id
     ) {
+        // SESSION CHECK
+        if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
+
         List<Map<String, Object>> ticketsReady = new ArrayList<>();
         List<FieldTask> realTasks = fieldTaskService.getTasksByStatus(FieldTask.TaskStatus.SELESAI);
         if (!realTasks.isEmpty()) {
-            DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
+            // DRY: gunakan konstanta DATE_FMT dari ControllerHelper
             for (FieldTask t : realTasks) {
                 Map<String, Object> m = new HashMap<>();
                 m.put("id", t.getTaskId());
@@ -322,8 +343,8 @@ public class AdminDinasController {
                 m.put("wilayah", t.getReport() != null && t.getReport().getLocationHint() != null ? t.getReport().getLocationHint() : "-");
                 m.put("foto", dummyReportImage());
                 List<Map<String, Object>> ph = new ArrayList<>();
-                if (t.getStartedAt() != null) ph.add(Map.of("tanggal", t.getStartedAt().format(fmt), "keterangan", "Pengerjaan dimulai"));
-                if (t.getCompletedAt() != null) ph.add(Map.of("tanggal", t.getCompletedAt().format(fmt), "keterangan", "Pengerjaan selesai"));
+                if (t.getStartedAt() != null) ph.add(Map.of("tanggal", t.getStartedAt().format(ControllerHelper.DATE_FMT), "keterangan", "Pengerjaan dimulai"));
+                if (t.getCompletedAt() != null) ph.add(Map.of("tanggal", t.getCompletedAt().format(ControllerHelper.DATE_FMT), "keterangan", "Pengerjaan selesai"));
                 m.put("progressHistory", ph);
                 ticketsReady.add(m);
             }
@@ -354,9 +375,9 @@ public class AdminDinasController {
     }
 
     @GetMapping("/admin/dinas/close-ticket")
-    public String adminDinasCloseAlias(Model model,
+    public String adminDinasCloseAlias(Model model, HttpSession session,
                                        @RequestParam(value = "id", required = false) String id) {
-        return adminDinasClose(model, id);
+        return adminDinasClose(model, session, id);
     }
 
     @PostMapping("/admin/dinas/close-ticket")
@@ -369,10 +390,14 @@ public class AdminDinasController {
     @GetMapping("/admin/dinas/sengketa")
     public String adminDinasSengketa(
             Model model,
+            HttpSession session,
             @RequestParam(value = "id", required = false) String id
     ) {
+        // SESSION CHECK
+        if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
+
         List<DisputeRecord> realDisputes = disputeService.getPendingDisputes();
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
+        // DRY: gunakan konstanta DATE_FMT dari ControllerHelper
         List<Map<String, Object>> disputes = realDisputes.stream().map(d -> {
             Map<String, Object> m = new HashMap<>();
             m.put("id", d.getDisputeId());
@@ -380,10 +405,10 @@ public class AdminDinasController {
             m.put("judul", d.getReasonText() != null ? d.getReasonText() : "Sengketa #" + d.getDisputeId().substring(0, 8));
             m.put("statusSengketa", d.getResolution() == null ? "Menunggu Tinjauan" : "Selesai");
             m.put("prioritas", "Sedang");
-            m.put("tanggalSengketa", d.getFiledAt() != null ? d.getFiledAt().format(fmt) : "-");
+            m.put("tanggalSengketa", d.getFiledAt() != null ? d.getFiledAt().format(ControllerHelper.DATE_FMT) : "-");
             m.put("pelapor", d.getReport() != null && d.getReport().getReporter() != null ? d.getReport().getReporter().getFullName() : "-");
             m.put("tanggalLaporan", "-");
-            m.put("tanggalSelesai", d.getResolvedAt() != null ? d.getResolvedAt().format(fmt) : "-");
+            m.put("tanggalSelesai", d.getResolvedAt() != null ? d.getResolvedAt().format(ControllerHelper.DATE_FMT) : "-");
             m.put("statusSebelum", "Selesai");
             m.put("alasanSengketa", d.getReasonText() != null ? d.getReasonText() : "-");
             m.put("fotoBuktiSengketa", dummyReportImage());
@@ -428,6 +453,9 @@ public class AdminDinasController {
             model.addAttribute("originalPetugasNama", selected.get("petugasNama"));
         }
 
+        if (selected == null && disputes.isEmpty()) {
+            return "redirect:/admin/dinas/dashboard";
+        }
         model.addAttribute("selectedDispute", selected);
         return "admin/dinas/sengketa-dinas";
     }
@@ -440,7 +468,7 @@ public class AdminDinasController {
             @RequestParam(value = "petugasId", required = false) String petugasId,
             HttpSession session
     ) {
-        String adminId = (String) session.getAttribute("userId");
+        String adminId = ControllerHelper.requireAnyAdminSession(session);
         if (adminId == null) {
             adminId = userService.getUserByEmail("admin.pu@aduaja.go.id")
                     .map(User::getUserId).orElse(null);
@@ -478,7 +506,45 @@ public class AdminDinasController {
         return "redirect:/admin/dinas/sengketa" + (id != null ? "?id=" + id : "");
     }
 
+    // ==========================================
+    // ADMIN DINAS — KELOLA PETUGAS
+    // ==========================================
+
+    @GetMapping("/admin/dinas/petugas")
+    public String adminDinasPetugas(Model model, HttpSession session) {
+        if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
+
+        List<User> petugasList = userService.findByRole(User.Role.PETUGAS);
+        model.addAttribute("petugasList", petugasList);
+        model.addAttribute("createPetugasDTO", new CreatePetugasDTO());
+        return "admin/dinas/petugas";
+    }
+
+    @PostMapping("/admin/dinas/petugas/create")
+    public String adminDinasCreatePetugas(
+            @ModelAttribute CreatePetugasDTO dto,
+            RedirectAttributes redirectAttributes,
+            HttpSession session
+    ) {
+        if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
+
+        if (dto.getPassword() == null || dto.getPassword().length() < 6) {
+            redirectAttributes.addFlashAttribute("error", "Password minimal 6 karakter");
+            return "redirect:/admin/dinas/petugas";
+        }
+
+        try {
+            userService.createPetugas(dto);
+            redirectAttributes.addFlashAttribute("success", "Petugas " + dto.getFullName() + " berhasil dibuat");
+        } catch (Exception e) {
+            log.error("Gagal buat petugas: {}", e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("error", "Gagal membuat petugas: " + e.getMessage());
+        }
+        return "redirect:/admin/dinas/petugas";
+    }
+
+    // DRY: didelegasikan ke ControllerHelper — tidak ada duplikasi dengan AdminPusatController
     private String dummyReportImage() {
-        return "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='800' viewBox='0 0 1200 800'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop offset='0%25' stop-color='%231d4ed8'/%3E%3Cstop offset='100%25' stop-color='%230f766e'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='1200' height='800' fill='url(%23g)'/%3E%3Crect x='70' y='70' width='1060' height='660' rx='36' fill='white' fill-opacity='0.12'/%3E%3Ctext x='600' y='390' text-anchor='middle' fill='white' font-family='Arial, sans-serif' font-size='64' font-weight='700'%3EAduAja%3C/text%3E%3Ctext x='600' y='460' text-anchor='middle' fill='white' font-family='Arial, sans-serif' font-size='28' fill-opacity='0.9'%3EDummy Report Image%3C/text%3E%3C/svg%3E";
+        return ControllerHelper.dummyReportImage();
     }
 }

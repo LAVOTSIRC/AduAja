@@ -1,6 +1,7 @@
 package com.plr.aduaja.model;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 
 // ============================================================
 // INHERITANCE (Pewarisan): UserProfile extends BaseEntity
@@ -35,6 +36,12 @@ public class UserProfile extends BaseEntity {  // ← INHERITANCE sejati
     @Column(name = "alamat_lengkap", columnDefinition = "TEXT")
     private String alamatLengkap;
 
+    @Column(name = "domisili_latitude", precision = 10, scale = 8)
+    private BigDecimal domisiliLatitude;
+
+    @Column(name = "domisili_longitude", precision = 11, scale = 8)
+    private BigDecimal domisiliLongitude;
+
     // ENKAPSULASI: Getter & Setter untuk semua field PRIVATE
     public String getProfileId() { return profileId; }
     public void setProfileId(String profileId) { this.profileId = profileId; }
@@ -53,4 +60,10 @@ public class UserProfile extends BaseEntity {  // ← INHERITANCE sejati
 
     public String getAlamatLengkap() { return alamatLengkap; }
     public void setAlamatLengkap(String alamatLengkap) { this.alamatLengkap = alamatLengkap; }
+
+    public BigDecimal getDomisiliLatitude() { return domisiliLatitude; }
+    public void setDomisiliLatitude(BigDecimal domisiliLatitude) { this.domisiliLatitude = domisiliLatitude; }
+
+    public BigDecimal getDomisiliLongitude() { return domisiliLongitude; }
+    public void setDomisiliLongitude(BigDecimal domisiliLongitude) { this.domisiliLongitude = domisiliLongitude; }
 }

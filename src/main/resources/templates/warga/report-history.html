@@ -20,12 +20,7 @@
           </a>
           <div>
             <h1 class="font-bold text-gray-900">Riwayat Laporan</h1>
-            <p
-              class="text-xs text-gray-500"
-              th:text="|${totalCount} total laporan|"
-            >
-              0 total laporan
-            </p>
+            <p class="text-xs text-gray-500" th:text="|${totalCount} laporan|">0 laporan</p>
           </div>
         </div>
       </div>
@@ -58,14 +53,14 @@
       <div class="mb-6 overflow-x-auto">
         <div class="flex gap-2 min-w-max pb-2">
           <a
-            th:each="status : ${statusOptions}"
-            th:href="@{/warga/report-history(status=${status}, q=${searchQuery})}"
-            th:class="${activeStatus == status} ? 'px-4 py-2 rounded-lg font-medium text-sm transition-colors whitespace-nowrap bg-blue-600 text-white' : 'px-4 py-2 rounded-lg font-medium text-sm transition-colors whitespace-nowrap bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'"
+            th:each="opt : ${statusOptions}"
+            th:href="@{/warga/report-history(status=${opt.name}, q=${searchQuery})}"
+            th:class="${activeStatus == opt.name} ? 'px-4 py-2 rounded-lg font-medium text-sm transition-colors whitespace-nowrap bg-blue-600 text-white' : 'px-4 py-2 rounded-lg font-medium text-sm transition-colors whitespace-nowrap bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'"
           >
-            <span th:text="${status}">Status</span>
+            <span th:text="${opt.name}">Status</span>
             <span
               class="ml-2 text-xs opacity-75"
-              th:text="|(${statusCounts[status]})|"
+              th:text="|(${opt.count})|"
               >(0)</span
             >
           </a>

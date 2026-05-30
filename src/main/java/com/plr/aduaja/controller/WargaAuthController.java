@@ -5,6 +5,7 @@ import com.plr.aduaja.model.OtpVerification;
 import com.plr.aduaja.dto.LoginDTO;
 import com.plr.aduaja.dto.RegisterDTO;
 import com.plr.aduaja.dto.ProfileDTO;
+import com.plr.aduaja.model.UserProfile;
 import com.plr.aduaja.service.UserService;
 import com.plr.aduaja.service.AuthService;
 import com.plr.aduaja.service.OtpService;
@@ -17,7 +18,13 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Optional;
+import java.util.UUID;
 
 // ============================================================
 // ABSTRACTION (Abstraksi): Controller hanya tahu Interface Service
@@ -184,7 +191,7 @@ public class WargaAuthController {
     // ==========================================
     @GetMapping("/warga/profile")
     public String profilePage(HttpSession session, Model model) {
-        String userId = (String) session.getAttribute("userId");
+        String userId = ControllerHelper.requireRole(session, "WARGA");
         if (userId == null) {
             return "redirect:/warga/login";
         }
@@ -209,6 +216,12 @@ public class WargaAuthController {
         if (user.getUserProfile() != null) {
             profileDTO.setNik(user.getUserProfile().getNik());
             profileDTO.setAlamatLengkap(user.getUserProfile().getAlamatLengkap());
+            if (user.getUserProfile().getDomisiliLatitude() != null) {
+                profileDTO.setDomisiliLatitude(user.getUserProfile().getDomisiliLatitude().toPlainString());
+            }
+            if (user.getUserProfile().getDomisiliLongitude() != null) {
+                profileDTO.setDomisiliLongitude(user.getUserProfile().getDomisiliLongitude().toPlainString());
+            }
         }
 
         model.addAttribute("profileDTO", profileDTO);
@@ -222,7 +235,7 @@ public class WargaAuthController {
     public String editProfile(@ModelAttribute ProfileDTO dto,
                               HttpSession session,
                               RedirectAttributes redirectAttributes) {
-        String userId = (String) session.getAttribute("userId");
+        String userId = ControllerHelper.requireRole(session, "WARGA");
         if (userId == null) {
             return "redirect:/warga/login";
         }
@@ -234,6 +247,56 @@ public class WargaAuthController {
             redirectAttributes.addFlashAttribute("success", "Profil berhasil diperbarui.");
         } catch (RuntimeException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+
+        return "redirect:/warga/profile";
+    }
+
+    // ==========================================
+    // POST /warga/profile/photo — Upload foto profil
+    // ==========================================
+    @PostMapping("/warga/profile/photo")
+    public String uploadProfilePhoto(@RequestParam("photo") MultipartFile file,
+                                      HttpSession session,
+                                      RedirectAttributes redirectAttributes) {
+        String userId = (String) session.getAttribute("userId");
+        if (userId == null) return "redirect:/warga/login";
+
+        if (file.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Pilih file foto terlebih dahulu.");
+            return "redirect:/warga/profile";
+        }
+
+        try {
+            String uploadDir = "uploads/profile-photos";
+            Files.createDirectories(Paths.get(uploadDir));
+
+            String ext = "";
+            String originalName = file.getOriginalFilename();
+            if (originalName != null && originalName.contains(".")) {
+                ext = originalName.substring(originalName.lastIndexOf("."));
+            }
+            String filename = UUID.randomUUID().toString() + ext;
+            Path filePath = Paths.get(uploadDir, filename);
+            Files.write(filePath, file.getBytes());
+
+            String photoUrl = "/profile-photos/" + filename;
+
+            User user = userService.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User tidak ditemukan"));
+            UserProfile profile = user.getUserProfile();
+            if (profile == null) {
+                profile = new UserProfile();
+                profile.setUser(user);
+            }
+            profile.setProfilePhotoUrl(photoUrl);
+            user.setUserProfile(profile);
+            userService.updateUser(user);
+
+            redirectAttributes.addFlashAttribute("success", "Foto profil berhasil diperbarui.");
+        } catch (IOException e) {
+            log.error("Gagal upload foto profil: {}", e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("error", "Gagal mengupload foto: " + e.getMessage());
         }
 
         return "redirect:/warga/profile";

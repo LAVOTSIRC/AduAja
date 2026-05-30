@@ -15,10 +15,10 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -74,10 +74,14 @@ public class AdminPusatController {
     @GetMapping("/admin/dashboard")
     public String adminDashboard(
             Model model,
+            HttpSession session,
             @RequestParam(value = "role", required = false, defaultValue = "admin_pusat") String role,
             @RequestParam(value = "tab", required = false, defaultValue = "queue") String tab,
             @RequestParam(value = "id", required = false) String id
     ) {
+        // SESSION CHECK — semua halaman admin harus login
+        String sessionUserId = ControllerHelper.requireAnyAdminSession(session);
+        if (sessionUserId == null) return "redirect:/admin/login";
         model.addAttribute("userRole", role);
 
         if ("admin_dinas".equalsIgnoreCase(role)) {
@@ -152,9 +156,9 @@ public class AdminPusatController {
         model.addAttribute("panels", panels);
 
         List<Map<String, Object>> queueReports = getAdminValidationList();
-        DateTimeFormatter queueFmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
+        // DRY: gunakan konstanta DATE_FMT dari ControllerHelper
         queueReports.sort(Comparator.comparing(r -> {
-            try { return LocalDate.parse((String) r.get("tanggalMasuk"), queueFmt); }
+            try { return LocalDate.parse((String) r.get("tanggalMasuk"), ControllerHelper.DATE_FMT); }
             catch (Exception e) { return LocalDate.MIN; }
         }));
         model.addAttribute("queueReports", queueReports);
@@ -336,11 +340,14 @@ public class AdminPusatController {
     // ==========================================
 
     @GetMapping("/admin/laporan-queue")
-    public String adminLaporanQueue(Model model) {
+    public String adminLaporanQueue(Model model, HttpSession session) {
+        // SESSION CHECK
+        if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
+
         List<Map<String, Object>> reports = getAdminValidationList();
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
+        // DRY: gunakan konstanta formatter dari ControllerHelper
         reports.sort(Comparator.comparing(r -> {
-            try { return LocalDate.parse((String) r.get("tanggalMasuk"), fmt); }
+            try { return LocalDate.parse((String) r.get("tanggalMasuk"), ControllerHelper.DATE_FMT); }
             catch (Exception e) { return LocalDate.MIN; }
         }));
         model.addAttribute("queueReports", reports);
@@ -354,8 +361,12 @@ public class AdminPusatController {
     @GetMapping("/admin/validation")
     public String adminValidationPanel(
             Model model,
+            HttpSession session,
             @RequestParam(value = "id", required = false) String id
     ) {
+        // SESSION CHECK
+        if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
+
         List<Map<String, Object>> reports = getAdminValidationList();
         model.addAttribute("reports", reports);
         model.addAttribute("pendingCount", reports.size());
@@ -372,13 +383,20 @@ public class AdminPusatController {
 
     @PostMapping("/admin/validation")
     public String adminValidationPost(
+            HttpSession session,
+            RedirectAttributes redirectAttributes,
             @RequestParam(value = "id", required = false) String id,
             @RequestParam(value = "action", required = false) String action,
             @RequestParam(value = "reason", required = false) String reason,
             @RequestParam(value = "rejectionReason", required = false) String rejectionReason
     ) {
+        // SESSION CHECK
+        String adminId = ControllerHelper.requireAnyAdminSession(session);
+        if (adminId == null) return "redirect:/admin/login";
+
         String ticketId = id != null ? id.trim() : null;
         String normalizedAction = action != null ? action.trim().toLowerCase() : null;
+        // DRY: gabungkan reason dan rejectionReason dalam satu variabel
         String note = (reason != null && !reason.trim().isEmpty())
                 ? reason.trim()
                 : (rejectionReason != null && !rejectionReason.trim().isEmpty() ? rejectionReason.trim() : null);
@@ -387,24 +405,40 @@ public class AdminPusatController {
             return "redirect:/admin/dashboard?tab=queue";
         }
 
+        String redirectUrl = "redirect:/admin/validation" + (ticketId != null ? "?id=" + ticketId : "");
+
         try {
-            boolean approved = "approved".equals(normalizedAction) || "approve".equals(normalizedAction);
-            if (ticketId != null) {
-                Report r = reportService.updateStatus(ticketId, approved ? ReportStatus.DIVALIDASI : ReportStatus.DITOLAK);
-                if (r != null && r.getReporter() != null) {
-                    String notifTitle = approved ? "Laporan Divalidasi" : "Laporan Ditolak";
-                    String notifMsg = approved
-                            ? "Laporan Anda nomor " + r.getTicketNumber() + " telah divalidasi."
-                            : "Laporan Anda nomor " + r.getTicketNumber() + " ditolak." + (note != null ? " Alasan: " + note : "");
-                    notificationService.createNotification(
-                            r.getReporter().getUserId(), notifTitle, notifMsg, "REPORT", r.getReportId()
-                    );
-                }
+            ReportStatus newStatus;
+            String notifTitle;
+            String notifMsg;
+
+            if ("approved".equals(normalizedAction) || "approve".equals(normalizedAction)) {
+                newStatus = ReportStatus.DIVALIDASI;
+                notifTitle = "Laporan Divalidasi";
+                notifMsg = "Laporan Anda nomor " + ticketId + " telah divalidasi.";
+                redirectUrl = "redirect:/admin/dashboard?tab=disposisi&id=" + ticketId;
+            } else if ("revision".equals(normalizedAction)) {
+                newStatus = ReportStatus.PERLU_REVISI;
+                notifTitle = "Laporan Perlu Revisi";
+                notifMsg = "Laporan Anda nomor " + ticketId + " perlu direvisi." + (note != null ? " Catatan: " + note : "");
+            } else {
+                newStatus = ReportStatus.DITOLAK;
+                notifTitle = "Laporan Ditolak";
+                notifMsg = "Laporan Anda nomor " + ticketId + " ditolak." + (note != null ? " Alasan: " + note : "");
             }
+
+            Report r = reportService.updateStatus(ticketId, newStatus, note, adminId);
+            if (r != null && r.getReporter() != null) {
+                notificationService.createNotification(
+                        r.getReporter().getUserId(), notifTitle, notifMsg, "REPORT", r.getReportId()
+                );
+            }
+            redirectAttributes.addFlashAttribute("success", notifTitle);
         } catch (Exception e) {
             log.error("Gagal validasi laporan {}: {}", ticketId, e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("error", "Gagal memproses validasi: " + e.getMessage());
         }
-        return "redirect:/admin/validation" + (ticketId != null ? "?id=" + ticketId : "");
+        return redirectUrl;
     }
 
     @GetMapping("/admin/validation-panel")
@@ -425,7 +459,9 @@ public class AdminPusatController {
     // ==========================================
 
     @GetMapping("/admin/merge")
-    public String adminMergeTicketPanel(Model model) {
+    public String adminMergeTicketPanel(Model model, HttpSession session) {
+        // SESSION CHECK
+        if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
         List<MergeRecord> activeMerges = getActiveMerges();
         Set<String> mergedChildIds = getMergedChildIds(activeMerges);
         List<Report> mergeCandidates = reportService.getReportsByStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
@@ -441,8 +477,8 @@ public class AdminPusatController {
     }
 
     @GetMapping("/admin/merge-ticket-panel")
-    public String adminMergeTicketPanelAlias(Model model) {
-        return adminMergeTicketPanel(model);
+    public String adminMergeTicketPanelAlias(Model model, HttpSession session) {
+        return adminMergeTicketPanel(model, session);
     }
 
     @PostMapping("/admin/merge")
@@ -488,7 +524,7 @@ public class AdminPusatController {
                 return "redirect:/admin/dashboard?tab=merge&mergeError=invalidParent";
             }
 
-            String adminId = (String) session.getAttribute("userId");
+            String adminId = ControllerHelper.requireAnyAdminSession(session);
             if (adminId == null) {
                 adminId = userService.getUserByEmail("admin@aduaja.go.id")
                         .map(User::getUserId).orElse(null);
@@ -529,8 +565,11 @@ public class AdminPusatController {
     @GetMapping("/admin/disposisi")
     public String adminDisposisiPanel(
             Model model,
+            HttpSession session,
             @RequestParam(value = "id", required = false) String id
     ) {
+        // SESSION CHECK
+        if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
         List<Map<String, Object>> reports = new ArrayList<>();
         List<Report> validated = reportService.getReportsByStatus(Report.ReportStatus.DIVALIDASI);
         if (!validated.isEmpty()) {
@@ -581,46 +620,36 @@ public class AdminPusatController {
 
     @PostMapping("/admin/disposisi")
     public String adminDisposisiPost(
+            HttpSession session,
+            RedirectAttributes redirectAttributes,
             @RequestParam(value = "id", required = false) String id,
             @RequestParam(value = "dinasId", required = false) String dinasId,
-            @RequestParam(value = "catatan", required = false) String catatan,
-            HttpSession session
+            @RequestParam(value = "catatan", required = false) String catatan
     ) {
+        // SESSION CHECK
+        String adminId = ControllerHelper.requireAnyAdminSession(session);
+        if (adminId == null) return "redirect:/admin/login";
+
         String ticketId = id != null ? id.trim() : null;
 
-        DispositionDTO dto = new DispositionDTO();
-        dto.setReportId(ticketId);
-        dto.setTargetAgencyId(dinasId);
-        dto.setNotes(catatan);
-
         try {
-            if (dto.getReportId() != null && !dto.getReportId().isEmpty()) {
-                String adminId = (String) session.getAttribute("userId");
-                if (adminId == null) {
-                    adminId = userService.getUserByEmail("admin@aduaja.go.id")
-                            .map(User::getUserId).orElse(null);
-                }
-                dto.setDispatchedById(adminId);
-
-                dispositionService.createDisposition(
-                        dto.getReportId(),
-                        dto.getDispatchedById(),
-                        dto.getTargetAgencyId(),
-                        dto.getNotes()
-                );
-                reportService.updateStatus(dto.getReportId(), Report.ReportStatus.DIDISPOSISI);
+            if (ticketId != null && !ticketId.isEmpty()) {
+                dispositionService.createDisposition(ticketId, adminId, dinasId, catatan);
+                reportService.updateStatus(ticketId, Report.ReportStatus.DIDISPOSISI, catatan, adminId);
+                redirectAttributes.addFlashAttribute("success", "Laporan berhasil didisposisikan ke dinas.");
             }
         } catch (Exception e) {
             log.error("Gagal disposisi laporan {}: {}", ticketId, e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("error", "Gagal disposisi: " + e.getMessage());
         }
 
-        return "redirect:/admin/disposisi" + (ticketId != null ? "?id=" + ticketId : "");
+        return "redirect:/admin/dashboard?tab=queue";
     }
 
     @GetMapping("/admin/disposisi-panel")
-    public String adminDisposisiPanelAlias(Model model,
+    public String adminDisposisiPanelAlias(Model model, HttpSession session,
                                            @RequestParam(value = "id", required = false) String id) {
-        return adminDisposisiPanel(model, id);
+        return adminDisposisiPanel(model, session, id);
     }
 
     @PostMapping("/admin/disposisi-panel")
@@ -637,10 +666,13 @@ public class AdminPusatController {
     @GetMapping("/admin/sengketa")
     public String adminSengketaPanel(
             Model model,
+            HttpSession session,
             @RequestParam(value = "id", required = false) String id
     ) {
+        // SESSION CHECK
+        if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
         List<DisputeRecord> realDisputes = disputeService.getPendingDisputes();
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd MMM yyyy");
+        // DRY: gunakan konstanta DATE_FMT dari ControllerHelper
         List<Map<String, Object>> disputes = realDisputes.stream().map(d -> {
             Map<String, Object> m = new HashMap<>();
             m.put("id", d.getDisputeId());
@@ -648,12 +680,12 @@ public class AdminPusatController {
             m.put("judul", d.getReasonText() != null ? d.getReasonText() : "Sengketa #" + d.getDisputeId().substring(0, 8));
             m.put("statusSengketa", d.getResolution() == null ? "Menunggu Tinjauan" : "Selesai");
             m.put("prioritas", "Sedang");
-            m.put("tanggalSengketa", d.getFiledAt() != null ? d.getFiledAt().format(fmt) : "-");
+            m.put("tanggalSengketa", d.getFiledAt() != null ? d.getFiledAt().format(ControllerHelper.DATE_FMT) : "-");
             m.put("pelapor", d.getReport() != null && d.getReport().getReporter() != null
                     ? d.getReport().getReporter().getFullName() : "-");
             m.put("tanggalLaporan", d.getReport() != null && d.getReport().getSubmittedAt() != null
-                    ? d.getReport().getSubmittedAt().format(fmt) : "-");
-            m.put("tanggalSelesai", d.getResolvedAt() != null ? d.getResolvedAt().format(fmt) : "-");
+                    ? d.getReport().getSubmittedAt().format(ControllerHelper.DATE_FMT) : "-");
+            m.put("tanggalSelesai", d.getResolvedAt() != null ? d.getResolvedAt().format(ControllerHelper.DATE_FMT) : "-");
             m.put("statusSebelum", "Selesai");
             m.put("alasanSengketa", d.getReasonText() != null ? d.getReasonText() : "-");
             String evidence = d.getEvidencePhotoUrl();
@@ -682,13 +714,20 @@ public class AdminPusatController {
 
     @PostMapping("/admin/sengketa")
     public String adminSengketaPost(
+            HttpSession session,
             @RequestParam(value = "id", required = false) String id,
             @RequestParam(value = "keputusan", required = false) String keputusan,
             @RequestParam(value = "catatan", required = false) String catatan
     ) {
-        try {
-            String adminId = userService.getUserByEmail("admin@aduaja.go.id")
+        // SESSION CHECK: ambil adminId dari session; fallback ke email jika belum ada
+        String adminId = ControllerHelper.requireAnyAdminSession(session);
+        if (adminId == null) {
+            adminId = userService.getUserByEmail("admin@aduaja.go.id")
                     .map(User::getUserId).orElse(null);
+        }
+        if (adminId == null) return "redirect:/admin/login";
+
+        try {
             DisputeRecord.ResolutionType resolution = "tugaskan_kembali".equalsIgnoreCase(keputusan)
                     ? DisputeRecord.ResolutionType.TUGASKAN_KEMBALI
                     : DisputeRecord.ResolutionType.TUTUP_LAPORAN;
@@ -700,9 +739,9 @@ public class AdminPusatController {
     }
 
     @GetMapping("/admin/sengketa-panel")
-    public String adminSengketaPanelAlias(Model model,
+    public String adminSengketaPanelAlias(Model model, HttpSession session,
                                           @RequestParam(value = "id", required = false) String id) {
-        return adminSengketaPanel(model, id);
+        return adminSengketaPanel(model, session, id);
     }
 
     @PostMapping("/admin/sengketa-panel")
@@ -717,11 +756,16 @@ public class AdminPusatController {
     // ==========================================
 
     @GetMapping("/admin/sla")
-    public String slaPanel(Model model) {
+    public String slaPanel(Model model, HttpSession session) {
+        // SESSION CHECK
+        if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
+
         model.addAttribute("slaStats", slaMonitoringService.getSlaStatistics());
         model.addAttribute("lateItems", slaMonitoringService.getLateItems());
         model.addAttribute("allSla", slaRecordService.getAllRecords());
-        return "admin/dashboard";
+        // PERBAIKAN ROUTING: slaPanel sebelumnya return "admin/dashboard" (SALAH!)
+        // Harus return ke view yang tepat: admin/sla
+        return "admin/sla";
     }
 
     // ==========================================
@@ -748,7 +792,8 @@ public class AdminPusatController {
 
     private String toDateStr(LocalDateTime dt) {
         if (dt == null) return "-";
-        return dt.format(DateTimeFormatter.ofPattern("dd MMM yyyy"));
+        // DRY: gunakan konstanta dari ControllerHelper
+        return dt.format(ControllerHelper.DATE_FMT);
     }
 
     private Map<String, Object> toAdminValidationMap(Report r) {
@@ -768,7 +813,8 @@ public class AdminPusatController {
         String lng = r.getLongitude() != null ? r.getLongitude().toPlainString() : "0";
         m.put("koordinatStr", lat + "," + lng);
         m.put("patokan", r.getLocationHint());
-        m.put("waktuKejadian", r.getSubmittedAt() != null ? r.getSubmittedAt().format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm")) : "-");
+        // DRY: gunakan konstanta DATETIME_FMT dari ControllerHelper
+        m.put("waktuKejadian", r.getSubmittedAt() != null ? r.getSubmittedAt().format(ControllerHelper.DATETIME_FMT) : "-");
         m.put("deskripsi", r.getDescription() != null ? r.getDescription() : "-");
         return m;
     }
@@ -863,7 +909,9 @@ public class AdminPusatController {
                 || status == ReportStatus.DITUTUP;
     }
 
+    // DRY: method ini sekarang didelegasikan ke ControllerHelper
+    // sehingga tidak perlu duplikasi di AdminDinasController
     private String dummyReportImage() {
-        return "data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='800' viewBox='0 0 1200 800'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop offset='0%25' stop-color='%231d4ed8'/%3E%3Cstop offset='100%25' stop-color='%230f766e'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='1200' height='800' fill='url(%23g)'/%3E%3Crect x='70' y='70' width='1060' height='660' rx='36' fill='white' fill-opacity='0.12'/%3E%3Ctext x='600' y='390' text-anchor='middle' fill='white' font-family='Arial, sans-serif' font-size='64' font-weight='700'%3EAduAja%3C/text%3E%3Ctext x='600' y='460' text-anchor='middle' fill='white' font-family='Arial, sans-serif' font-size='28' fill-opacity='0.9'%3EDummy Report Image%3C/text%3E%3C/svg%3E";
+        return ControllerHelper.dummyReportImage();
     }
 }
