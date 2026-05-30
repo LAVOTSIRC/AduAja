@@ -217,7 +217,7 @@
             <!-- Status Diajukan selalu ada -->
             <div class="flex gap-4">
               <div class="w-10 h-10 rounded-lg flex items-center justify-center bg-blue-100">
-                <i data-lucide="file-text" class="w-5 h-5 text-blue-600"></i>
+                <i data-lucide="file" class="w-5 h-5 text-blue-600"></i>
               </div>
               <div class="flex-1">
                 <h4 class="font-semibold text-gray-900">Laporan Diajukan</h4>
@@ -231,11 +231,34 @@
               </div>
               <div class="flex-1">
                 <h4 class="font-semibold text-gray-900"
-                    th:text="|Status berubah: ${rev.oldStatus} → ${rev.newStatus}|">Status</h4>
+                    th:text="'Status berubah: ' + ${rev.oldStatus} + ' → ' + ${rev.newStatus}">Status</h4>
                 <p class="text-sm text-gray-600"
                    th:text="${rev.changedAt != null ? #temporals.format(rev.changedAt, 'd MMM yyyy HH:mm') : '-'}">-</p>
                 <p class="text-xs text-gray-500 mt-1" th:text="${rev.notes}" th:if="${rev.notes != null}"></p>
               </div>
+            </div>
+          </div>
+
+          <div th:if="${revisionTotalCount > 0}" class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-gray-200">
+            <p class="text-sm text-gray-600">
+              Menampilkan <span class="font-medium" th:text="${revisionStartIndex}">1</span>-<span class="font-medium" th:text="${revisionEndIndex}">1</span>
+              dari <span class="font-medium" th:text="${revisionTotalCount}">0</span> perubahan
+            </p>
+            <div th:if="${revisionTotalPages > 1}" class="flex items-center gap-1 flex-wrap">
+              <a th:if="${revisionPage > 1}"
+                 th:href="@{/warga/report-detail(id=${report['id']}, revPage=${revisionPage - 1}, revSize=${revisionSize})}"
+                 class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors">
+                Sebelumnya
+              </a>
+              <a th:each="p : ${revisionPageNumbers}"
+                 th:href="@{/warga/report-detail(id=${report['id']}, revPage=${p}, revSize=${revisionSize})}"
+                 th:class="${p == revisionPage} ? 'px-3 py-1.5 rounded-lg text-sm bg-blue-600 text-white font-medium' : 'px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors'"
+                 th:text="${p}">1</a>
+              <a th:if="${revisionPage < revisionTotalPages}"
+                 th:href="@{/warga/report-detail(id=${report['id']}, revPage=${revisionPage + 1}, revSize=${revisionSize})}"
+                 class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors">
+                Selanjutnya
+              </a>
             </div>
           </div>
         </div>

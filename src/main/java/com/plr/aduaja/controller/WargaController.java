@@ -20,7 +20,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Controller
@@ -74,9 +73,9 @@ public class WargaController {
         long menunggu = dbReports.stream().filter(r -> r.getStatus() == ReportStatus.MENUNGGU_VALIDASI).count();
 
         List<Map<String, Object>> stats = new ArrayList<>();
-        stats.add(Map.of("icon","file-text",   "color","bg-blue-100 text-blue-600",   "count",total,"label","Total Laporan"));
+        stats.add(Map.of(    "icon","file-spreadsheet",   "color","bg-blue-100 text-blue-600",   "count",total,"label","Total Laporan"));
         stats.add(Map.of("icon","clock",        "color","bg-yellow-100 text-yellow-600","count",menunggu,"label","Menunggu"));
-        stats.add(Map.of("icon","tool",         "color","bg-orange-100 text-orange-600","count",diproses,"label","Diproses"));
+        stats.add(Map.of("icon","wrench",       "color","bg-orange-100 text-orange-600","count",diproses,"label","Diproses"));
         stats.add(Map.of("icon","check-circle", "color","bg-green-100 text-green-600", "count",selesai,"label","Selesai"));
         stats.add(Map.of("icon","x-circle",     "color","bg-red-100 text-red-600",     "count",ditolak,"label","Ditolak"));
         model.addAttribute("stats", stats);
@@ -150,7 +149,9 @@ public class WargaController {
             Model model,
             HttpSession session,
             @RequestParam(value = "status", required = false, defaultValue = "Semua") String filterStatus,
-            @RequestParam(value = "q", required = false, defaultValue = "") String searchQuery
+            @RequestParam(value = "q", required = false, defaultValue = "") String searchQuery,
+            @RequestParam(value = "page", required = false, defaultValue = "1") int page,
+            @RequestParam(value = "size", required = false, defaultValue = "10") int size
     ) {
         String userId = ControllerHelper.requireRole(session, "WARGA");
         if (userId == null) return "redirect:/warga/login";
@@ -170,7 +171,7 @@ public class WargaController {
             map.put("landmark", r.getLocationHint());
             map.put("rejectionReason", "");
 
-            String icon = "file-text";
+            String icon = "file-spreadsheet";
             String iconColor = "text-gray-600";
             if (r.getCategory() != null && r.getCategory().getCategoryName().contains("Jalan")) { icon = "alert-triangle"; iconColor = "text-orange-600"; }
             else if (r.getCategory() != null && (r.getCategory().getCategoryName().contains("Listrik") || r.getCategory().getCategoryName().contains("Penerangan"))) { icon = "zap"; iconColor = "text-yellow-600"; }
@@ -224,12 +225,41 @@ public class WargaController {
             statusOptions.add(opt);
         }
 
-        model.addAttribute("reports",      filtered);
-        model.addAttribute("totalCount",   filtered.size());
+        int totalCount = filtered.size();
+        int totalPages = (int) Math.ceil((double) totalCount / size);
+        if (totalPages < 1) totalPages = 1;
+        if (page < 1) page = 1;
+        if (page > totalPages) page = totalPages;
+        int startIndex = (page - 1) * size + 1;
+        int endIndex = Math.min(page * size, totalCount);
+        int fromIndex = (page - 1) * size;
+        int toIndex = Math.min(fromIndex + size, totalCount);
+        List<Map<String, Object>> paged = totalCount > 0 && fromIndex < totalCount
+                ? filtered.subList(fromIndex, toIndex)
+                : new ArrayList<>();
+
+        int maxVisiblePages = 7;
+        int startPage = Math.max(1, page - 3);
+        int endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+        if (endPage - startPage < maxVisiblePages - 1) {
+            startPage = Math.max(1, endPage - maxVisiblePages + 1);
+        }
+        List<Integer> pageNumbers = new ArrayList<>();
+        for (int i = startPage; i <= endPage; i++) {
+            pageNumbers.add(i);
+        }
+
+        model.addAttribute("reports",      paged);
+        model.addAttribute("totalCount",   totalCount);
         model.addAttribute("allCount",     allReports.size());
         model.addAttribute("filterStatus", filterStatus);
         model.addAttribute("searchQuery",  searchQuery);
         model.addAttribute("statusOptions",statusOptions);
+        model.addAttribute("page",         page);
+        model.addAttribute("totalPages",   totalPages);
+        model.addAttribute("startIndex",   startIndex);
+        model.addAttribute("endIndex",     endIndex);
+        model.addAttribute("pageNumbers",  pageNumbers);
         return "warga/report-history";
     }
 
@@ -237,7 +267,9 @@ public class WargaController {
     public String wargaReportDetail(
             Model model,
             HttpSession session,
-            @RequestParam(value = "id", required = false) String id
+            @RequestParam(value = "id", required = false) String id,
+            @RequestParam(value = "revPage", required = false, defaultValue = "1") int revPage,
+            @RequestParam(value = "revSize", required = false, defaultValue = "5") int revSize
     ) {
         String userId = ControllerHelper.requireRole(session, "WARGA");
         if (userId == null) return "redirect:/warga/login";
@@ -245,6 +277,7 @@ public class WargaController {
 
         Report report = reportService.findById(id).orElse(null);
         if (report == null) return "redirect:/warga/report-history";
+        if (revSize < 1) revSize = 5;
 
         // DRY: gunakan konstanta DATETIME_FMT dari ControllerHelper
         Map<String, Object> reportMap = new HashMap<>();
@@ -268,7 +301,31 @@ public class WargaController {
         reportMap.put("createdDate", report.getSubmittedAt() != null ? report.getSubmittedAt().format(ControllerHelper.DATETIME_FMT) : "-");
         reportMap.put("date", report.getSubmittedAt() != null ? report.getSubmittedAt().toLocalDate() : java.time.LocalDate.now());
         reportMap.put("slaDeadline", "-");
-        reportMap.put("revisions", report.getRevisions());
+
+        List<?> allRevisions = report.getRevisions() != null ? new ArrayList<>(report.getRevisions()) : new ArrayList<>();
+        int revisionTotalCount = allRevisions.size();
+        int revisionTotalPages = (int) Math.ceil((double) revisionTotalCount / revSize);
+        if (revisionTotalPages < 1) revisionTotalPages = 1;
+        if (revPage < 1) revPage = 1;
+        if (revPage > revisionTotalPages) revPage = revisionTotalPages;
+        int revisionFromIndex = (revPage - 1) * revSize;
+        int revisionToIndex = Math.min(revisionFromIndex + revSize, revisionTotalCount);
+        List<?> pagedRevisions = revisionTotalCount > 0 && revisionFromIndex < revisionTotalCount
+                ? allRevisions.subList(revisionFromIndex, revisionToIndex)
+                : new ArrayList<>();
+
+        int maxVisiblePages = 7;
+        int revisionStartPage = Math.max(1, revPage - 3);
+        int revisionEndPage = Math.min(revisionTotalPages, revisionStartPage + maxVisiblePages - 1);
+        if (revisionEndPage - revisionStartPage < maxVisiblePages - 1) {
+            revisionStartPage = Math.max(1, revisionEndPage - maxVisiblePages + 1);
+        }
+        List<Integer> revisionPageNumbers = new ArrayList<>();
+        for (int i = revisionStartPage; i <= revisionEndPage; i++) {
+            revisionPageNumbers.add(i);
+        }
+
+        reportMap.put("revisions", pagedRevisions);
         String cc = switch (report.getStatus()) {
             case MENUNGGU_VALIDASI -> "bg-gray-100 text-gray-700";
             case DIVALIDASI, DITUGASKAN, SEDANG_DIKERJAKAN -> "bg-yellow-100 text-yellow-700";
@@ -279,6 +336,13 @@ public class WargaController {
         reportMap.put("statusColor", cc);
 
         model.addAttribute("report", reportMap);
+        model.addAttribute("revisionPage", revPage);
+        model.addAttribute("revisionSize", revSize);
+        model.addAttribute("revisionTotalCount", revisionTotalCount);
+        model.addAttribute("revisionTotalPages", revisionTotalPages);
+        model.addAttribute("revisionStartIndex", revisionTotalCount == 0 ? 0 : revisionFromIndex + 1);
+        model.addAttribute("revisionEndIndex", revisionToIndex);
+        model.addAttribute("revisionPageNumbers", revisionPageNumbers);
         return "warga/report-detail";
     }
 
@@ -286,20 +350,51 @@ public class WargaController {
     public String wargaNotifications(
             Model model,
             HttpSession session,
-            @RequestParam(value = "filter", required = false, defaultValue = "semua") String filter
+            @RequestParam(value = "filter", required = false, defaultValue = "semua") String filter,
+            @RequestParam(value = "page", required = false, defaultValue = "1") int page,
+            @RequestParam(value = "size", required = false, defaultValue = "10") int size
     ) {
         String userId = ControllerHelper.requireRole(session, "WARGA");
         if (userId == null) return "redirect:/warga/login";
 
-        List<com.plr.aduaja.model.Notification> notifs = filter.equals("belum-dibaca")
+        List<com.plr.aduaja.model.Notification> allNotifs = filter.equals("belum-dibaca")
                 ? notificationService.getUnreadNotificationsByUser(userId)
                 : notificationService.getNotificationsByUser(userId);
         long unreadCount = notificationService.countUnreadByUser(userId);
 
+        int totalCount = allNotifs.size();
+        int totalPages = (int) Math.ceil((double) totalCount / size);
+        if (totalPages < 1) totalPages = 1;
+        if (page < 1) page = 1;
+        if (page > totalPages) page = totalPages;
+        int startIndex = (page - 1) * size + 1;
+        int endIndex = Math.min(page * size, totalCount);
+        int fromIndex = (page - 1) * size;
+        int toIndex = Math.min(fromIndex + size, totalCount);
+        List<com.plr.aduaja.model.Notification> notifs = totalCount > 0 && fromIndex < totalCount
+                ? allNotifs.subList(fromIndex, toIndex)
+                : new ArrayList<>();
+
+        int maxVisiblePages = 7;
+        int startPage = Math.max(1, page - 3);
+        int endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+        if (endPage - startPage < maxVisiblePages - 1) {
+            startPage = Math.max(1, endPage - maxVisiblePages + 1);
+        }
+        List<Integer> pageNumbers = new ArrayList<>();
+        for (int i = startPage; i <= endPage; i++) {
+            pageNumbers.add(i);
+        }
+
         model.addAttribute("notifications", notifs);
-        model.addAttribute("totalCount",  notifs.size());
+        model.addAttribute("totalCount",  totalCount);
         model.addAttribute("unreadCount", unreadCount);
         model.addAttribute("filter",      filter);
+        model.addAttribute("page",         page);
+        model.addAttribute("totalPages",   totalPages);
+        model.addAttribute("startIndex",   startIndex);
+        model.addAttribute("endIndex",     endIndex);
+        model.addAttribute("pageNumbers",  pageNumbers);
         return "warga/notifications";
     }
 

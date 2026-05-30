@@ -137,7 +137,7 @@ public class AdminPusatController {
             long selesaiHariIni = reportService.countByStatus(Report.ReportStatus.SELESAI);
             List<Map<String, Object>> stats = new ArrayList<>();
             stats.add(Map.of("title", "Laporan Masuk", "value", laporanMasuk,
-                    "icon", "file-text", "bgColor", "bg-blue-100", "color", "text-blue-600"));
+                    "icon", "file", "bgColor", "bg-blue-100", "color", "text-blue-600"));
             stats.add(Map.of("title", "Menunggu Validasi", "value", menungguValidasi,
                     "icon", "clock", "bgColor", "bg-yellow-100", "color", "text-yellow-600"));
             stats.add(Map.of("title", "Dalam Antrean Dinas", "value", dalamAntreanDinas,
@@ -148,7 +148,7 @@ public class AdminPusatController {
         }
 
         List<Map<String, Object>> panels = new ArrayList<>();
-        panels.add(Map.of("title", "Antrean Laporan", "description", "Daftar laporan masuk yang perlu divalidasi (FR-ADM-01)", "icon", "file-text", "color", "bg-blue-100 text-blue-600", "href", "/admin/laporan-queue"));
+        panels.add(Map.of("title", "Antrean Laporan", "description", "Daftar laporan masuk yang perlu divalidasi (FR-ADM-01)", "icon", "file", "color", "bg-blue-100 text-blue-600", "href", "/admin/laporan-queue"));
         panels.add(Map.of("title", "Validasi Laporan", "description", "Periksa dan putuskan kelayakan laporan (FR-ADM-05 s/d 10)", "icon", "check-circle-2", "color", "bg-green-100 text-green-600", "href", "/admin/validation"));
         panels.add(Map.of("title", "Merge Tiket Duplikat", "description", "Deteksi dan gabungkan laporan serupa (FR-ADM-11 s/d 18)", "icon", "git-merge", "color", "bg-yellow-100 text-yellow-600", "href", "/admin/merge"));
         panels.add(Map.of("title", "Disposisi ke Dinas", "description", "Kirim laporan ke dinas terkait (FR-DSP-01 s/d 06)", "icon", "send", "color", "bg-purple-100 text-purple-600", "href", "/admin/disposisi"));
