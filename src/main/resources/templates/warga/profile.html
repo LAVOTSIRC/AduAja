@@ -265,7 +265,10 @@
           Pengaturan Akun
         </h3>
         <div class="space-y-3">
+          <!-- Modal Ubah Password (trigger) -->
           <button id="btn-change-password"
+                  type="button"
+                  onclick="document.getElementById('changePasswordModal').classList.remove('hidden')"
                   class="w-full text-left px-4 py-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
             <div class="flex items-center justify-between">
               <div>
@@ -286,6 +289,52 @@
                 <i data-lucide="log-out" class="w-5 h-5"></i>
               </div>
             </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Modal Ubah Password -->
+      <div id="changePasswordModal"
+           class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-gray-900">Ubah Password</h3>
+            <button type="button"
+                    onclick="document.getElementById('changePasswordModal').classList.add('hidden')"
+                    class="p-1 hover:bg-gray-100 rounded-lg">
+              <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
+            </button>
+          </div>
+          <form th:action="@{/warga/change-password}" method="post" class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Password Saat Ini</label>
+              <input type="password" name="currentPassword" required
+                     class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                     placeholder="Masukkan password saat ini" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Password Baru</label>
+              <input type="password" name="newPassword" required minlength="8"
+                     class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                     placeholder="Min. 8 karakter" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Konfirmasi Password Baru</label>
+              <input type="password" name="confirmNewPassword" required minlength="8"
+                     class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                     placeholder="Ulangi password baru" />
+            </div>
+            <div class="flex gap-3 pt-2">
+              <button type="button"
+                      onclick="document.getElementById('changePasswordModal').classList.add('hidden')"
+                      class="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+                Batal
+              </button>
+              <button type="submit"
+                      class="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                Simpan Password
+              </button>
+            </div>
           </form>
         </div>
       </div>

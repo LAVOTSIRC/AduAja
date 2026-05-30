@@ -263,6 +263,7 @@
           </div>
         </div>
 
+        <!-- FR-WRG-17: Notifikasi Laporan Ditolak dengan alasan admin -->
         <div
           th:if="${report['status'] == 'Ditolak'}"
           class="bg-red-50 border border-red-200 rounded-xl p-5 mb-6"
@@ -272,22 +273,78 @@
               <i data-lucide="alert-triangle" class="w-5 h-5 text-red-600"></i>
             </div>
             <div class="flex-1">
-              <h3 class="font-semibold text-red-900 mb-1">Laporan Ditolak</h3>
-              <p class="text-sm text-red-700 mb-3" th:text="${report['rejectionReason']}"
+              <h3 class="font-semibold text-red-900 mb-1">Laporan Ditolak oleh Admin</h3>
+              <p class="text-sm text-red-700 mb-2" th:text="${report['rejectionReason']}"
                  th:if="${report['rejectionReason'] != null}">
                 Alasan penolakan dari admin akan ditampilkan di sini.
               </p>
-              <!-- Admin notes if any -->
-              <p class="text-sm text-orange-700 mb-3" th:text="${report['adminNotes']}"
-                 th:if="${report['adminNotes'] != null}"></p>
+              <!-- Admin notes jika ada -->
+              <p class="text-sm text-orange-700" th:text="${report['adminNotes']}"
+                 th:if="${report['adminNotes'] != null and report['adminNotes'] != ''}"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- FR-RSL-08: Banner status final = read-only -->
+        <div th:if="${isFinalStatus}"
+             class="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-6">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <i data-lucide="lock" class="w-5 h-5 text-gray-500"></i>
+            </div>
+            <div>
+              <h3 class="font-medium text-gray-700">Laporan Telah Ditutup</h3>
+              <p class="text-sm text-gray-500">Laporan ini sudah mencapai status akhir dan tidak dapat dimodifikasi lebih lanjut.</p>
             </div>
           </div>
         </div>
 
         <!-- Tindakan -->
-        <!-- Tindakan: Konfirmasi & Sengketa (hanya saat MENUNGGU_KONFIRMASI) -->
-        <div th:if="${report['status'] == 'Menunggu Konfirmasi'}"
+        <!-- FR-WRG-23: Batalkan laporan (hanya saat MENUNGGU_VALIDASI) -->
+        <div th:if="${report['status'] == 'Menunggu'}"
+             class="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-6">
+          <div class="flex items-center justify-between">
+            <div class="flex items-start gap-3">
+              <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <i data-lucide="clock" class="w-5 h-5 text-gray-500"></i>
+              </div>
+              <div>
+                <h3 class="font-medium text-gray-700">Menunggu Verifikasi Admin</h3>
+                <p class="text-sm text-gray-500">Laporan Anda sedang dalam antrian verifikasi.</p>
+              </div>
+            </div>
+            <form th:action="@{/warga/withdraw-report}" method="post"
+                  onsubmit="return confirm('Yakin ingin membatalkan laporan ini? Tindakan ini tidak dapat dibatalkan.')"
+                  class="ml-4 flex-shrink-0">
+              <input type="hidden" name="id" th:value="${report['reportId']}" />
+              <button type="submit"
+                      class="flex items-center gap-1 px-3 py-2 border border-red-400 text-red-600 rounded-lg text-sm hover:bg-red-50 transition-colors">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                Batalkan Laporan
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- FR-RSL-04 + FR-RSL-07: Konfirmasi & Sengketa (hanya saat MENUNGGU_KONFIRMASI, dan belum dikunci) -->
+        <div th:if="${report['status'] == 'Menunggu Konfirmasi' and !confirmationIsLocked}"
              class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
+          <!-- FR-RSL-04: Countdown batas konfirmasi 3x24 jam kerja -->
+          <div x-show="confirmationDeadline" class="mb-5 bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <i data-lucide="clock" class="w-5 h-5 text-amber-600"></i>
+                <div>
+                  <p class="text-sm font-semibold text-amber-900">Batas Waktu Konfirmasi (3×24 Jam)</p>
+                  <p class="text-xs text-amber-600">Jika tidak ada respons, laporan ditutup otomatis</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="text-2xl font-extrabold text-amber-800" x-text="confirmationCountdownDisplay()">-</div>
+                <p class="text-xs text-amber-600">tersisa</p>
+              </div>
+            </div>
+          </div>
           <h3 class="font-semibold text-gray-900 mb-2">Tindakan</h3>
           <p class="text-sm text-gray-500 mb-4">Petugas telah menyelesaikan perbaikan. Silakan konfirmasi atau ajukan sengketa jika penanganan belum memuaskan.</p>
           <div class="flex flex-col sm:flex-row gap-3">
@@ -310,7 +367,21 @@
           </div>
         </div>
 
-        <!-- Tombol Revisi (hanya saat status Perlu Revisi) -->
+        <!-- FR-RSL-07: Informasi jika konfirmasi sudah dikunci -->
+        <div th:if="${report['status'] == 'Menunggu Konfirmasi' and confirmationIsLocked}"
+             class="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-6">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <i data-lucide="lock" class="w-5 h-5 text-blue-600"></i>
+            </div>
+            <div>
+              <h3 class="font-medium text-blue-800">Respons Sudah Diberikan</h3>
+              <p class="text-sm text-blue-600">Anda sudah merespons konfirmasi ini. Tidak dapat mengubah respons.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- FR-WRG-17 + FR-WRG-18: Tombol Revisi (hanya saat status Perlu Revisi) -->
         <div th:if="${report['status'] == 'Perlu Revisi'}"
              class="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-6">
           <div class="flex items-start gap-3">
@@ -319,7 +390,11 @@
             </div>
             <div class="flex-1">
               <h3 class="font-semibold text-amber-900 mb-1">Revisi Diperlukan</h3>
-              <p class="text-sm text-amber-700 mb-3" th:text="${report['adminNotes'] != null ? report['adminNotes'] : 'Silakan perbaiki laporan Anda sesuai catatan admin.'}"></p>
+              <!-- FR-WRG-17: Tampilkan catatan spesifik dari admin secara transparan -->
+              <p class="text-sm text-amber-700 mb-1 font-medium" th:if="${report['rejectionReason'] != null and report['rejectionReason'] != ''}">
+                Catatan Admin: <span th:text="${report['rejectionReason']}"></span>
+              </p>
+              <p class="text-sm text-amber-700 mb-3" th:text="${report['adminNotes'] != null and report['adminNotes'] != '' ? report['adminNotes'] : 'Silakan perbaiki laporan Anda sesuai catatan admin.'}"></p>
               <button
                 type="button"
                 x-on:click="showRevisionDialog = true"
@@ -367,53 +442,80 @@
         </div>
       </div>
 
-      <!-- Dialog Sengketa -->
-      <div
-        x-show="showDisputeDialog"
-        x-cloak
-        class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
-      >
-        <div class="bg-white rounded-lg p-6 max-w-md w-full">
-          <h3 class="text-lg font-semibold text-gray-900 mb-2">
-            Ajukan Sengketa
-          </h3>
-          <p class="text-sm text-gray-600 mb-4">
-            Berikan alasan dan unggah bukti untuk pengajuan sengketa.
-          </p>
-          <form
-            th:action="@{/warga/dispute-report}"
-            method="post"
-            class="space-y-3"
-          >
-            <input type="hidden" name="id" th:value="${report['reportId']}" />
-            <input type="hidden" name="evidenceBase64" id="disputeEvidenceBase64" value="" />
-            <textarea
-              name="reason"
-              rows="4"
-              class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Alasan sengketa (minimal 20 karakter)..."
-              minlength="20"
-              required
-            ></textarea>
-            <p class="text-xs text-gray-500">Minimal 20 karakter</p>
-            <div class="flex gap-3">
-              <button
-                type="button"
-                x-on:click="showDisputeDialog = false"
-                class="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-              >
-                Batal
-              </button>
-              <button
-                type="submit"
-                class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-              >
-                Kirim Sengketa
-              </button>
-            </div>
-          </form>
+          <!-- Dialog Sengketa -->
+        <div
+          x-show="showDisputeDialog"
+          x-cloak
+          class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+        >
+          <div class="bg-white rounded-lg p-6 max-w-md w-full max-h-screen overflow-y-auto">
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">
+              Ajukan Sengketa
+            </h3>
+            <p class="text-sm text-gray-600 mb-4">
+              Berikan alasan dan unggah bukti untuk pengajuan sengketa.
+            </p>
+            <form
+              th:action="@{/warga/dispute-report}"
+              method="post"
+              class="space-y-3"
+            >
+              <input type="hidden" name="id" th:value="${report['reportId']}" />
+              <input type="hidden" name="evidenceBase64" id="disputeEvidenceBase64" value="" />
+              <textarea
+                name="reason"
+                rows="4"
+                class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Alasan sengketa (minimal 20 karakter)..."
+                minlength="20"
+                required
+              ></textarea>
+              <p class="text-xs text-gray-500">Minimal 20 karakter</p>
+
+              <!-- Foto Bukti Sengketa -->
+              <div class="border border-gray-200 rounded-lg p-3">
+                <p class="text-sm font-medium text-gray-700 mb-2">
+                <!-- FR-RSL-10: Foto bukti wajib untuk sengketa -->
+                Foto Bukti <span class="text-red-500">*</span>
+                <span class="text-xs text-gray-400 font-normal">(wajib)</span>
+              </p>
+                <div id="disputePhotoPreview" class="hidden mb-2">
+                  <div class="relative">
+                    <img id="disputePreviewImg" src="" alt="Bukti" class="w-full h-40 object-cover rounded-lg border border-gray-200" />
+                    <div class="absolute top-1 left-1 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full">Foto terpilih</div>
+                    <button type="button" onclick="clearDisputePhoto()"
+                      class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                  </div>
+                </div>
+                <button type="button" onclick="openDisputeCamera()"
+                  class="w-full flex items-center justify-center gap-2 py-2 border-2 border-dashed border-blue-300 rounded-lg hover:bg-blue-50 text-blue-700 text-sm font-medium transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
+                  Ambil Foto Bukti
+                </button>
+              </div>
+
+              <div class="flex gap-3">
+                <button
+                  type="button"
+                  x-on:click="showDisputeDialog = false"
+                  class="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  Batal
+                </button>
+                <!-- FR-RSL-10: Validasi foto bukti wajib sebelum submit -->
+                <button
+                  type="button"
+                  onclick="validateDisputeAndSubmit(event)"
+                  class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                >
+                  Kirim Sengketa
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-      </div>
 
       <!-- Dialog Revisi (Full-screen Form dengan Maps) -->
       <div
@@ -493,11 +595,8 @@
                 x-model="category"
               >
                 <option value="">Pilih kategori</option>
-                <option value="Infrastruktur Jalan">Infrastruktur Jalan</option>
-                <option value="Listrik Publik">Listrik Publik</option>
-                <option value="Sistem Drainase">Sistem Drainase</option>
-                <option value="Taman dan Ruang Publik">Taman dan Ruang Publik</option>
-                <option value="Lainnya">Lainnya</option>
+                <option th:each="cat : ${categories}" th:value="${cat.categoryName}" th:text="${cat.categoryName}"
+                        th:selected="${cat.categoryName == report['category']}">Kategori</option>
               </select>
             </div>
 
@@ -736,7 +835,10 @@
           showDisputeDialog: false,
           showRevisionDialog: false,
           reportStatus: [[${report != null ? report['status'] : ''}]],
-          slaDeadline: null,
+          slaDeadline: /*[[${report != null ? report['slaDeadlineIso'] : null}]]*/ null,
+          // FR-RSL-04: Countdown konfirmasi 3x24 jam (terpisah dari SLA)
+          confirmationDeadline: /*[[${confirmationDeadlineIso}]]*/ null,
+          confirmationCountdown: { days: 0, hours: 0, minutes: 0, seconds: 0 },
           createdDate: [[${report != null ? report['submittedAt'] : null}]],
           latitude: [[${report != null and report['latitude'] != null ? report['latitude'] : '3.5952'}]],
           longitude: [[${report != null and report['longitude'] != null ? report['longitude'] : '98.6722'}]],
@@ -757,6 +859,33 @@
               this.startCountdown();
               this.timer = setInterval(() => this.startCountdown(), 1000);
             }
+            // FR-RSL-04: Mulai countdown konfirmasi jika ada
+            if (this.confirmationDeadline) {
+              this.tickConfirmation();
+              setInterval(() => this.tickConfirmation(), 1000);
+            }
+          },
+          // FR-RSL-04: Hitung countdown konfirmasi 3x24 jam
+          tickConfirmation() {
+            const deadline = new Date(this.confirmationDeadline).getTime();
+            const now = new Date().getTime();
+            const diff = deadline - now;
+            if (diff <= 0) {
+              this.confirmationCountdown = { days: 0, hours: 0, minutes: 0, seconds: 0 };
+              return;
+            }
+            this.confirmationCountdown.days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            this.confirmationCountdown.hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            this.confirmationCountdown.minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            this.confirmationCountdown.seconds = Math.floor((diff % (1000 * 60)) / 1000);
+          },
+          confirmationCountdownDisplay() {
+            const d = this.confirmationCountdown.days;
+            const h = this.confirmationCountdown.hours;
+            const m = this.confirmationCountdown.minutes;
+            const s = this.confirmationCountdown.seconds;
+            if (d > 0) return d + 'h ' + h + 'j ' + m + 'm';
+            return h + 'j ' + m + 'm ' + s + 'd';
           },
           startCountdown() {
             const deadline = new Date(this.slaDeadline).getTime();
@@ -1001,6 +1130,64 @@
         window.location.reload();
       }
 
+      // ====== DISPUTE PHOTO CAMERA (simple inline) ======
+      function openDisputeCamera() {
+        // Gunakan startRevisionCamera dengan scope berbeda untuk sengketa
+        const disputeScope = {
+          onPhoto: function(url, base64) {
+            document.getElementById('disputeEvidenceBase64').value = base64;
+            document.getElementById('disputePreviewImg').src = url;
+            document.getElementById('disputePhotoPreview').classList.remove('hidden');
+          }
+        };
+        revCamState.parentScope = { _isDispute: true, _disputeScope: disputeScope };
+
+        const modal = document.getElementById('revisionCameraModal');
+        const video = document.getElementById('revisionVideo');
+        if (!modal || !video) { alert('Camera UI error'); return; }
+        if (revCamState.stream) {
+          revCamState.stream.getTracks().forEach(t => t.stop());
+          revCamState.stream = null;
+        }
+        modal.classList.add('camera-active');
+        document.body.style.overflow = 'hidden';
+        navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+          audio: false
+        }).then(stream => {
+          revCamState.stream = stream;
+          video.srcObject = stream;
+          video.play();
+          document.getElementById('revCamPreviewOverlay').classList.add('hidden');
+        }).catch(err => {
+          modal.classList.remove('camera-active');
+          document.body.style.overflow = '';
+          alert('Gagal membuka kamera: ' + err.message);
+        });
+      }
+
+      function clearDisputePhoto() {
+        document.getElementById('disputeEvidenceBase64').value = '';
+        document.getElementById('disputePreviewImg').src = '';
+        document.getElementById('disputePhotoPreview').classList.add('hidden');
+      }
+
+      // Override confirmRevisionPhoto untuk handle dispute mode
+      const _origConfirmRevisionPhoto = confirmRevisionPhoto;
+      function confirmRevisionPhoto() {
+        if (revCamState.parentScope && revCamState.parentScope._isDispute) {
+          revCamState.parentScope._disputeScope.onPhoto(revCamState.photoUrl, revCamState.photoBase64);
+          stopRevisionCamera();
+        } else {
+          if (revCamState.parentScope) {
+            revCamState.parentScope.revisionNewPhoto = true;
+            revCamState.parentScope.revisionNewPhotoUrl = revCamState.photoUrl;
+            revCamState.parentScope.revisionNewPhotoBase64 = revCamState.photoBase64;
+          }
+          stopRevisionCamera();
+        }
+      }
+
       // Revision camera event listeners (runs immediately since DOM is ready)
       (function() {
         document.getElementById('revCamCloseBtn').addEventListener('click', stopRevisionCamera);
@@ -1030,6 +1217,26 @@
           zoomLabel._timeout = setTimeout(() => zoomLabel.classList.add('hidden'), 1000);
         });
       })();
+
+      // FR-RSL-10: Validasi foto bukti wajib sebelum kirim sengketa
+      function validateDisputeAndSubmit(event) {
+        const evidenceInput = document.getElementById('disputeEvidenceBase64');
+        const reasonTextarea = document.querySelector('textarea[name="reason"]');
+
+        if (!evidenceInput || !evidenceInput.value || evidenceInput.value.trim() === '') {
+          alert('Foto bukti wajib dilampirkan untuk pengajuan sengketa. Tekan "Ambil Foto Bukti".');
+          return;
+        }
+        if (!reasonTextarea || reasonTextarea.value.trim().length < 20) {
+          alert('Alasan sengketa minimal 20 karakter.');
+          reasonTextarea && reasonTextarea.focus();
+          return;
+        }
+        // Cari form sengketa dan submit
+        const btn = event.target;
+        const form = btn.closest('form');
+        if (form) form.submit();
+      }
     </script>
   </th:block>
 </html>

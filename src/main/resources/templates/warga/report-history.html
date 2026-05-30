@@ -116,10 +116,17 @@
                 <span>&bull;</span>
                 <span th:text="${report.location}">Lokasi</span>
                 <span>&bull;</span>
-                <span th:text="${#temporals.format(report.date, 'd MMMM yyyy')}"
-                  >Tanggal</span
-                >
+                <!-- FR-WRG-06: Metadata kronologis (dibuat & diperbarui) -->
+                <span class="flex items-center gap-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  Dibuat: <span th:text="${#temporals.format(report.date, 'd MMM yyyy')}">Tanggal</span>
+                </span>
+                <span th:if="${report.updatedAt != null and report.updatedAt != '-'}" class="flex items-center gap-1 text-blue-500">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                  Diperbarui: <span th:text="${report.updatedAt}"></span>
+                </span>
               </div>
+
             </div>
           </div>
         </a>
