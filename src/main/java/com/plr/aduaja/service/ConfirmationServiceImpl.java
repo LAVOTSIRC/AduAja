@@ -30,6 +30,10 @@ public class ConfirmationServiceImpl implements ConfirmationService {
     @Autowired
     private UserRepository userRepository;
 
+    // FR-RSL-18: Notifikasi ke warga saat Selesai Otomatis
+    @Autowired
+    private NotificationService notificationService;
+
     @Override  // ← POLYMORPHISM: Override dari interface
     @Transactional
     public ConfirmationRequest createConfirmation(String reportId, String wargaId, int deadlineHours) {
@@ -57,8 +61,9 @@ public class ConfirmationServiceImpl implements ConfirmationService {
         confirmation.setRespondedAt(LocalDateTime.now());
         confirmation.setIsLocked(true);
 
+        // FR-RSL-06: TERIMA → SELESAI, TOLAK → SENGKETA
         if (response == ResponseType.TERIMA) {
-            confirmation.getReport().setStatus(Report.ReportStatus.DITUTUP);
+            confirmation.getReport().setStatus(Report.ReportStatus.SELESAI);
             reportRepository.save(confirmation.getReport());
         } else if (response == ResponseType.TOLAK) {
             confirmation.getReport().setStatus(Report.ReportStatus.SENGKETA);
@@ -98,8 +103,26 @@ public class ConfirmationServiceImpl implements ConfirmationService {
             confirmation.setResponse(ResponseType.TIMEOUT);
             confirmation.setRespondedAt(LocalDateTime.now());
             confirmation.setIsLocked(true);
-            confirmation.getReport().setStatus(Report.ReportStatus.DITUTUP);
-            reportRepository.save(confirmation.getReport());
+            // FR-RSL-05: Selesai Otomatis (DITUTUP) saat timeout tanpa respons warga
+            Report report = confirmation.getReport();
+            report.setStatus(Report.ReportStatus.DITUTUP);
+            reportRepository.save(report);
+
+            // FR-RSL-18: Kirim notifikasi ke warga saat Selesai Otomatis
+            try {
+                String wargaId = report.getReporter() != null ? report.getReporter().getUserId() : null;
+                if (wargaId != null) {
+                    notificationService.createNotification(
+                        wargaId,
+                        "Laporan Ditutup Otomatis",
+                        "Laporan " + report.getTicketNumber() + " telah ditutup secara otomatis karena batas waktu konfirmasi (3x24 jam kerja) telah habis tanpa respons dari Anda.",
+                        "REPORT",
+                        report.getReportId()
+                    );
+                }
+            } catch (Exception ignored) {
+                // Tidak boleh hentikan proses timeout jika notifikasi gagal
+            }
         }
         confirmationRequestRepository.saveAll(timedOut);
     }

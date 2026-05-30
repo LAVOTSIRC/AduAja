@@ -84,22 +84,28 @@ public class DataSeeder implements CommandLineRunner {
         agencyRepository.save(dinasESDM);
 
         ReportCategory catJalan = new ReportCategory();
-        catJalan.setCategoryName("Infrastruktur Jalan");
+        catJalan.setCategoryName("Kerusakan Jalan/Infrastruktur");
         catJalan.setSlaDurationHours(72);
         catJalan.setDescription("Laporan kerusakan jalan, lubang, retak");
         categoryRepository.save(catJalan);
 
         ReportCategory catLampu = new ReportCategory();
-        catLampu.setCategoryName("Penerangan Jalan");
+        catLampu.setCategoryName("Fasilitas Penerangan Jalan");
         catLampu.setSlaDurationHours(48);
         catLampu.setDescription("Laporan lampu PJU mati, rusak");
         categoryRepository.save(catLampu);
 
-        ReportCategory catDrainase = new ReportCategory();
-        catDrainase.setCategoryName("Drainase");
-        catDrainase.setSlaDurationHours(96);
-        catDrainase.setDescription("Laporan drainase tersumbat, banjir");
-        categoryRepository.save(catDrainase);
+        ReportCategory catTaman = new ReportCategory();
+        catTaman.setCategoryName("Pemeliharaan Taman/Ruang Publik");
+        catTaman.setSlaDurationHours(96);
+        catTaman.setDescription("Laporan taman rusak, rumput tidak terawat");
+        categoryRepository.save(catTaman);
+
+        ReportCategory catKebersihan = new ReportCategory();
+        catKebersihan.setCategoryName("Penanganan Kebersihan/Sampah");
+        catKebersihan.setSlaDurationHours(72);
+        catKebersihan.setDescription("Laporan sampah berserakan, TPS penuh");
+        categoryRepository.save(catKebersihan);
 
         User adminPusat = new User();
         adminPusat.setFullName("Admin Pusat");
@@ -183,8 +189,8 @@ public class DataSeeder implements CommandLineRunner {
 
         Report report3 = new Report();
         report3.setTicketNumber("ADJ-2026-00003");
-        report3.setDescription("Drainase tersumbat sampah dan lumpur, menyebabkan genangan air saat hujan deras.");
-        report3.setCategory(catDrainase);
+        report3.setDescription("Taman kota tidak terawat, rumput tinggi dan bangku taman rusak.");
+        report3.setCategory(catTaman);
         report3.setRegion(kecMedanBaru);
         report3.setStatus(ReportStatus.MENUNGGU_VALIDASI);
         report3.setReporter(warga1);

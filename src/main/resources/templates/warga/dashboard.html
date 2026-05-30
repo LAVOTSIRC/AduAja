@@ -34,6 +34,7 @@
             >
               <i data-lucide="bell" class="w-5 h-5"></i>
               <span
+                th:if="${unreadCount != null and unreadCount > 0}"
                 class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"
               ></span>
             </a>
@@ -59,7 +60,7 @@
                 <p class="text-xs text-gray-500">Warga</p>
               </div>
             </a>
-            <form th:action="@{/warga/login}" method="get">
+            <form th:action="@{/warga/logout}" method="post">
               <button
                 type="submit"
                 class="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"

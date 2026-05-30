@@ -12,7 +12,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.annotation.PostConstruct;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -37,17 +36,10 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    @PostConstruct
-    public void activatePendingUsers() {
-        List<User> pending = userRepository.findByAccountStatus(User.AccountStatus.PENDING);
-        for (User u : pending) {
-            u.setAccountStatus(User.AccountStatus.ACTIVE);
-            userRepository.save(u);
-        }
-        if (!pending.isEmpty()) {
-            System.out.println("=== Aktifkan " + pending.size() + " akun PENDING menjadi ACTIVE ===");
-        }
-    }
+    // CATATAN: @PostConstruct activatePendingUsers() dihapus.
+    // Aktivasi akun HANYA dilakukan melalui OtpServiceImpl.verifyOtp()
+    // setelah user berhasil verifikasi kode OTP.
+    // Mengaktifkan semua PENDING otomatis akan mem-bypass proses verifikasi OTP.
 
     // ===========================
     // @Override — Run-time Polymorphism
@@ -97,7 +89,9 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
         // ENKAPSULASI: password di-hash, tidak pernah disimpan plaintext
         user.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
         user.setRole(User.Role.WARGA);
-        user.setAccountStatus(User.AccountStatus.ACTIVE);
+        // Status PENDING: user harus verifikasi OTP dulu sebelum bisa login
+        // OtpServiceImpl.verifyOtp() yang akan mengubah status ke ACTIVE
+        user.setAccountStatus(User.AccountStatus.PENDING);
 
         User savedUser = userRepository.save(user);
 
