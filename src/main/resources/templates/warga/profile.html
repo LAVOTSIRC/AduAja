@@ -147,8 +147,9 @@
             <p class="text-blue-100" th:text="${user.email}">email@email.com</p>
             <div class="flex items-center gap-2 mt-2">
               <span class="bg-white/20 text-white text-xs px-3 py-1 rounded-full" th:text="${user.role}">WARGA</span>
-              <span class="text-xs text-blue-200"
-                    th:text="${user.accountStatus == 'ACTIVE' ? '● Aktif' : '● Tidak Aktif'}">● Aktif</span>
+              <span class="text-xs"
+                    th:classappend="${user.accountStatus != null and user.accountStatus.name() == 'ACTIVE'} ? 'text-green-300' : 'text-red-300'"
+                    th:text="${user.accountStatus != null and user.accountStatus.name() == 'ACTIVE'} ? '● Aktif' : '● Tidak Aktif'">● Aktif</span>
             </div>
           </div>
         </div>
