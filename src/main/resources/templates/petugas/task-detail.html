@@ -168,17 +168,37 @@
               </svg>
             </button>
           </div>
-          <form class="p-4 space-y-4">
-            <p class="text-xs text-gray-500">Gunakan fitur ini jika lokasi tugas tidak akurat. Koordinat baru akan dikirim ke admin untuk verifikasi.</p>
+
+          <!-- Sudah pernah dikoreksi -->
+          <div th:if="${task['coordinateCorrected']}" class="p-4">
+            <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+              <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div>
+                <p class="font-semibold text-amber-800">Koreksi Sudah Dilakukan</p>
+                <p class="text-sm text-amber-700 mt-1">Koreksi koordinat hanya diperbolehkan <strong>1 kali</strong> per laporan. Koreksi untuk laporan ini sudah pernah dilakukan sebelumnya.</p>
+              </div>
+            </div>
+            <button type="button" x-on:click="showCoordModal = false" class="mt-4 w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">Tutup</button>
+          </div>
+
+          <!-- Belum dikoreksi, tampilkan form -->
+          <form th:unless="${task['coordinateCorrected']}" th:action="@{/petugas/coordinate-correction}" method="post" class="p-4 space-y-4">
+            <input type="hidden" name="taskId" th:value="${task['id']}" />
+            <p class="text-xs text-gray-500">Gunakan fitur ini jika lokasi tugas tidak akurat. Koordinat baru akan langsung diperbarui pada laporan. <strong>Hanya boleh dilakukan 1 kali.</strong></p>
             <div>
-              <label class="block text-sm font-medium text-gray-900 mb-2">Latitude</label>
-              <input type="number" step="any" x-model="correctedLat" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="-6.200000" />
+              <label class="block text-sm font-medium text-gray-900 mb-2">Latitude <span class="text-red-500">*</span></label>
+              <input type="number" step="any" name="correctedLat" x-model="correctedLat" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="-6.200000" required />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-900 mb-2">Longitude</label>
-              <input type="number" step="any" x-model="correctedLng" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="106.816666" />
+              <label class="block text-sm font-medium text-gray-900 mb-2">Longitude <span class="text-red-500">*</span></label>
+              <input type="number" step="any" name="correctedLng" x-model="correctedLng" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="106.816666" required />
             </div>
-            <button type="button" x-on:click="showCoordModal = false; alert('Koordinat berhasil dikirim untuk diverifikasi admin.')" class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Kirim Koreksi</button>
+            <div class="flex gap-2">
+              <button type="button" x-on:click="showCoordModal = false" class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">Batal</button>
+              <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">Kirim Koreksi</button>
+            </div>
           </form>
         </div>
       </div>

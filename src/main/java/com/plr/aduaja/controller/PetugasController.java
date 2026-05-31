@@ -5,6 +5,8 @@ import com.plr.aduaja.model.*;
 import com.plr.aduaja.model.FieldTask.TaskStatus;
 import com.plr.aduaja.service.*;
 import com.plr.aduaja.util.GeoUtils;
+import com.plr.aduaja.repository.ReportRepository;
+import com.plr.aduaja.repository.AuditLogRepository;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -49,6 +51,12 @@ public class PetugasController {
 
     @Autowired
     private NotificationService notificationService;
+
+    @Autowired
+    private ReportRepository reportRepository;
+
+    @Autowired
+    private AuditLogRepository auditLogRepository;
 
     @GetMapping("/petugas/home")
     public String petugasHome() {
@@ -316,6 +324,25 @@ public class PetugasController {
                 default -> {}
             }
         }
+        
+        // FIX-8: FR-PTG-10 — Algoritma Sorting Cerdas (SLA + GPS Proximity)
+        java.util.Comparator<Map<String, Object>> scoreComparator = (m1, m2) -> {
+            long sla1 = (Long) m1.getOrDefault("rawSlaRemaining", 999L);
+            double dist1 = (Double) m1.getOrDefault("rawDistance", 999.0);
+            int prio1 = (Integer) m1.getOrDefault("rawPriorityScore", 2);
+            double score1 = (sla1 * 10) + (dist1 * 2) + (prio1 * 50);
+
+            long sla2 = (Long) m2.getOrDefault("rawSlaRemaining", 999L);
+            double dist2 = (Double) m2.getOrDefault("rawDistance", 999.0);
+            int prio2 = (Integer) m2.getOrDefault("rawPriorityScore", 2);
+            double score2 = (sla2 * 10) + (dist2 * 2) + (prio2 * 50);
+
+            return Double.compare(score1, score2);
+        };
+
+        tasksNew.sort(scoreComparator);
+        tasksPending.sort(scoreComparator);
+
         model.addAttribute("tasksNew", tasksNew);
         model.addAttribute("tasksInProgress", tasksInProgress);
         model.addAttribute("tasksPending", tasksPending);
@@ -785,8 +812,13 @@ public class PetugasController {
         m.put("description", task.getReport() != null ? task.getReport().getDescription() : "-");
         m.put("reporterName", task.getReport() != null && task.getReport().getReporter() != null
             ? task.getReport().getReporter().getFullName() : "-");
+        m.put("reporterPhone", task.getReport() != null && task.getReport().getReporter() != null
+            && task.getReport().getReporter().getPhoneNumber() != null
+            ? task.getReport().getReporter().getPhoneNumber() : "-");
         m.put("reportDate", task.getReport() != null && task.getReport().getSubmittedAt() != null
             ? task.getReport().getSubmittedAt().format(ControllerHelper.DATE_FMT) : "-");
+        // FR-PTG-17: flag koreksi koordinat agar UI modal bisa tampilkan status 1x
+        m.put("coordinateCorrected", task.getReport() != null && task.getReport().isCoordinateCorrected());
             
         // Calculate distance
         if (userLat != null && userLng != null && task.getReport() != null && 
@@ -795,9 +827,13 @@ public class PetugasController {
                 userLat, userLng, 
                 task.getReport().getLatitude(), task.getReport().getLongitude());
             m.put("distanceToTask", String.format("%.2f km", distKm));
+            m.put("rawDistance", distKm);
+        } else {
+            m.put("rawDistance", 999.0);
         }
             
         // SLA data dari SlaRecord
+        m.put("rawSlaRemaining", 999L);
         if (task.getSlaRecord() != null) {
             SlaRecord sla = task.getSlaRecord();
             m.put("slaDeadline", sla.getSlaDeadlineAt() != null
@@ -805,20 +841,33 @@ public class PetugasController {
             boolean isOverdue = sla.getSlaDeadlineAt() != null
                 && sla.getCurrentStatus() != SlaRecord.SlaStatus.SELESAI
                 && LocalDateTime.now().isAfter(sla.getSlaDeadlineAt());
+            
+            long remainingHours = sla.getSlaDeadlineAt() != null
+                ? Duration.between(LocalDateTime.now(), sla.getSlaDeadlineAt()).toHours() : 999L;
+            m.put("rawSlaRemaining", remainingHours);
+                
             if (sla.getCurrentStatus() == SlaRecord.SlaStatus.SELESAI) {
                 m.put("slaStatusText", "Selesai"); m.put("slaStatusClass", "text-green-600");
             } else if (sla.getCurrentStatus() == SlaRecord.SlaStatus.TERLAMBAT || isOverdue) {
                 m.put("slaStatusText", "Terlambat"); m.put("slaStatusClass", "text-red-600 font-bold");
+                m.put("rawSlaRemaining", -999L);
             } else if (sla.getCurrentStatus() == SlaRecord.SlaStatus.TERTUNDA) {
                 m.put("slaStatusText", "Tertunda"); m.put("slaStatusClass", "text-yellow-600");
             } else {
-                long remainingHours = sla.getSlaDeadlineAt() != null
-                    ? Duration.between(LocalDateTime.now(), sla.getSlaDeadlineAt()).toHours() : 0;
                 m.put("slaStatusText", remainingHours + " jam tersisa");
                 m.put("slaStatusClass", remainingHours < 10 ? "text-orange-600 font-bold" : "text-blue-600");
             }
         } else {
             m.put("slaDeadline", "-"); m.put("slaStatusText", "-"); m.put("slaStatusClass", "text-gray-600");
+            m.put("rawSlaRemaining", 999L);
+        }
+        
+        m.put("rawPriorityScore", 2); // Default Medium
+        if (m.get("priority") != null) {
+            String p = m.get("priority").toString();
+            if (p.equals("critical")) m.put("rawPriorityScore", 0);
+            else if (p.equals("high")) m.put("rawPriorityScore", 1);
+            else if (p.equals("low")) m.put("rawPriorityScore", 3);
         }
         if (!m.containsKey("distanceToTask")) {
             m.put("distanceToTask", "-");
@@ -836,6 +885,93 @@ public class PetugasController {
             });
         }
         return m;
+    }
+
+    // ==========================================
+    // POST /petugas/coordinate-correction — FR-PTG-17
+    // ==========================================
+    @PostMapping("/petugas/coordinate-correction")
+    public String petugasCoordinateCorrection(
+            HttpSession session,
+            RedirectAttributes redirectAttributes,
+            @RequestParam("taskId") String taskId,
+            @RequestParam("correctedLat") String correctedLatStr,
+            @RequestParam("correctedLng") String correctedLngStr
+    ) {
+        String userId = ControllerHelper.requireRole(session, "PETUGAS");
+        if (userId == null) return "redirect:/petugas/login";
+
+        try {
+            FieldTask task = fieldTaskService.getTasksByOfficer(userId).stream()
+                .filter(t -> t.getTaskId().equals(taskId))
+                .findFirst().orElse(null);
+
+            if (task == null || task.getReport() == null) {
+                redirectAttributes.addFlashAttribute("taskError", "Tugas tidak ditemukan atau tidak sah.");
+                return "redirect:/petugas/task-detail?id=" + taskId;
+            }
+
+            Report report = task.getReport();
+
+            // Validasi: hanya boleh koreksi 1 kali
+            if (report.isCoordinateCorrected()) {
+                redirectAttributes.addFlashAttribute("taskError",
+                    "Koreksi koordinat hanya dapat dilakukan 1 kali per laporan.");
+                return "redirect:/petugas/task-detail?id=" + taskId;
+            }
+
+            // Validasi format koordinat
+            java.math.BigDecimal newLat;
+            java.math.BigDecimal newLng;
+            try {
+                newLat = new java.math.BigDecimal(correctedLatStr.trim());
+                newLng = new java.math.BigDecimal(correctedLngStr.trim());
+                // Validasi rentang koordinat (lat: -90~90, lng: -180~180)
+                if (newLat.compareTo(java.math.BigDecimal.valueOf(-90)) < 0
+                        || newLat.compareTo(java.math.BigDecimal.valueOf(90)) > 0
+                        || newLng.compareTo(java.math.BigDecimal.valueOf(-180)) < 0
+                        || newLng.compareTo(java.math.BigDecimal.valueOf(180)) > 0) {
+                    throw new NumberFormatException("Koordinat di luar rentang valid");
+                }
+            } catch (Exception ex) {
+                redirectAttributes.addFlashAttribute("taskError",
+                    "Format koordinat tidak valid. Pastikan nilai latitude dan longitude benar.");
+                return "redirect:/petugas/task-detail?id=" + taskId;
+            }
+
+            // Simpan nilai lama untuk audit log
+            String oldCoords = report.getLatitude() + ", " + report.getLongitude();
+            String newCoords = newLat + ", " + newLng;
+
+            // Update koordinat dan set flag
+            report.setLatitude(newLat);
+            report.setLongitude(newLng);
+            report.setCoordinateCorrected(true);
+            reportRepository.save(report);
+
+            // Tulis ke AuditLog menggunakan factory method (setter AuditLog bersifat package-private)
+            userService.findById(userId).ifPresent(officer -> {
+                AuditLog auditLog = AuditLog.create(
+                    officer, report,
+                    "REPORT", report.getReportId(),
+                    "COORDINATE_CORRECTION",
+                    oldCoords, newCoords
+                );
+                auditLogRepository.save(auditLog);
+            });
+
+            log.info("[FR-PTG-17] Petugas {} koreksi koordinat laporan {} dari {} ke {}",
+                userId, report.getReportId(), oldCoords, newCoords);
+
+            redirectAttributes.addFlashAttribute("successMsg",
+                "Koreksi koordinat berhasil disimpan. Lokasi laporan telah diperbarui.");
+
+        } catch (Exception e) {
+            log.error("Gagal koreksi koordinat tugas {}: {}", taskId, e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("taskError", "Terjadi kesalahan saat menyimpan koreksi koordinat.");
+        }
+
+        return "redirect:/petugas/task-detail?id=" + taskId;
     }
 
     private Map<String, Object> buildAttendanceRecord(

@@ -3,7 +3,9 @@ package com.plr.aduaja.service;
 import com.plr.aduaja.model.Report;
 import com.plr.aduaja.model.SlaRecord;
 import com.plr.aduaja.model.SlaRecord.SlaStatus;
+import com.plr.aduaja.model.TaskPostponement;
 import com.plr.aduaja.repository.SlaRecordRepository;
+import com.plr.aduaja.repository.TaskPostponementRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,9 @@ public class SlaMonitoringServiceImpl implements SlaMonitoringService {
     @Autowired
     private SlaRecordRepository slaRecordRepository;
 
+    @Autowired
+    private TaskPostponementRepository taskPostponementRepository;
+
     // Scheduled job — cek SLA violations tiap jam
     @Scheduled(fixedRate = 3600000)
     public void checkSlaViolations() {
@@ -32,6 +37,30 @@ public class SlaMonitoringServiceImpl implements SlaMonitoringService {
             if (sla.getCurrentStatus() == SlaStatus.BERJALAN) {
                 sla.setCurrentStatus(SlaStatus.TERLAMBAT);
                 slaRecordRepository.save(sla);
+            }
+        }
+    }
+
+    // FR-PTG-28: Cron job — pantau batas waktu penundaan tugas tiap jam
+    @Scheduled(fixedRate = 3600000)
+    public void checkOverduePostponements() {
+        LocalDateTime now = LocalDateTime.now();
+        List<TaskPostponement> pendingPostponements = taskPostponementRepository
+            .findByApprovalStatus(TaskPostponement.ApprovalStatus.MENUNGGU);
+
+        for (TaskPostponement postponement : pendingPostponements) {
+            // Jika estimatedResumeAt sudah terlewat dan masih MENUNGGU persetujuan
+            if (postponement.getEstimatedResumeAt() != null 
+                    && postponement.getEstimatedResumeAt().isBefore(now)) {
+                long hoursOverdue = Duration.between(postponement.getEstimatedResumeAt(), now).toHours();
+                // Log peringatan — admin perlu meninjau
+                org.slf4j.LoggerFactory.getLogger(SlaMonitoringServiceImpl.class).warn(
+                    "[FR-PTG-28] Pengajuan penundaan ID {} untuk tugas {} sudah melewati estimasi resume "
+                    + "sejak {} jam lalu. Mohon admin meninjau dan mengambil tindakan.",
+                    postponement.getPostponementId(),
+                    postponement.getTask() != null ? postponement.getTask().getTaskId() : "N/A",
+                    hoursOverdue
+                );
             }
         }
     }
