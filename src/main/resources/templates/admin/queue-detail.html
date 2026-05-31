@@ -60,7 +60,10 @@
               </div>
               <div>
                 <p class="text-xs text-gray-500 font-medium">Prioritas</p>
-                <span class="text-xs px-2.5 py-1 rounded-full font-semibold inline-block mt-1"
+                <span th:if="${selectedReport.prioritas == '-' or selectedReport.prioritas == null}"
+                      class="text-xs px-2.5 py-1 rounded-full font-semibold inline-block mt-1 badge-default">Belum Ditentukan</span>
+                <span th:unless="${selectedReport.prioritas == '-' or selectedReport.prioritas == null}"
+                      class="text-xs px-2.5 py-1 rounded-full font-semibold inline-block mt-1"
                       th:class="${selectedReport.prioritas == 'Kritis' ? 'badge-kritis' : (selectedReport.prioritas == 'Tinggi' ? 'badge-tinggi' : (selectedReport.prioritas == 'Sedang' ? 'badge-sedang' : 'badge-rendah'))}"
                       th:text="${selectedReport.prioritas}"></span>
               </div>
@@ -163,7 +166,7 @@
         </div>
 
         <!-- 4. VALIDATION FORM - DI BAWAH DESKRIPSI -->
-        <div class="aduaja-panel" th:if="${!isInDisposisi}">
+        <div class="aduaja-panel" th:if="${!isInDisposisi and selectedReport.status != 'Ditolak'}">
           <div class="aduaja-card-header bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
             <h2 class="aduaja-card-title text-blue-900">
               <i data-lucide="check-circle" class="w-5 h-5 text-blue-600"></i>
@@ -173,48 +176,66 @@
           </div>
 
           <div class="px-6 py-6">
-            <form th:action="@{/admin/validation}" method="post" class="space-y-6" x-data="{ actionType: '' }">
+            <!-- FR-ADM-09: reason wajib sebelum Tolak/Revisi; tombol di-disable sampai terisi -->
+            <form th:action="@{/admin/validation}" method="post" class="space-y-6"
+                  x-data="{ actionType: '', reason: '' }">
               <input type="hidden" name="id" th:value="${selectedReport['id']}" />
 
-              <!-- Reason textarea - DI ATAS TOMBOL -->
+              <!-- Reason textarea -->
               <div>
                 <label for="reason" class="block text-sm font-semibold mb-2 text-gray-900">
                   Alasan / Keterangan
-                  <span x-show="actionType === 'rejected' || actionType === 'revision'" class="text-red-500">* (Wajib untuk Tolak/Revisi)</span>
+                  <span x-show="actionType === 'rejected' || actionType === 'revision'"
+                        class="text-red-500 font-semibold">* Wajib diisi</span>
                 </label>
                 <textarea id="reason" name="reason" rows="4" class="aduaja-input"
-                  placeholder="Jelaskan alasan keputusan validasi..."
+                  x-model="reason"
+                  placeholder="Jelaskan alasan keputusan validasi (wajib untuk Tolak dan Revisi)..."
                   :required="actionType === 'rejected' || actionType === 'revision'"></textarea>
-                <p class="mt-2 text-xs text-gray-500">
-                  <span x-show="actionType === 'approved'">Jika diterima, tiket akan masuk ke tab Disposisi.</span>
-                  <span x-show="actionType === 'rejected'">Tiket akan ditolak dan kembali ke pelapor untuk diperbaiki.</span>
-                  <span x-show="actionType === 'revision'">Pelapor diminta untuk merevisi laporan mereka.</span>
-                </p>
+                <div class="mt-1.5 flex items-center justify-between">
+                  <p class="text-xs text-gray-500">
+                    <span x-show="actionType === 'approved'">Opsional — tiket akan masuk ke tab Disposisi.</span>
+                    <span x-show="actionType === 'rejected'" class="text-red-600">Wajib — alasan akan dikirim ke pelapor.</span>
+                    <span x-show="actionType === 'revision'" class="text-amber-600">Wajib — pelapor perlu tahu apa yang harus diperbaiki.</span>
+                  </p>
+                  <span class="text-xs text-gray-400" x-text="reason.length + ' karakter'"></span>
+                </div>
               </div>
 
-              <!-- Buttons - DI BAWAH -->
+              <!-- Action buttons -->
               <div class="border-t border-gray-200 pt-6">
                 <p class="font-semibold mb-3 text-gray-900">Keputusan Validasi</p>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <!-- Terima: selalu aktif -->
                   <button name="action" value="approved" type="submit"
                     @click="actionType = 'approved'"
                     class="aduaja-btn-primary bg-green-600 hover:bg-green-700 flex items-center justify-center gap-2 py-3">
                     <i data-lucide="check" class="w-4 h-4"></i>
                     <span>Terima &amp; Kirim ke Disposisi</span>
                   </button>
+                  <!-- Tolak: disabled sampai reason diisi (FR-ADM-09) -->
                   <button name="action" value="rejected" type="submit"
                     @click="actionType = 'rejected'"
-                    class="aduaja-btn-primary bg-red-600 hover:bg-red-700 flex items-center justify-center gap-2 py-3">
+                    :disabled="reason.trim().length === 0"
+                    :class="reason.trim().length === 0 ? 'opacity-50 cursor-not-allowed' : ''"
+                    class="aduaja-btn-primary bg-red-600 hover:bg-red-700 flex items-center justify-center gap-2 py-3 transition-opacity">
                     <i data-lucide="x" class="w-4 h-4"></i>
                     <span>Tolak Laporan</span>
                   </button>
+                  <!-- Revisi: disabled sampai reason diisi (FR-ADM-09) -->
                   <button name="action" value="revision" type="submit"
                     @click="actionType = 'revision'"
-                    class="aduaja-btn-primary bg-yellow-600 hover:bg-yellow-700 flex items-center justify-center gap-2 py-3">
+                    :disabled="reason.trim().length === 0"
+                    :class="reason.trim().length === 0 ? 'opacity-50 cursor-not-allowed' : ''"
+                    class="aduaja-btn-primary bg-yellow-600 hover:bg-yellow-700 flex items-center justify-center gap-2 py-3 transition-opacity">
                     <i data-lucide="edit" class="w-4 h-4"></i>
                     <span>Minta Revisi</span>
                   </button>
                 </div>
+                <p class="text-xs text-gray-400 mt-2 text-center"
+                   x-show="reason.trim().length === 0">
+                  Isi alasan/keterangan terlebih dahulu untuk mengaktifkan tombol Tolak dan Revisi
+                </p>
               </div>
             </form>
           </div>
@@ -236,6 +257,67 @@
                 <span>Lihat di Disposisi</span>
               </a>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. AUDIT TRAIL / LOG JEJAK DIGITAL (FR-RSL-22) -->
+      <div class="aduaja-panel" th:if="${selectedReport != null}">
+        <div class="aduaja-card-header">
+          <h2 class="aduaja-card-title">
+            <i data-lucide="history" class="w-5 h-5 text-indigo-500"></i>
+            Log Jejak Digital
+          </h2>
+          <p class="aduaja-card-subtitle">Riwayat perubahan status dan tindakan yang dilakukan pada tiket ini (FR-RSL-22)</p>
+        </div>
+        <div class="px-6 pb-6">
+          <!-- Timeline has audit logs -->
+          <div th:if="${auditLogs != null and !#lists.isEmpty(auditLogs)}" class="relative">
+            <div th:each="entry, iter : ${auditLogs}" class="relative pl-8 pb-6 last:pb-0">
+              <!-- Timeline vertical line -->
+              <div th:if="${!iter.last}" class="absolute left-3 top-6 bottom-0 w-0.5 bg-gray-200"></div>
+              <!-- Timeline dot -->
+              <div class="absolute left-0 top-4 w-6 h-6 rounded-full flex items-center justify-center border-2 border-white shadow-sm"
+                   th:class="${iter.index == 0} ? 'absolute left-0 top-4 w-6 h-6 rounded-full flex items-center justify-center border-2 border-white shadow-sm bg-blue-500' : 'absolute left-0 top-4 w-6 h-6 rounded-full flex items-center justify-center border-2 border-white shadow-sm bg-gray-400'">
+                <i data-lucide="activity" class="w-3 h-3 text-white"></i>
+              </div>
+              <!-- Entry content -->
+              <div class="ml-2 p-4 bg-gray-50/70 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors">
+                <div class="flex items-start justify-between mb-2">
+                  <div>
+                    <span class="text-xs font-bold uppercase tracking-wide text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded"
+                          th:text="${entry.actionType}">ACTION</span>
+                  </div>
+                  <span class="text-xs text-gray-400 font-medium flex items-center gap-1">
+                    <i data-lucide="clock" class="w-3 h-3"></i>
+                    <span th:text="${entry.loggedAt}">Waktu</span>
+                  </span>
+                </div>
+                <div class="flex items-center gap-2 mt-2">
+                  <i data-lucide="user" class="w-3.5 h-3.5 text-gray-400 flex-shrink-0"></i>
+                  <span class="text-sm font-semibold text-gray-800" th:text="${entry.actor}">Aktor</span>
+                </div>
+                <div th:if="${entry.oldValue != '-' or entry.newValue != '-'}" class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div th:if="${entry.oldValue != '-'}" class="p-2 bg-red-50 border border-red-100 rounded-lg">
+                    <p class="text-red-500 font-medium mb-0.5">Sebelum</p>
+                    <p class="text-red-800" th:text="${entry.oldValue}">-</p>
+                  </div>
+                  <div th:if="${entry.newValue != '-'}" class="p-2 bg-green-50 border border-green-100 rounded-lg">
+                    <p class="text-green-500 font-medium mb-0.5">Sesudah</p>
+                    <p class="text-green-800" th:text="${entry.newValue}">-</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty state audit trail -->
+          <div th:if="${auditLogs == null or #lists.isEmpty(auditLogs)}"
+               class="flex flex-col items-center justify-center py-10 text-gray-400">
+            <div class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+              <i data-lucide="history" class="w-6 h-6 text-gray-300"></i>
+            </div>
+            <p class="text-sm">Belum ada riwayat aktivitas untuk tiket ini</p>
           </div>
         </div>
       </div>

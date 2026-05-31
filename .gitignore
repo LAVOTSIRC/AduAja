@@ -40,3 +40,6 @@ replay_pid*
 
 ### Data ###
 data/
+
+### Environment ###
+/.env

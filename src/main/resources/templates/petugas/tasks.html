@@ -20,7 +20,23 @@
     lastRefresh: new Date().toLocaleTimeString(), 
     isOnline: navigator.onLine, 
     offlineQueue: 0, 
-    nextRefresh: 900 
+    nextRefresh: 900,
+    sortCards(containerId) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      const cards = Array.from(container.querySelectorAll('[data-sort-sla]'));
+      cards.sort((a, b) => {
+        if (this.sortBy === 'sla') {
+          return parseFloat(a.dataset.sortSla) - parseFloat(b.dataset.sortSla);
+        } else if (this.sortBy === 'distance') {
+          return parseFloat(a.dataset.sortDistance) - parseFloat(b.dataset.sortDistance);
+        } else if (this.sortBy === 'date') {
+          return parseFloat(b.dataset.sortDate) - parseFloat(a.dataset.sortDate);
+        }
+        return 0;
+      });
+      cards.forEach(c => container.appendChild(c));
+    }
   }" x-init="
     setInterval(() => { 
       lastRefresh = new Date().toLocaleTimeString(); 
@@ -29,6 +45,7 @@
     setInterval(() => { if (nextRefresh > 0) nextRefresh--; }, 1000);
     window.addEventListener('online', () => isOnline = true);
     window.addEventListener('offline', () => isOnline = false);
+    $watch('sortBy', () => { sortCards('sort-new'); sortCards('sort-pending'); });
   ">
     <div class="bg-blue-600 text-white px-4 sm:px-6 py-4 sticky top-0 z-10 shadow-md">
       <div class="max-w-4xl mx-auto">
@@ -200,10 +217,12 @@
           </svg>
           <p class="text-gray-500">Tidak ada tugas ditemukan</p>
         </div>
+        <div id="sort-new" class="space-y-3">
         <div
           th:each="task : ${tasksNew}"
           th:with="priorityLabel=${task['priority'] == 'critical' ? 'Kritis' : task['priority'] == 'high' ? 'Tinggi' : task['priority'] == 'medium' ? 'Sedang' : 'Rendah'}, priorityClass=${task['priority'] == 'critical' ? 'bg-red-100 text-red-800 border-red-200' : task['priority'] == 'high' ? 'bg-orange-100 text-orange-800 border-orange-200' : task['priority'] == 'medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 'bg-green-100 text-green-800 border-green-200'}"
           class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow"
+          th:attr="data-sort-sla=${task['rawSlaRemaining']}, data-sort-distance=${task['rawDistance']}, data-sort-date=${task['reportDate']}"
         >
           <a th:href="@{/petugas/task-detail(id=${task['id']})}" class="block">
             <div class="flex items-start justify-between mb-2">
@@ -321,6 +340,7 @@
             </div>
           </a>
         </div>
+        </div>
       </section>
 
       <section x-show="activeTab === 'in_progress'" x-cloak>
@@ -390,10 +410,12 @@
         <div th:if="${#lists.isEmpty(tasksPending)}" class="text-center py-12">
           <p class="text-gray-500">Tidak ada tugas tertunda</p>
         </div>
+        <div id="sort-pending" class="space-y-3">
         <div
           th:each="task : ${tasksPending}"
           th:with="priorityLabel=${task['priority'] == 'critical' ? 'Kritis' : task['priority'] == 'high' ? 'Tinggi' : task['priority'] == 'medium' ? 'Sedang' : 'Rendah'}, priorityClass=${task['priority'] == 'critical' ? 'bg-red-100 text-red-800 border-red-200' : task['priority'] == 'high' ? 'bg-orange-100 text-orange-800 border-orange-200' : task['priority'] == 'medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 'bg-green-100 text-green-800 border-green-200'}"
           class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow"
+          th:attr="data-sort-sla=${task['rawSlaRemaining']}, data-sort-distance=${task['rawDistance']}, data-sort-date=${task['reportDate']}"
         >
           <a th:href="@{/petugas/task-detail(id=${task['id']})}" class="block">
             <div class="flex items-start justify-between mb-2">
@@ -443,6 +465,7 @@
               >Alasan</p>
             </div>
           </a>
+        </div>
         </div>
       </section>
     </div>

@@ -7,6 +7,7 @@ import com.plr.aduaja.model.User;
 import com.plr.aduaja.repository.ReportRepository;
 import com.plr.aduaja.repository.ReportCategoryRepository;
 import com.plr.aduaja.repository.ReportRevisionRepository;
+import com.plr.aduaja.repository.RegionRepository;
 import com.plr.aduaja.repository.UserRepository;
 import com.plr.aduaja.dto.CreateReportDTO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +42,9 @@ public class ReportServiceImpl implements ReportService {  // ← POLYMORPHISM
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private RegionRepository regionRepository;
 
     // ===========================
     // @Override — Run-time Polymorphism
@@ -109,6 +113,11 @@ public class ReportServiceImpl implements ReportService {  // ← POLYMORPHISM
                 .ifPresent(report::setCategory);
         }
 
+        if (dto.getRegionId() != null && !dto.getRegionId().isBlank()) {
+            regionRepository.findById(dto.getRegionId())
+                .ifPresent(report::setRegion);
+        }
+
         return reportRepository.save(report);
     }
 
@@ -163,6 +172,16 @@ public class ReportServiceImpl implements ReportService {  // ← POLYMORPHISM
     @Override  // ← POLYMORPHISM
     public long countByStatus(Report.ReportStatus status) {
         return reportRepository.countByStatus(status);
+    }
+
+    @Override
+    public long countByStatusAndRegion(Report.ReportStatus status, String regionId) {
+        return reportRepository.countByStatusAndRegionRegionId(status, regionId);
+    }
+
+    @Override
+    public List<Report> getReportsByStatusAndRegion(Report.ReportStatus status, String regionId) {
+        return reportRepository.findByStatusAndRegionRegionIdOrderBySubmittedAtDesc(status, regionId);
     }
 
     @Override  // ← POLYMORPHISM

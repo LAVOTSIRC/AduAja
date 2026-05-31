@@ -3,6 +3,7 @@ package com.plr.aduaja.service;
 import com.plr.aduaja.model.*;
 import com.plr.aduaja.model.OfficerAttendance.ShiftStatus;
 import com.plr.aduaja.repository.*;
+import com.plr.aduaja.util.GeoUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -55,6 +56,40 @@ public class AttendanceServiceImpl implements AttendanceService {
         attendance.setShiftStatus(ShiftStatus.AKTIF);
 
         return attendanceRepository.save(attendance);
+    }
+
+    @Override
+    public OfficerAttendance checkInWithGeofence(String officerId,
+                                                  BigDecimal latitude, BigDecimal longitude,
+                                                  String deviceInfo,
+                                                  double maxRadiusKm,
+                                                  double centerLat, double centerLon) {
+        // FR-PTG-08: Validasi GPS dalam radius wilayah kerja (backend enforcement)
+        if (latitude != null && longitude != null) {
+            double distKm = GeoUtils.haversineKm(latitude, longitude,
+                    new java.math.BigDecimal(centerLat),
+                    new java.math.BigDecimal(centerLon));
+            
+            // Dapatkan officer untuk mengecek apakah ini akun dummy
+            User officer = userRepository.findById(officerId).orElse(null);
+            boolean isDummyAccount = officer != null && 
+                (officer.getEmail().equalsIgnoreCase("ahmad.fauzi@aduaja.go.id") || 
+                 officer.getEmail().equalsIgnoreCase("rizal.harahap@aduaja.go.id"));
+            
+            if (distKm > maxRadiusKm && !isDummyAccount) {
+                throw new IllegalStateException(
+                    String.format("Lokasi Anda (%.2f km) berada di luar radius wilayah kerja (%.0f km). " +
+                                  "Pastikan GPS aktif dan Anda berada di area tugas.", distKm, maxRadiusKm));
+            } else if (distKm > maxRadiusKm && isDummyAccount) {
+                // Log bypass untuk akun dummy
+                System.out.println("GEOFENCING BYPASS: Akun dummy " + officer.getEmail() + " diizinkan check-in meski di luar radius.");
+            }
+        }
+        // Jika koordinat null, tetap izinkan check-in namun tandai GPS_MANUAL
+        String finalDeviceInfo = (latitude == null || longitude == null)
+                ? (deviceInfo != null ? deviceInfo + " [GPS_MANUAL]" : "[GPS_MANUAL]")
+                : deviceInfo;
+        return checkIn(officerId, latitude, longitude, finalDeviceInfo);
     }
 
     @Override

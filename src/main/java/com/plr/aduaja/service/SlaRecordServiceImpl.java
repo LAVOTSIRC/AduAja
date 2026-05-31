@@ -1,15 +1,13 @@
 package com.plr.aduaja.service;
 
-import com.plr.aduaja.model.Report;
-import com.plr.aduaja.model.ReportCategory;
-import com.plr.aduaja.model.SlaRecord;
+import com.plr.aduaja.model.*;
 import com.plr.aduaja.model.SlaRecord.SlaStatus;
-import com.plr.aduaja.repository.ReportRepository;
-import com.plr.aduaja.repository.SlaRecordRepository;
+import com.plr.aduaja.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -26,6 +24,12 @@ public class SlaRecordServiceImpl implements SlaRecordService {
 
     @Autowired
     private ReportRepository reportRepository;
+
+    @Autowired
+    private SlaPauseLogRepository slaPauseLogRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @Override  // ← POLYMORPHISM: Override dari interface
     public Optional<SlaRecord> findById(String id) {
@@ -80,11 +84,22 @@ public class SlaRecordServiceImpl implements SlaRecordService {
 
     @Override  // ← POLYMORPHISM: Override dari interface
     @Transactional
-    public SlaRecord pauseSla(String slaId, String reason) {
+    public SlaRecord pauseSla(String slaId, String reason, String pausedByUserId) {
         SlaRecord sla = slaRecordRepository.findById(slaId)
                 .orElseThrow(() -> new RuntimeException("SLA tidak ditemukan: " + slaId));
         sla.setCurrentStatus(SlaStatus.TERTUNDA);
-        return slaRecordRepository.save(sla);
+        slaRecordRepository.save(sla);
+
+        SlaPauseLog log = new SlaPauseLog();
+        log.setSlaRecord(sla);
+        User pausedBy = userRepository.findById(pausedByUserId)
+                .orElseThrow(() -> new RuntimeException("User tidak ditemukan: " + pausedByUserId));
+        log.setPausedBy(pausedBy);
+        log.setPauseReason(reason != null ? reason : "Jeda oleh admin dinas");
+        log.setPausedAt(LocalDateTime.now());
+        slaPauseLogRepository.save(log);
+
+        return sla;
     }
 
     @Override  // ← POLYMORPHISM: Override dari interface
@@ -92,6 +107,23 @@ public class SlaRecordServiceImpl implements SlaRecordService {
     public SlaRecord resumeSla(String slaId) {
         SlaRecord sla = slaRecordRepository.findById(slaId)
                 .orElseThrow(() -> new RuntimeException("SLA tidak ditemukan: " + slaId));
+
+        List<SlaPauseLog> openLogs = slaPauseLogRepository.findBySlaRecordSlaId(slaId).stream()
+                .filter(log -> log.getResumedAt() == null)
+                .collect(java.util.stream.Collectors.toList());
+
+        for (SlaPauseLog log : openLogs) {
+            log.setResumedAt(LocalDateTime.now());
+            long pausedMinutes = Duration.between(log.getPausedAt(), LocalDateTime.now()).toMinutes();
+            log.setPausedDurationMinutes((int) pausedMinutes);
+            slaPauseLogRepository.save(log);
+
+            sla.setTotalPausedMinutes(sla.getTotalPausedMinutes() + (int) pausedMinutes);
+            if (sla.getSlaDeadlineAt() != null) {
+                sla.setSlaDeadlineAt(sla.getSlaDeadlineAt().plusMinutes(pausedMinutes));
+            }
+        }
+
         sla.setCurrentStatus(SlaStatus.BERJALAN);
         return slaRecordRepository.save(sla);
     }

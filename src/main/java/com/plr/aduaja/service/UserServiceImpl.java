@@ -1,9 +1,7 @@
 package com.plr.aduaja.service;
 
-import com.plr.aduaja.model.User;
-import com.plr.aduaja.model.UserProfile;
-import com.plr.aduaja.repository.UserRepository;
-import com.plr.aduaja.repository.UserProfileRepository;
+import com.plr.aduaja.model.*;
+import com.plr.aduaja.repository.*;
 import com.plr.aduaja.dto.CreatePetugasDTO;
 import com.plr.aduaja.dto.RegisterDTO;
 import com.plr.aduaja.dto.ProfileDTO;
@@ -32,6 +30,12 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
 
     @Autowired
     private UserProfileRepository userProfileRepository;
+
+    @Autowired
+    private RegionRepository regionRepository;
+
+    @Autowired
+    private AgencyRepository agencyRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -74,11 +78,16 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
     @Override  // ← POLYMORPHISM: Override dari interface
     public User createUser(RegisterDTO dto) {
         // ABSTRACTION: Semua logika kompleks disembunyikan dari Controller
+        // Email — controller sudah handle PENDING sebelum panggil method ini
         if (userRepository.existsByEmail(dto.getEmail())) {
             throw new RuntimeException("Email sudah terdaftar");
         }
-        if (dto.getPhoneNumber() != null && userRepository.existsByPhoneNumber(dto.getPhoneNumber())) {
-            throw new RuntimeException("Nomor HP sudah terdaftar");
+        // Phone — hanya ACTIVE/SUSPENDED yang dianggap konflik, PENDING dianggap bebas
+        if (dto.getPhoneNumber() != null) {
+            Optional<User> existingPhone = userRepository.findByPhoneNumber(dto.getPhoneNumber());
+            if (existingPhone.isPresent() && existingPhone.get().getAccountStatus() != User.AccountStatus.PENDING) {
+                throw new RuntimeException("Nomor HP sudah terdaftar");
+            }
         }
 
         // Buat User baru
@@ -99,11 +108,65 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
         UserProfile profile = new UserProfile();
         profile.setUser(savedUser);
         if (dto.getNik() != null && !dto.getNik().isBlank()) {
-            // Cek NIK sudah dipakai
-            if (userProfileRepository.existsByNik(dto.getNik())) {
+            // Cek NIK — hanya ACTIVE/SUSPENDED yang dianggap konflik
+            Optional<UserProfile> existingProfile = userProfileRepository.findByNik(dto.getNik());
+            if (existingProfile.isPresent()) {
+                User profileOwner = existingProfile.get().getUser();
+                if (profileOwner.getAccountStatus() != User.AccountStatus.PENDING) {
+                    throw new RuntimeException("NIK sudah terdaftar");
+                }
+            }
+            profile.setNik(dto.getNik());
+        }
+        userProfileRepository.save(profile);
+
+        return savedUser;
+    }
+
+    @Override
+    public User updatePendingRegistration(RegisterDTO dto, String userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User tidak ditemukan"));
+
+        if (user.getAccountStatus() != User.AccountStatus.PENDING) {
+            throw new RuntimeException("Akun sudah aktif, tidak bisa update data registrasi");
+        }
+
+        // Update data user
+        user.setFullName(dto.getFullName());
+        user.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
+
+        // Phone: cek konflik hanya dengan ACTIVE/SUSPENDED
+        if (dto.getPhoneNumber() != null) {
+            Optional<User> existingPhone = userRepository.findByPhoneNumber(dto.getPhoneNumber());
+            if (existingPhone.isPresent()
+                && !existingPhone.get().getUserId().equals(userId)
+                && existingPhone.get().getAccountStatus() != User.AccountStatus.PENDING) {
+                throw new RuntimeException("Nomor HP sudah terdaftar");
+            }
+            user.setPhoneNumber(dto.getPhoneNumber());
+        } else {
+            user.setPhoneNumber(null);
+        }
+
+        User savedUser = userRepository.save(user);
+
+        // Update profile & NIK
+        UserProfile profile = userProfileRepository.findByUserUserId(userId).orElse(null);
+        if (profile == null) {
+            profile = new UserProfile();
+            profile.setUser(savedUser);
+        }
+        if (dto.getNik() != null && !dto.getNik().isBlank()) {
+            Optional<UserProfile> existingProfile = userProfileRepository.findByNik(dto.getNik());
+            if (existingProfile.isPresent()
+                && !existingProfile.get().getUser().getUserId().equals(userId)
+                && existingProfile.get().getUser().getAccountStatus() != User.AccountStatus.PENDING) {
                 throw new RuntimeException("NIK sudah terdaftar");
             }
             profile.setNik(dto.getNik());
+        } else {
+            profile.setNik(null);
         }
         userProfileRepository.save(profile);
 
@@ -126,9 +189,29 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
         user.setPhoneNumber(dto.getPhoneNumber());
         user.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
         user.setRole(User.Role.PETUGAS);
-        user.setAccountStatus(User.AccountStatus.ACTIVE);
+        user.setAccountStatus(User.AccountStatus.PENDING);
 
-        return userRepository.save(user);
+        if (dto.getAgencyId() != null && !dto.getAgencyId().isBlank()) {
+            Agency agency = agencyRepository.findById(dto.getAgencyId())
+                    .orElseThrow(() -> new RuntimeException("Agency tidak ditemukan"));
+            user.setAgency(agency);
+        }
+
+        User savedUser = userRepository.save(user);
+
+        UserProfile profile = new UserProfile();
+        profile.setUser(savedUser);
+        if (dto.getNip() != null && !dto.getNip().isBlank()) {
+            profile.setNip(dto.getNip());
+        }
+        if (dto.getWilayahTugasRegionId() != null && !dto.getWilayahTugasRegionId().isBlank()) {
+            Region wilayah = regionRepository.findById(dto.getWilayahTugasRegionId())
+                    .orElseThrow(() -> new RuntimeException("Wilayah tidak ditemukan"));
+            profile.setWilayahTugas(wilayah);
+        }
+        userProfileRepository.save(profile);
+
+        return savedUser;
     }
 
     @Override  // ← POLYMORPHISM: Override dari interface
@@ -168,6 +251,14 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
         if (dto.getNik() != null && !dto.getNik().isBlank()) {
             profile.setNik(dto.getNik());
         }
+        if (dto.getNip() != null && !dto.getNip().isBlank()) {
+            profile.setNip(dto.getNip());
+        }
+        if (dto.getWilayahTugasRegionId() != null && !dto.getWilayahTugasRegionId().isBlank()) {
+            Region wilayah = regionRepository.findById(dto.getWilayahTugasRegionId())
+                    .orElseThrow(() -> new RuntimeException("Wilayah tidak ditemukan"));
+            profile.setWilayahTugas(wilayah);
+        }
         if (dto.getAlamatLengkap() != null) {
             profile.setAlamatLengkap(dto.getAlamatLengkap());
         }
@@ -190,6 +281,17 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
         return userRepository.findById(userId)
             .map(User::getUserProfile)
             .orElse(null);
+    }
+
+    @Override
+    public void changePassword(String userId, String newPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        if (user.getAccountStatus() == User.AccountStatus.PENDING) {
+            user.setAccountStatus(User.AccountStatus.ACTIVE);
+        }
+        userRepository.save(user);
     }
 
     @Override  // ← POLYMORPHISM: Override dari interface

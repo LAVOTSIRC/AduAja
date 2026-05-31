@@ -167,27 +167,37 @@
                 <input type="hidden" name="id" th:value="${selectedReport['id']}" />
                 <div class="mb-4">
                   <label for="reason" class="mb-2 block text-sm font-semibold text-gray-900">
-                    Alasan / Keterangan <span class="text-red-500">*</span>
+                    Alasan / Keterangan
+                    <span class="text-red-500" x-show="actionType === 'rejected' || actionType === 'revision'">* (Wajib untuk Tolak/Revisi)</span>
                   </label>
                   <textarea id="reason" name="reason" rows="4"
                     class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
-                    placeholder="Jelaskan alasan keputusan validasi (minimal 10 karakter)" required></textarea>
-                  <p class="mt-1.5 text-xs text-gray-500">Catatan ini akan dikirimkan kepada pelapor sebagai penjelasan keputusan.</p>
+                    placeholder="Jelaskan alasan keputusan validasi..."
+                    :required="actionType === 'rejected' || actionType === 'revision'"></textarea>
+                  <p class="mt-1.5 text-xs text-gray-500">
+                    <span x-show="actionType === 'approved'">Jika diterima, tiket akan masuk ke tab Disposisi.</span>
+                    <span x-show="actionType === 'rejected'">Tiket akan ditolak dan kembali ke pelapor untuk diperbaiki.</span>
+                    <span x-show="actionType === 'revision'">Pelapor diminta untuk merevisi laporan mereka.</span>
+                    <span x-show="actionType === ''">Catatan ini akan dikirimkan kepada pelapor sebagai penjelasan keputusan.</span>
+                  </p>
                 </div>
                 <div class="border-t border-gray-200 pt-4">
                   <p class="mb-3 text-sm font-semibold text-gray-900">Keputusan Validasi</p>
                   <div class="grid grid-cols-3 gap-3">
                     <button name="action" value="approved" type="submit"
+                      @click="actionType = 'approved'"
                       class="flex items-center justify-center gap-2 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-lg py-3 font-semibold text-sm hover:from-green-600 hover:to-green-700 transition-all shadow-sm hover:shadow">
                       <i data-lucide="check-circle" class="w-4 h-4"></i>
                       Terima
                     </button>
                     <button name="action" value="rejected" type="submit"
+                      @click="actionType = 'rejected'"
                       class="flex items-center justify-center gap-2 bg-gradient-to-br from-red-500 to-red-600 text-white rounded-lg py-3 font-semibold text-sm hover:from-red-600 hover:to-red-700 transition-all shadow-sm hover:shadow">
                       <i data-lucide="x-circle" class="w-4 h-4"></i>
                       Tolak
                     </button>
                     <button name="action" value="revision" type="submit"
+                      @click="actionType = 'revision'"
                       class="flex items-center justify-center gap-2 bg-gradient-to-br from-amber-500 to-amber-600 text-white rounded-lg py-3 font-semibold text-sm hover:from-amber-600 hover:to-amber-700 transition-all shadow-sm hover:shadow">
                       <i data-lucide="edit-3" class="w-4 h-4"></i>
                       Revisi

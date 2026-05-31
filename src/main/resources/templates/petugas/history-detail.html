@@ -1,0 +1,149 @@
+<html
+  lang="id"
+  xmlns:th="http://www.thymeleaf.org"
+  xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+  layout:decorate="~{layouts/master}"
+>
+  <th:block layout:fragment="extraHead">
+    <title>AduAja - Detail Riwayat Tugas</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}" />
+    <style>
+      [x-cloak] {
+        display: none !important;
+      }
+    </style>
+  </th:block>
+
+  <div
+    layout:fragment="content"
+    class="min-h-screen bg-gray-50 pb-12"
+  >
+    <div class="bg-blue-600 text-white px-4 sm:px-6 py-4 sticky top-0 z-10 shadow-md">
+      <div class="max-w-4xl mx-auto">
+        <div class="flex items-center gap-3">
+          <a th:href="@{/petugas/history}" class="p-2 hover:bg-blue-700 rounded-lg">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+          </a>
+          <div>
+            <h2 class="text-xl font-semibold">Detail Riwayat Tugas</h2>
+            <p class="text-sm text-blue-100" th:text="${task['id']}">TGS001</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-4 space-y-4">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div class="flex items-center justify-between mb-3">
+          <span class="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800" th:text="${task['status']}">Selesai</span>
+          <span class="px-3 py-1 bg-blue-50 text-blue-600 rounded text-xs" th:text="${task['category']}">Kategori</span>
+        </div>
+
+        <h3 class="text-xl font-bold text-gray-900 mb-2" th:text="${task['title']}">Judul Tugas</h3>
+        <p class="text-gray-600 leading-relaxed text-sm" th:text="${task['description']}">Deskripsi Tugas</p>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <h3 class="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+          <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Informasi Pengerjaan
+        </h3>
+        <div class="space-y-2">
+          <div class="flex justify-between items-center">
+            <span class="text-gray-600">Waktu Mulai:</span>
+            <span class="font-medium text-gray-900" th:text="${task['startedAt']}">-</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-600">Waktu Selesai:</span>
+            <span class="font-medium text-gray-900" th:text="${task['completedAt']}">-</span>
+          </div>
+          <div class="flex justify-between items-center border-t border-gray-100 pt-2 mt-2">
+            <span class="text-gray-600">Total Durasi:</span>
+            <span class="font-bold text-blue-600" th:text="${task['duration']}">-</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <h3 class="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+          <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+          Informasi Pelapor
+        </h3>
+        <div class="space-y-2">
+          <div class="flex justify-between items-center">
+            <span class="text-gray-600">Nama Pelapor:</span>
+            <span class="font-medium text-gray-900" th:text="${task['reporterName']}">Nama</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-600">Tanggal Pelaporan:</span>
+            <span class="font-medium text-gray-900" th:text="${task['reportDate']}">Tanggal</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <h3 class="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+          <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          Lokasi Laporan
+        </h3>
+        <div class="space-y-3">
+          <p class="text-gray-700" th:text="${task['location']}">Alamat</p>
+          <div class="flex items-center justify-between text-sm" th:if="${task['latitude'] != null and task['longitude'] != null}">
+            <span class="text-gray-600">Koordinat:</span>
+            <span class="font-mono text-gray-900" th:text="|${task['latitude']}, ${task['longitude']}|"></span>
+          </div>
+          <div class="flex gap-2" th:if="${task['latitude'] != null and task['longitude'] != null}">
+            <a
+              th:href="|https://www.google.com/maps/dir/?api=1&destination=${task['latitude']},${task['longitude']}|"
+              target="_blank"
+              class="flex-1 bg-green-500 text-white py-2.5 rounded-lg font-medium hover:bg-green-600 transition-colors flex items-center justify-center gap-2 text-center text-sm"
+            >
+              Buka di Google Maps
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <h3 class="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+          <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          Foto Bukti Pekerjaan
+        </h3>
+        
+        <div class="mb-4">
+          <h4 class="text-sm font-medium text-gray-700 mb-2">Sebelum Pekerjaan</h4>
+          <div th:if="${task['photoBeforeList'].empty}" class="text-gray-500 text-sm italic">Tidak ada foto sebelum pengerjaan.</div>
+          <div class="flex flex-col gap-3" th:if="${!task['photoBeforeList'].empty}">
+            <div th:each="photo : ${task['photoBeforeList']}" class="bg-gray-50 rounded-lg overflow-hidden border border-gray-200 flex justify-center p-1">
+               <img th:src="${photo.photoUrl}" alt="Bukti Sebelum" class="max-w-full h-auto rounded" />
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-medium text-gray-700 mb-2">Sesudah Pekerjaan</h4>
+          <div th:if="${task['photoAfterList'].empty}" class="text-gray-500 text-sm italic">Tidak ada foto sesudah pengerjaan.</div>
+          <div class="flex flex-col gap-3" th:if="${!task['photoAfterList'].empty}">
+            <div th:each="photo : ${task['photoAfterList']}" class="bg-gray-50 rounded-lg overflow-hidden border border-gray-200 flex justify-center p-1">
+               <img th:src="${photo.photoUrl}" alt="Bukti Sesudah" class="max-w-full h-auto rounded" />
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</html>

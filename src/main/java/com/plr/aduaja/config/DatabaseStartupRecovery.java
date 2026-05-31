@@ -17,17 +17,25 @@ import java.time.format.DateTimeFormatter;
 public final class DatabaseStartupRecovery {
 
     private static final Logger log = LoggerFactory.getLogger(DatabaseStartupRecovery.class);
-    private static final Path DATA_DIR = Paths.get("data");
-    private static final String DB_BASE_NAME = "aduaja";
-    private static final String JDBC_URL = "jdbc:h2:file:./data/aduaja;DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE";
+    private static final String H2_DB_PATH = resolveDbPath();
+    private static final Path DATA_DIR = Paths.get(H2_DB_PATH).getParent();
+    private static final String DB_BASE_NAME = Paths.get(H2_DB_PATH).getFileName().toString();
+    private static final String JDBC_URL = "jdbc:h2:file:" + H2_DB_PATH + ";DB_CLOSE_DELAY=-1;AUTO_SERVER=TRUE";
     private static final DateTimeFormatter BACKUP_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
 
     private DatabaseStartupRecovery() {
     }
 
+    private static String resolveDbPath() {
+        String envPath = System.getenv("H2_DB_PATH");
+        return (envPath != null && !envPath.isBlank()) ? envPath : "./data/aduaja";
+    }
+
     public static void prepareDatabase() {
         try {
-            Files.createDirectories(DATA_DIR);
+            if (DATA_DIR != null) {
+                Files.createDirectories(DATA_DIR);
+            }
             verifyConnection();
         } catch (SQLException ex) {
             if (!isCorruptionError(ex)) {

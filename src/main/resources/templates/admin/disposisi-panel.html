@@ -18,6 +18,21 @@
   </th:block>
 
   <div layout:fragment="content" class="min-h-screen bg-gray-50">
+    <!-- Navigation header -->
+    <header class="aduaja-header sticky top-0 z-20 border-b">
+      <div class="px-6 py-4">
+        <div class="flex items-center gap-3">
+          <a th:href="@{/admin/dashboard(tab='queue')}" class="aduaja-btn-secondary inline-flex items-center gap-2 text-sm">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+            Kembali ke Dashboard
+          </a>
+          <div class="ml-4 pl-4 border-l">
+            <h1 class="text-xl font-bold text-gray-900">Disposisi Laporan</h1>
+            <p class="text-sm text-gray-500 mt-0.5">Kirim laporan tervalidasi ke dinas terkait</p>
+          </div>
+        </div>
+      </div>
+    </header>
     <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div
@@ -45,9 +60,11 @@
               />
             </div>
             <div class="space-y-3 max-h-[600px] overflow-y-auto">
-              <div
+              <a
                 th:each="report : ${reports}"
-                class="p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+                th:href="@{/admin/disposisi(id=${report.id})}"
+                class="block p-4 border rounded-lg hover:bg-blue-50 hover:border-blue-200 transition-colors cursor-pointer"
+                th:classappend="${selectedReport != null and selectedReport.id == report.id} ? 'border-blue-400 bg-blue-50' : 'border-gray-200'"
               >
                 <div class="flex gap-3">
                   <img
@@ -96,7 +113,7 @@
                     </div>
                   </div>
                 </div>
-              </div>
+              </a>
             </div>
           </div>
         </div>

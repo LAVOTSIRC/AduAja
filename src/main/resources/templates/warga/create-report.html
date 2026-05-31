@@ -62,6 +62,7 @@
     <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6" x-data="reportForm()" x-init="initMap()">
       <form th:action="@{/warga/create-report}" th:object="${createReportDTO}" method="post" class="space-y-6">
         <input type="hidden" name="photoBase64" id="photoBase64Input" />
+        <input type="hidden" name="regionId" id="regionIdInput" />
 
         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <label class="block text-sm font-medium text-gray-900 mb-2">Kategori Laporan <span class="text-red-500">*</span></label>
@@ -135,6 +136,13 @@
             <div>
               <p class="text-gray-600">Longitude:</p>
               <input type="text" name="longitude" id="lngInput" x-model="lng" class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono" readonly />
+            </div>
+            <div id="regionDetect" class="mt-3 hidden">
+              <p class="text-xs text-gray-500 mb-1">Wilayah Terdeteksi</p>
+              <p id="regionDetectName" class="text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                <span id="regionDetectText">-</span>
+              </p>
             </div>
           </div>
         </div>
@@ -293,7 +301,7 @@
 
   <th:block layout:fragment="extraScripts">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
+    <script th:inline="javascript">
       // FR-WRG-16 + FR-WRG-13: Validasi client-side lalu tampil preview
       function validateAndShowPreview() {
         const photoInput = document.getElementById('photoBase64Input');
@@ -350,6 +358,72 @@
       // Legacy: jaga kompatibilitas
       function validateAndSubmit() { validateAndShowPreview(); }
 
+      // Daerah untuk reverse geocode lookup — diisi dari server
+      const REGION_LIST = [(${regionListJson})];
+
+      let _reverseGeocodeTimer = null;
+
+      function reverseGeocode(lat, lng) {
+        clearTimeout(_reverseGeocodeTimer);
+        _reverseGeocodeTimer = setTimeout(() => {
+          fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&addressdetails=1&accept-language=id')
+            .then(r => r.json())
+            .then(data => {
+              // FR-WRG-17: Auto-detect region dari reverse geocode Nominatim
+              const addr = data.address || {};
+
+              // Nama lokasi terbaik dari Nominatim (prioritas: kota > distrik > kabupaten > provinsi)
+              const nominatimName = addr.city || addr.city_district || addr.county
+                                  || addr.state_district || addr.municipality
+                                  || addr.town || addr.village || addr.state || null;
+
+              const candidates = [
+                addr.county, addr.city, addr.city_district,
+                addr.municipality, addr.suburb, addr.town, addr.village, addr.state
+              ].filter(Boolean);
+
+              let bestMatch = { id: '', name: '', score: 0 };
+              for (const c of candidates) {
+                const cl = c.toLowerCase();
+                for (const r of REGION_LIST) {
+                  const rl = r.name.toLowerCase();
+                  let score = 0;
+                  if (cl === rl) score = 3;
+                  else if (cl.includes(rl) || rl.includes(cl)) score = 2;
+                  else if (rl.includes(cl.replace(/^(kota|kecamatan|kelurahan)\s+/i, '').trim())) score = 1;
+                  if (score > bestMatch.score) {
+                    bestMatch = { id: r.id, name: r.name, score };
+                  }
+                }
+              }
+
+              if (bestMatch.id) {
+                // Cocok dengan data wilayah di database — tampilkan hijau
+                document.getElementById('regionIdInput').value = bestMatch.id;
+                document.getElementById('regionDetectText').textContent = bestMatch.name;
+                document.getElementById('regionDetect').classList.remove('hidden');
+                document.getElementById('regionDetectName').className = 'text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 flex items-center gap-2';
+              } else if (nominatimName) {
+                // Tidak ada di database, tapi Nominatim berhasil mendeteksi nama lokasi
+                document.getElementById('regionDetectText').textContent = nominatimName;
+                document.getElementById('regionDetect').classList.remove('hidden');
+                document.getElementById('regionDetectName').className = 'text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 flex items-center gap-2';
+              } else {
+                // Nominatim tidak mengembalikan nama lokasi yang berguna
+                document.getElementById('regionDetectText').textContent = 'Wilayah tidak terdeteksi — coba klik/tarik marker di peta';
+                document.getElementById('regionDetect').classList.remove('hidden');
+                document.getElementById('regionDetectName').className = 'text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-center gap-2';
+              }
+            })
+            .catch(() => {
+              // Network error — tampilkan pesan
+              document.getElementById('regionDetectText').textContent = 'Tidak dapat terhubung ke layanan peta — coba lagi';
+              document.getElementById('regionDetect').classList.remove('hidden');
+              document.getElementById('regionDetectName').className = 'text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-center gap-2';
+            });
+        }, 500);
+      }
+
       function reportForm() {
         return {
           lat: '', lng: '', map: null, marker: null, loadingGps: false,
@@ -374,9 +448,11 @@
               this.marker.on('dragend', (e) => {
                 this.lat = e.target.getLatLng().lat.toFixed(6);
                 this.lng = e.target.getLatLng().lng.toFixed(6);
+                reverseGeocode(this.lat, this.lng);
               });
             }
             this.map.setView([lat, lng], 15);
+            reverseGeocode(this.lat, this.lng);
           },
           getLocation() {
             this.loadingGps = true;
@@ -779,4 +855,3 @@
     </script>
   </th:block>
 </html>
-

@@ -4,6 +4,7 @@ import com.plr.aduaja.dto.DisputeDTO;
 import com.plr.aduaja.model.DisputeRecord;
 import com.plr.aduaja.model.DisputeRecord.ResolutionType;
 import com.plr.aduaja.service.DisputeService;
+import com.plr.aduaja.service.SupabaseStorageService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -20,6 +21,9 @@ public class SengketaApiController {
 
     @Autowired
     private DisputeService disputeService;  // ← Interface (ABSTRACTION)
+
+    @Autowired
+    private SupabaseStorageService supabaseStorageService;
 
     @GetMapping
     public ResponseEntity<List<DisputeRecord>> getAllDisputes() {
@@ -54,7 +58,10 @@ public class SengketaApiController {
             DisputeDTO dto = new DisputeDTO();
             dto.setReportId(reportId);
             dto.setReason(reasonText);
-            dto.setEvidencePhotoUrl(evidencePhotoUrl != null ? evidencePhotoUrl : "");
+            String photoUrl = (evidencePhotoUrl != null && !evidencePhotoUrl.startsWith("http"))
+                ? supabaseStorageService.uploadBase64(evidencePhotoUrl, "sengketa")
+                : evidencePhotoUrl;
+            dto.setEvidencePhotoUrl(photoUrl != null ? photoUrl : "");
             DisputeRecord dispute = disputeService.createDispute(dto, filedById);
             return ResponseEntity.status(HttpStatus.CREATED).body(dispute);
         } catch (Exception e) {

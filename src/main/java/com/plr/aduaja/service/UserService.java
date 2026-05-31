@@ -39,10 +39,13 @@ public interface UserService {
     // METHOD UTAMA
     // ===========================
     User createUser(RegisterDTO dto);
+    User updatePendingRegistration(RegisterDTO dto, String userId);
     User createPetugas(CreatePetugasDTO dto);
     User updateUser(User user);
     User updateProfile(String userId, ProfileDTO dto);
     UserProfile getProfileByUserId(String userId);
+
+    void changePassword(String userId, String newPassword);
 
     boolean existsByEmail(String email);
     boolean existsByPhoneNumber(String phoneNumber);
