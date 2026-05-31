@@ -62,6 +62,9 @@ public class AdminPusatController {
     @Autowired
     private SlaMonitoringService slaMonitoringService;
 
+    @Autowired
+    private AuditLogService auditLogService;
+
     // ==========================================
     // ADMIN PUSAT — DASHBOARD
     // ==========================================
@@ -163,6 +166,23 @@ public class AdminPusatController {
         }));
         model.addAttribute("queueReports", queueReports);
 
+        // Riwayat laporan yang ditolak (Issue 4)
+        List<Report> rejectedReports = reportService.getReportsByStatus(Report.ReportStatus.DITOLAK);
+        List<Map<String, Object>> rejectedList = rejectedReports.stream().map(r -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", r.getReportId());
+            m.put("judul", r.getTicketNumber() != null ? r.getTicketNumber() : "Laporan");
+            m.put("kategori", r.getCategory() != null ? r.getCategory().getCategoryName() : "Lainnya");
+            m.put("pelapor", r.getReporter() != null ? r.getReporter().getFullName() : "-");
+            m.put("wilayah", r.getLocationHint() != null ? r.getLocationHint() : "-");
+            m.put("tanggalMasuk", toDateStr(r.getSubmittedAt()));
+            m.put("alasanDitolak", r.getRejectionReason() != null ? r.getRejectionReason() :
+                    (r.getAdminNotes() != null ? r.getAdminNotes() : "-"));
+            return m;
+        }).collect(Collectors.toList());
+        model.addAttribute("rejectedReports", rejectedList);
+        model.addAttribute("rejectedCount", rejectedList.size());
+
         List<Map<String, Object>> validationReports = getAdminValidationList();
         model.addAttribute("validationReports", validationReports);
 
@@ -262,12 +282,41 @@ public class AdminPusatController {
                     selectedReport = toAdminValidationMap(r);
                     selectedReport.put("status", "Tervalidasi");
                     isInDisposisi = true;
+                } else if (r != null && r.getStatus() == ReportStatus.DITOLAK) {
+                    selectedReport = toAdminValidationMap(r);
+                    selectedReport.put("status", "Ditolak");
+                } else if (r != null) {
+                    selectedReport = toAdminValidationMap(r);
                 }
             }
         }
 
         model.addAttribute("selectedReport", selectedReport);
         model.addAttribute("isInDisposisi", isInDisposisi);
+
+        // FR-RSL-22: Audit Trail / Log Jejak Digital
+        // Render komponen linimasa vertikal dari audit log tiket yang dipilih
+        List<Map<String, Object>> auditLogs = new ArrayList<>();
+        if (id != null && !id.trim().isEmpty()) {
+            try {
+                List<AuditLog> logs = auditLogService.getLogsByReport(id.trim());
+                auditLogs = logs.stream().map(log -> {
+                    Map<String, Object> entry = new HashMap<>();
+                    entry.put("logId", log.getLogId());
+                    entry.put("actor", log.getActor() != null ? log.getActor().getFullName() : "Sistem");
+                    entry.put("actionType", log.getActionType() != null ? log.getActionType() : "-");
+                    entry.put("oldValue", log.getOldValue() != null ? log.getOldValue() : "-");
+                    entry.put("newValue", log.getNewValue() != null ? log.getNewValue() : "-");
+                    entry.put("loggedAt", log.getLoggedAt() != null
+                            ? log.getLoggedAt().format(ControllerHelper.DATETIME_FMT) : "-");
+                    return entry;
+                }).collect(Collectors.toList());
+            } catch (Exception e) {
+                log.warn("Gagal memuat audit log untuk tiket {}: {}", id, e.getMessage());
+            }
+        }
+        model.addAttribute("auditLogs", auditLogs);
+
         return "admin/queue-detail";
     }
 
@@ -624,7 +673,9 @@ public class AdminPusatController {
             RedirectAttributes redirectAttributes,
             @RequestParam(value = "id", required = false) String id,
             @RequestParam(value = "dinasId", required = false) String dinasId,
-            @RequestParam(value = "catatan", required = false) String catatan
+            @RequestParam(value = "catatan", required = false) String catatan,
+            @RequestParam(value = "priority", required = false) String priority,
+            @RequestParam(value = "deadline", required = false) String deadline
     ) {
         // SESSION CHECK
         String adminId = ControllerHelper.requireAnyAdminSession(session);
@@ -634,6 +685,26 @@ public class AdminPusatController {
 
         try {
             if (ticketId != null && !ticketId.isEmpty()) {
+                // Simpan priority ke Report sebelum disposisi
+                final String finalPriority = (priority != null && !priority.isBlank()) ? priority.trim() : null;
+                if (finalPriority != null) {
+                    Report rpt = reportService.findById(ticketId).orElse(null);
+                    if (rpt != null) {
+                        rpt.setPriority(finalPriority);
+                        // Buat SLA record sesuai prioritas jika belum ada
+                        boolean slaExists = slaRecordService.findByReportId(rpt.getReportId()).isPresent();
+                        if (!slaExists) {
+                            int durationHours = switch (finalPriority) {
+                                case "Kritis" -> 24;
+                                case "Tinggi" -> 48;
+                                case "Sedang" -> 72;
+                                default -> 120; // Rendah
+                            };
+                            slaRecordService.createSlaRecord(rpt.getReportId(), durationHours);
+                        }
+                        reportService.updateStatus(ticketId, rpt.getStatus(), null, adminId);
+                    }
+                }
                 dispositionService.createDisposition(ticketId, adminId, dinasId, catatan);
                 reportService.updateStatus(ticketId, Report.ReportStatus.DIDISPOSISI, catatan, adminId);
                 redirectAttributes.addFlashAttribute("success", "Laporan berhasil didisposisikan ke dinas.");
@@ -806,12 +877,16 @@ public class AdminPusatController {
         m.put("wilayah", r.getLocationHint() != null ? r.getLocationHint() : "-");
         m.put("tanggalMasuk", toDateStr(r.getSubmittedAt()));
         m.put("status", toStatusLabel(r.getStatus()));
-        m.put("prioritas", "Sedang");
+        // Prioritas hanya tampil jika sudah diisi admin pusat (saat disposisi)
+        String prio = r.getPriority();
+        m.put("prioritas", (prio != null && !prio.isBlank()) ? prio : "-");
         m.put("sisaWaktuSLA", "-");
         m.put("foto", r.getPhotoBase64() != null ? r.getPhotoBase64() : dummyReportImage());
         String lat = r.getLatitude() != null ? r.getLatitude().toPlainString() : "0";
         String lng = r.getLongitude() != null ? r.getLongitude().toPlainString() : "0";
         m.put("koordinatStr", lat + "," + lng);
+        m.put("lat", lat);
+        m.put("lng", lng);
         m.put("patokan", r.getLocationHint());
         // DRY: gunakan konstanta DATETIME_FMT dari ControllerHelper
         m.put("waktuKejadian", r.getSubmittedAt() != null ? r.getSubmittedAt().format(ControllerHelper.DATETIME_FMT) : "-");
