@@ -7,6 +7,7 @@ import com.plr.aduaja.dto.RegisterDTO;
 import com.plr.aduaja.dto.ProfileDTO;
 import com.plr.aduaja.dto.ResetPasswordDTO;
 import com.plr.aduaja.model.UserProfile;
+import com.plr.aduaja.service.SupabaseStorageService;
 import com.plr.aduaja.service.UserService;
 import com.plr.aduaja.service.AuthService;
 import com.plr.aduaja.service.OtpService;
@@ -46,6 +47,9 @@ public class WargaAuthController {
 
     @Autowired
     private OtpService otpService;
+
+    @Autowired
+    private SupabaseStorageService supabaseStorageService;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -290,7 +294,7 @@ public class WargaAuthController {
     }
 
     // ==========================================
-    // POST /warga/profile/photo — Upload foto profil
+    // POST /warga/profile/photo — Upload foto profil ke Supabase
     // ==========================================
     @PostMapping("/warga/profile/photo")
     public String uploadProfilePhoto(@RequestParam("photo") MultipartFile file,
@@ -305,19 +309,7 @@ public class WargaAuthController {
         }
 
         try {
-            String uploadDir = "uploads/profile-photos";
-            Files.createDirectories(Paths.get(uploadDir));
-
-            String ext = "";
-            String originalName = file.getOriginalFilename();
-            if (originalName != null && originalName.contains(".")) {
-                ext = originalName.substring(originalName.lastIndexOf("."));
-            }
-            String filename = UUID.randomUUID().toString() + ext;
-            Path filePath = Paths.get(uploadDir, filename);
-            Files.write(filePath, file.getBytes());
-
-            String photoUrl = "/profile-photos/" + filename;
+            String photoUrl = supabaseStorageService.upload(file, "profile");
 
             User user = userService.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User tidak ditemukan"));
@@ -331,7 +323,7 @@ public class WargaAuthController {
             userService.updateUser(user);
 
             redirectAttributes.addFlashAttribute("success", "Foto profil berhasil diperbarui.");
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("Gagal upload foto profil: {}", e.getMessage(), e);
             redirectAttributes.addFlashAttribute("error", "Gagal mengupload foto: " + e.getMessage());
         }
