@@ -4,6 +4,7 @@ import com.plr.aduaja.model.*;
 import com.plr.aduaja.model.Report.ReportStatus;
 import com.plr.aduaja.model.Region.RegionLevel;
 import com.plr.aduaja.repository.*;
+import com.plr.aduaja.service.ImageMigrationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;

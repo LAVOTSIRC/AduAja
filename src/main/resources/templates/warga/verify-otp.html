@@ -84,10 +84,10 @@
           <div class="flex items-start gap-3">
             <i data-lucide="info" class="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5"></i>
             <div>
-              <p class="text-sm text-blue-700 font-medium">Cara mendapatkan kode OTP?</p>
+              <p class="text-sm text-blue-700 font-medium">Kode OTP telah dikirim!</p>
               <p class="text-xs text-blue-600 mt-1">
-                Untuk demonstrasi, cek kode OTP di log server atau database H2 Console.
-                Di produksi, kode akan dikirim via email/SMS.
+                Cek email <strong th:text="${email}">email@example.com</strong> untuk melihat kode OTP 6 digit Anda.
+                Jika tidak muncul, periksa folder spam.
               </p>
             </div>
           </div>
