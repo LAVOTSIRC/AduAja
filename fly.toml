@@ -1,0 +1,22 @@
+app = "aduaja"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  H2_DB_PATH = "/data/db/AduAjaDB"
+
+[[services]]
+  internal_port = 8080
+  protocol = "tcp"
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+[[mounts]]
+  source = "aduaja_data"
+  destination = "/data/db"
