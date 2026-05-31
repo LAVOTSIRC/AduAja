@@ -5,10 +5,13 @@ import com.plr.aduaja.model.OtpVerification;
 import com.plr.aduaja.dto.LoginDTO;
 import com.plr.aduaja.dto.RegisterDTO;
 import com.plr.aduaja.dto.ProfileDTO;
+import com.plr.aduaja.dto.ResetPasswordDTO;
 import com.plr.aduaja.model.UserProfile;
+import com.plr.aduaja.service.SupabaseStorageService;
 import com.plr.aduaja.service.UserService;
 import com.plr.aduaja.service.AuthService;
 import com.plr.aduaja.service.OtpService;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -37,13 +40,19 @@ public class WargaAuthController {
 
     // ABSTRACTION: hanya inject Interface, bukan implementasi
     @Autowired
-    private UserService userService;  // ← Abstraction: hanya tahu interface
+    private UserService userService;
 
     @Autowired
-    private AuthService authService;  // ← Abstraction: hanya tahu interface
+    private AuthService authService;
 
     @Autowired
-    private OtpService otpService;    // ← Abstraction: hanya tahu interface
+    private OtpService otpService;
+
+    @Autowired
+    private SupabaseStorageService supabaseStorageService;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     // ==========================================
     // GET /warga/login — Halaman login warga
@@ -75,8 +84,17 @@ public class WargaAuthController {
         Optional<User> userOpt = authService.login(dto, ipAddress);
 
         if (userOpt.isEmpty()) {
+            // Cek apakah akun PENDING (belum verifikasi OTP)
+            Optional<User> pendingUser = userService.findByEmail(email.trim());
+            if (pendingUser.isPresent() && pendingUser.get().getAccountStatus() == User.AccountStatus.PENDING) {
+                redirectAttributes.addFlashAttribute("warning",
+                    "Akun Anda belum aktif. Silakan verifikasi OTP terlebih dahulu.");
+                redirectAttributes.addAttribute("userId", pendingUser.get().getUserId());
+                redirectAttributes.addAttribute("email", email);
+                return "redirect:/warga/verify-otp?userId=" + pendingUser.get().getUserId() + "&email=" + email;
+            }
             redirectAttributes.addFlashAttribute("error",
-                "Email atau password salah, atau akun belum aktif.");
+                "Email atau password salah.");
             return "redirect:/warga/login";
         }
 
@@ -133,6 +151,29 @@ public class WargaAuthController {
             return "warga/register";
         }
 
+        // Cek apakah email sudah terdaftar — handle per status
+        Optional<User> existingUser = userService.findByEmail(dto.getEmail().trim());
+        if (existingUser.isPresent()) {
+            if (existingUser.get().getAccountStatus() == User.AccountStatus.PENDING) {
+                // PENDING: update data baru + kirim ulang OTP
+                try {
+                    userService.updatePendingRegistration(dto, existingUser.get().getUserId());
+                    otpService.generateOtp(existingUser.get().getUserId(), OtpVerification.OtpType.REGISTRATION);
+                    redirectAttributes.addFlashAttribute("success",
+                        "Data registrasi diperbarui! Silakan cek email untuk kode OTP baru.");
+                    return "redirect:/warga/verify-otp?userId=" + existingUser.get().getUserId() + "&email=" + dto.getEmail();
+                } catch (RuntimeException e) {
+                    model.addAttribute("error", e.getMessage());
+                    model.addAttribute("registerDTO", dto);
+                    return "warga/register";
+                }
+            }
+            // ACTIVE/SUSPENDED: tolak
+            model.addAttribute("error", "Email sudah terdaftar");
+            model.addAttribute("registerDTO", dto);
+            return "warga/register";
+        }
+
         try {
             // ABSTRACTION: createUser menyembunyikan detail hashing, save profile, dll.
             User user = userService.createUser(dto);
@@ -142,7 +183,7 @@ public class WargaAuthController {
             otpService.generateOtp(user.getUserId(), OtpVerification.OtpType.REGISTRATION);
 
             redirectAttributes.addFlashAttribute("success",
-                "Registrasi berhasil! Kode OTP telah dibuat. Masukkan kode OTP untuk mengaktifkan akun.");
+                "Registrasi berhasil! Kode OTP telah dikirim ke email. Masukkan kode OTP untuk mengaktifkan akun.");
             return "redirect:/warga/verify-otp?userId=" + user.getUserId() + "&email=" + dto.getEmail();
 
         } catch (RuntimeException e) {
@@ -253,7 +294,7 @@ public class WargaAuthController {
     }
 
     // ==========================================
-    // POST /warga/profile/photo — Upload foto profil
+    // POST /warga/profile/photo — Upload foto profil ke Supabase
     // ==========================================
     @PostMapping("/warga/profile/photo")
     public String uploadProfilePhoto(@RequestParam("photo") MultipartFile file,
@@ -268,19 +309,7 @@ public class WargaAuthController {
         }
 
         try {
-            String uploadDir = "uploads/profile-photos";
-            Files.createDirectories(Paths.get(uploadDir));
-
-            String ext = "";
-            String originalName = file.getOriginalFilename();
-            if (originalName != null && originalName.contains(".")) {
-                ext = originalName.substring(originalName.lastIndexOf("."));
-            }
-            String filename = UUID.randomUUID().toString() + ext;
-            Path filePath = Paths.get(uploadDir, filename);
-            Files.write(filePath, file.getBytes());
-
-            String photoUrl = "/profile-photos/" + filename;
+            String photoUrl = supabaseStorageService.upload(file, "profile");
 
             User user = userService.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User tidak ditemukan"));
@@ -294,7 +323,7 @@ public class WargaAuthController {
             userService.updateUser(user);
 
             redirectAttributes.addFlashAttribute("success", "Foto profil berhasil diperbarui.");
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("Gagal upload foto profil: {}", e.getMessage(), e);
             redirectAttributes.addFlashAttribute("error", "Gagal mengupload foto: " + e.getMessage());
         }
@@ -309,6 +338,93 @@ public class WargaAuthController {
     public String logout(HttpSession session) {
         session.invalidate();
         return "redirect:/warga/login";
+    }
+
+    // ==========================================
+    // GET /warga/forgot-password — Halaman lupa password
+    // ==========================================
+    @GetMapping("/warga/forgot-password")
+    public String forgotPasswordPage(Model model) {
+        model.addAttribute("step", "email");
+        return "warga/forgot-password";
+    }
+
+    // ==========================================
+    // POST /warga/forgot-password — Kirim OTP ke email
+    // ==========================================
+    @PostMapping("/warga/forgot-password")
+    public String forgotPasswordRequest(
+            @RequestParam("email") String email,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Optional<User> userOpt = userService.findByEmail(email.trim());
+            if (userOpt.isEmpty()) {
+                // Jangan beri tahu email tidak ada (keamanan)
+                redirectAttributes.addFlashAttribute("success",
+                    "Jika email terdaftar, kode OTP telah dikirim. Masukkan kode OTP di bawah.");
+                return "redirect:/warga/forgot-password/verify?email=" + email;
+            }
+            otpService.generateOtpForPasswordReset(email.trim());
+            redirectAttributes.addFlashAttribute("success",
+                "Kode OTP telah dikirim. Masukkan kode OTP untuk melanjutkan.");
+            return "redirect:/warga/forgot-password/verify?email=" + email;
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Gagal mengirim OTP: " + e.getMessage());
+            return "redirect:/warga/forgot-password";
+        }
+    }
+
+    // ==========================================
+    // GET /warga/forgot-password/verify — Halaman verifikasi OTP reset
+    // ==========================================
+    @GetMapping("/warga/forgot-password/verify")
+    public String forgotPasswordVerifyPage(
+            @RequestParam("email") String email,
+            Model model) {
+        model.addAttribute("email", email);
+        model.addAttribute("resetDTO", new ResetPasswordDTO());
+        return "warga/forgot-password-verify";
+    }
+
+    // ==========================================
+    // POST /warga/forgot-password/verify — Verifikasi OTP & reset password
+    // ==========================================
+    @PostMapping("/warga/forgot-password/verify")
+    public String forgotPasswordVerify(
+            @RequestParam("email") String email,
+            @RequestParam("otpCode") String otpCode,
+            @RequestParam("newPassword") String newPassword,
+            @RequestParam("confirmNewPassword") String confirmNewPassword,
+            RedirectAttributes redirectAttributes) {
+        if (!newPassword.equals(confirmNewPassword)) {
+            redirectAttributes.addFlashAttribute("error", "Password baru dan konfirmasi tidak cocok.");
+            return "redirect:/warga/forgot-password/verify?email=" + email;
+        }
+        if (newPassword.length() < 8) {
+            redirectAttributes.addFlashAttribute("error", "Password minimal 8 karakter.");
+            return "redirect:/warga/forgot-password/verify?email=" + email;
+        }
+        try {
+            Optional<User> userOpt = userService.findByEmail(email.trim());
+            if (userOpt.isEmpty()) {
+                redirectAttributes.addFlashAttribute("error", "Email tidak ditemukan.");
+                return "redirect:/warga/forgot-password";
+            }
+            User user = userOpt.get();
+            boolean valid = otpService.verifyOtp(user.getUserId(), otpCode);
+            if (!valid) {
+                redirectAttributes.addFlashAttribute("error", "Kode OTP tidak valid atau sudah kadaluarsa.");
+                return "redirect:/warga/forgot-password/verify?email=" + email;
+            }
+            user.setPasswordHash(passwordEncoder.encode(newPassword));
+            userService.updateUser(user);
+            redirectAttributes.addFlashAttribute("success",
+                "Password berhasil direset! Silakan login dengan password baru.");
+            return "redirect:/warga/login";
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Gagal reset password: " + e.getMessage());
+            return "redirect:/warga/forgot-password/verify?email=" + email;
+        }
     }
 
     // ENKAPSULASI: method private — tidak bisa diakses dari luar

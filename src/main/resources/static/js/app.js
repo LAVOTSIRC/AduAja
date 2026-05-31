@@ -37,7 +37,7 @@
     return createTabState(
       isDinasRole
         ? ["penugasan", "progress", "close"]
-        : ["queue", "merge", "disposisi"],
+        : ["queue", "merge", "disposisi", "ditolak"],
     );
   };
 
@@ -104,13 +104,15 @@
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     const currentIso = now.toISOString().slice(0, 16);
 
-    document.querySelectorAll('input[type="datetime-local"]').forEach((input) => {
-      if (!input.value) {
-        input.value = currentIso;
-      }
-      if (!input.min) {
-        input.min = currentIso;
-      }
-    });
+    document
+      .querySelectorAll('input[type="datetime-local"]')
+      .forEach((input) => {
+        if (!input.value) {
+          input.value = currentIso;
+        }
+        if (!input.min) {
+          input.min = currentIso;
+        }
+      });
   });
 })();

@@ -78,6 +78,16 @@ public class AdminAuthController {
         session.setAttribute("userName", user.getFullName());
         session.setAttribute("userRole", user.getRole().toString());
 
+        if (user.getRole() == User.Role.ADMIN_DINAS && user.getAgency() != null) {
+            session.setAttribute(ControllerHelper.SESSION_AGENCY_ID, user.getAgency().getAgencyId());
+            session.setAttribute(ControllerHelper.SESSION_AGENCY_NAME, user.getAgency().getAgencyName());
+        }
+
+        if (user.getRole() == User.Role.ADMIN_PUSAT && user.getRegion() != null) {
+            session.setAttribute(ControllerHelper.SESSION_REGION_ID, user.getRegion().getRegionId());
+            session.setAttribute(ControllerHelper.SESSION_REGION_NAME, user.getRegion().getRegionName());
+        }
+
         // Redirect ke dashboard yang sesuai role
         if (user.getRole() == User.Role.ADMIN_DINAS) {
             return "redirect:/admin/dinas/dashboard";

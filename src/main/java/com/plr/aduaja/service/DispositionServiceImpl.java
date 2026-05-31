@@ -91,6 +91,12 @@ public class DispositionServiceImpl implements DispositionService {
 
     @Override
     public Disposition createDisposition(String reportId, String dispatchedById, String targetAgencyId, String notes) {
+        return createDisposition(reportId, dispatchedById, targetAgencyId, notes, null, null, null);
+    }
+
+    @Override
+    public Disposition createDisposition(String reportId, String dispatchedById, String targetAgencyId, String notes,
+                                          String priority, LocalDateTime deadline, String instructions) {
         Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new RuntimeException("Report not found"));
         User dispatchedBy = userRepository.findById(dispatchedById)
@@ -104,6 +110,9 @@ public class DispositionServiceImpl implements DispositionService {
         disposition.setTargetAgency(targetAgency);
         disposition.setDispatchedAt(LocalDateTime.now());
         disposition.setNotes(notes);
+        disposition.setPriority(priority);
+        disposition.setDeadline(deadline);
+        disposition.setInstructions(instructions);
 
         Disposition saved = dispositionRepository.save(disposition);
 

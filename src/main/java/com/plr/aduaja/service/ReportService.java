@@ -45,6 +45,8 @@ public interface ReportService {
 
     Report saveReportPhoto(String reportId, String photoBase64);
     long countByStatus(Report.ReportStatus status);
+    long countByStatusAndRegion(Report.ReportStatus status, String regionId);
+    List<Report> getReportsByStatusAndRegion(Report.ReportStatus status, String regionId);
     String generateTicketNumber();
 
     // ===========================

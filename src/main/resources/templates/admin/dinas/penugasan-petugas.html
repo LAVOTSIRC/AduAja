@@ -141,7 +141,7 @@
               th:if="${selectedReport == null}"
               class="flex flex-col items-center justify-center h-64 text-gray-400 border rounded-lg bg-gray-50"
             >
-              <i data-lucide="file-text" class="w-12 h-12 mb-3"></i>
+              <i data-lucide="file" class="w-12 h-12 mb-3"></i>
               <p class="text-sm">
                 Pilih laporan dari daftar untuk menugaskan petugas
               </p>
@@ -155,7 +155,7 @@
                     class="font-semibold text-gray-900 flex items-center gap-2"
                   >
                     <i
-                      data-lucide="file-text"
+                      data-lucide="file"
                       class="w-4 h-4 text-blue-600"
                     ></i>
                     Informasi Laporan
@@ -317,7 +317,7 @@
                         <label
                           th:each="petugas : ${petugasList}"
                           class="flex items-start gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all hover:bg-green-50"
-                          th:classappend="${petugas['statusKetersediaan'] == 'Tersedia'} ? 'border-gray-200 hover:border-green-300' : 'border-gray-200 opacity-60 cursor-not-allowed'"
+                          th:classappend="${petugas['statusKetersediaan'] == 'Siap Bertugas'} ? 'border-gray-200 hover:border-green-300' : 'border-gray-200 opacity-60 cursor-not-allowed'"
                           th:data-nama="${petugas['nama']}"
                           th:data-nip="${petugas['nip']}"
                           th:data-wilayah="${petugas['wilayahTugas']}"
@@ -329,7 +329,7 @@
                             name="petugasId"
                             th:value="${petugas['id']}"
                             class="mt-1 w-4 h-4 text-blue-600"
-                            th:disabled="${petugas['statusKetersediaan'] != 'Tersedia'}"
+                            th:disabled="${petugas['statusKetersediaan'] != 'Siap Bertugas'}"
                             required
                           />
                           <div class="flex-1">
@@ -346,7 +346,7 @@
                               </div>
                               <span
                                 class="text-xs px-3 py-1 rounded-full font-semibold"
-                                th:classappend="${petugas['statusKetersediaan'] == 'Tersedia'} ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'"
+                                th:classappend="${petugas['statusKetersediaan'] == 'Siap Bertugas'} ? 'bg-green-100 text-green-700' : (${petugas['statusKetersediaan'] == 'Sedang Bertugas'} ? 'bg-blue-100 text-blue-700' : (${petugas['statusKetersediaan'] == 'Istirahat'} ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700'))"
                                 th:text="${petugas['statusKetersediaan']}"
                               ></span>
                             </div>
@@ -382,9 +382,9 @@
                       </div>
                     </div>
 
-                    <!-- Warning Box -->
-                    <div
-                      class="bg-amber-50 border border-amber-200 rounded-lg p-4"
+                    <!-- FR-PRS-03: Validasi Wilayah -->
+                    <div id="wilayahWarning"
+                      class="bg-amber-50 border border-amber-200 rounded-lg p-4 hidden"
                     >
                       <div class="flex items-start gap-3">
                         <i
@@ -392,14 +392,34 @@
                           class="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0"
                         ></i>
                         <div class="text-sm text-amber-800">
-                          <strong>FR-PRS-03 - Validasi Wilayah:</strong> Sistem
-                          akan memberi peringatan jika wilayah tugas petugas
-                          tidak sesuai dengan lokasi laporan. Pastikan petugas
-                          yang dipilih memiliki wilayah tugas yang mencakup
-                          lokasi laporan.
+                          <strong>Peringatan Wilayah:</strong> Wilayah tugas
+                          petugas <span id="petugasWilayah" class="font-semibold"></span>
+                          tidak sesuai dengan lokasi laporan
+                          <span id="laporanWilayah" class="font-semibold"></span>.
+                          <span th:if="${selectedReport != null}" class="hidden report-wilayah" th:text="${selectedReport['wilayah']}"></span>
                         </div>
                       </div>
                     </div>
+                    <script>
+                    document.addEventListener('change', function(e) {
+                      if (e.target.name === 'petugasId') {
+                        var label = e.target.closest('label');
+                        var wilayahTugas = label ? label.getAttribute('data-wilayah') : '';
+                        var reportWilayahEl = document.querySelector('.report-wilayah');
+                        var reportWilayah = reportWilayahEl ? reportWilayahEl.textContent.trim() : '';
+                        var warning = document.getElementById('wilayahWarning');
+                        var petugasWilayahEl = document.getElementById('petugasWilayah');
+                        var laporanWilayahEl = document.getElementById('laporanWilayah');
+                        if (wilayahTugas && reportWilayah && wilayahTugas !== reportWilayah) {
+                          petugasWilayahEl.textContent = wilayahTugas;
+                          laporanWilayahEl.textContent = reportWilayah;
+                          warning.classList.remove('hidden');
+                        } else {
+                          warning.classList.add('hidden');
+                        }
+                      }
+                    });
+                    </script>
 
                     <div class="flex gap-3 pt-4 border-t">
                       <button

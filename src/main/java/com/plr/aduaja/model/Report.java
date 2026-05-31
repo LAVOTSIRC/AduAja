@@ -63,6 +63,9 @@ public class Report extends BaseEntity {  // ← INHERITANCE sejati
     @Column(name = "rejection_reason", columnDefinition = "TEXT")
     private String rejectionReason;
 
+    @Column(name = "priority", length = 20)
+    private String priority;  // Rendah / Sedang / Tinggi / Kritis — diisi admin pusat saat disposisi
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_report_id")
     private Report parentReport;
@@ -149,6 +152,9 @@ public class Report extends BaseEntity {  // ← INHERITANCE sejati
 
     public String getRejectionReason() { return rejectionReason; }
     public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
+
+    public String getPriority() { return priority; }
+    public void setPriority(String priority) { this.priority = priority; }
 
     public Report getParentReport() { return parentReport; }
     public void setParentReport(Report parentReport) { this.parentReport = parentReport; }
