@@ -28,4 +28,7 @@ public interface DispositionService {
     List<Disposition> getDispositionsByDispatcher(String dispatchedByUserId);
 
     Disposition createDisposition(String reportId, String dispatchedById, String targetAgencyId, String notes);
+
+    Disposition createDisposition(String reportId, String dispatchedById, String targetAgencyId, String notes,
+                                  String priority, LocalDateTime deadline, String instructions);
 }

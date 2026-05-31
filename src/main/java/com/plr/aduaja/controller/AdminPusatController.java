@@ -19,6 +19,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -307,7 +308,15 @@ public class AdminPusatController {
                     if (d.getTargetAgency() != null) {
                         dispMap.put("dinasRekomendasi", d.getTargetAgency().getAgencyName());
                     }
-                    if (d.getNotes() != null) {
+                    if (d.getPriority() != null) {
+                        dispMap.put("prioritasSistem", d.getPriority());
+                    }
+                    if (d.getDeadline() != null) {
+                        dispMap.put("deadline", d.getDeadline().format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")));
+                    }
+                    if (d.getInstructions() != null) {
+                        dispMap.put("instruksiAdmin", d.getInstructions());
+                    } else if (d.getNotes() != null) {
                         dispMap.put("instruksiAdmin", d.getNotes());
                     }
                 });
@@ -624,6 +633,9 @@ public class AdminPusatController {
             RedirectAttributes redirectAttributes,
             @RequestParam(value = "id", required = false) String id,
             @RequestParam(value = "dinasId", required = false) String dinasId,
+            @RequestParam(value = "priority", required = false) String priority,
+            @RequestParam(value = "deadline", required = false) String deadline,
+            @RequestParam(value = "instructions", required = false) String instructions,
             @RequestParam(value = "catatan", required = false) String catatan
     ) {
         // SESSION CHECK
@@ -634,8 +646,13 @@ public class AdminPusatController {
 
         try {
             if (ticketId != null && !ticketId.isEmpty()) {
-                dispositionService.createDisposition(ticketId, adminId, dinasId, catatan);
-                reportService.updateStatus(ticketId, Report.ReportStatus.DIDISPOSISI, catatan, adminId);
+                LocalDateTime deadlineDt = null;
+                if (deadline != null && !deadline.isBlank()) {
+                    deadlineDt = LocalDateTime.parse(deadline, DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"));
+                }
+                String notes = instructions != null ? instructions : catatan;
+                dispositionService.createDisposition(ticketId, adminId, dinasId, notes, priority, deadlineDt, instructions);
+                reportService.updateStatus(ticketId, Report.ReportStatus.DIDISPOSISI, notes, adminId);
                 redirectAttributes.addFlashAttribute("success", "Laporan berhasil didisposisikan ke dinas.");
             }
         } catch (Exception e) {

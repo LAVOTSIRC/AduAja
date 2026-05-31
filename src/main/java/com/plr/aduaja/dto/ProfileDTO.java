@@ -12,6 +12,8 @@ public class ProfileDTO {
     private String email;
     private String phoneNumber;
     private String nik;
+    private String nip;
+    private String wilayahTugasRegionId;
     private String alamatLengkap;
     private String profilePhotoUrl;
     private String domisiliLatitude;
@@ -29,6 +31,12 @@ public class ProfileDTO {
 
     public String getNik() { return nik; }
     public void setNik(String nik) { this.nik = nik; }
+
+    public String getNip() { return nip; }
+    public void setNip(String nip) { this.nip = nip; }
+
+    public String getWilayahTugasRegionId() { return wilayahTugasRegionId; }
+    public void setWilayahTugasRegionId(String wilayahTugasRegionId) { this.wilayahTugasRegionId = wilayahTugasRegionId; }
 
     public String getAlamatLengkap() { return alamatLengkap; }
     public void setAlamatLengkap(String alamatLengkap) { this.alamatLengkap = alamatLengkap; }

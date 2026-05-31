@@ -1,9 +1,7 @@
 package com.plr.aduaja.service;
 
-import com.plr.aduaja.model.User;
-import com.plr.aduaja.model.UserProfile;
-import com.plr.aduaja.repository.UserRepository;
-import com.plr.aduaja.repository.UserProfileRepository;
+import com.plr.aduaja.model.*;
+import com.plr.aduaja.repository.*;
 import com.plr.aduaja.dto.CreatePetugasDTO;
 import com.plr.aduaja.dto.RegisterDTO;
 import com.plr.aduaja.dto.ProfileDTO;
@@ -32,6 +30,9 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
 
     @Autowired
     private UserProfileRepository userProfileRepository;
+
+    @Autowired
+    private RegionRepository regionRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -128,7 +129,21 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
         user.setRole(User.Role.PETUGAS);
         user.setAccountStatus(User.AccountStatus.ACTIVE);
 
-        return userRepository.save(user);
+        User savedUser = userRepository.save(user);
+
+        UserProfile profile = new UserProfile();
+        profile.setUser(savedUser);
+        if (dto.getNip() != null && !dto.getNip().isBlank()) {
+            profile.setNip(dto.getNip());
+        }
+        if (dto.getWilayahTugasRegionId() != null && !dto.getWilayahTugasRegionId().isBlank()) {
+            Region wilayah = regionRepository.findById(dto.getWilayahTugasRegionId())
+                    .orElseThrow(() -> new RuntimeException("Wilayah tidak ditemukan"));
+            profile.setWilayahTugas(wilayah);
+        }
+        userProfileRepository.save(profile);
+
+        return savedUser;
     }
 
     @Override  // ← POLYMORPHISM: Override dari interface
@@ -167,6 +182,14 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
         }
         if (dto.getNik() != null && !dto.getNik().isBlank()) {
             profile.setNik(dto.getNik());
+        }
+        if (dto.getNip() != null && !dto.getNip().isBlank()) {
+            profile.setNip(dto.getNip());
+        }
+        if (dto.getWilayahTugasRegionId() != null && !dto.getWilayahTugasRegionId().isBlank()) {
+            Region wilayah = regionRepository.findById(dto.getWilayahTugasRegionId())
+                    .orElseThrow(() -> new RuntimeException("Wilayah tidak ditemukan"));
+            profile.setWilayahTugas(wilayah);
         }
         if (dto.getAlamatLengkap() != null) {
             profile.setAlamatLengkap(dto.getAlamatLengkap());
