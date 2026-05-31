@@ -82,6 +82,9 @@ public class PetugasController {
             @RequestParam(value = "longitude", required = false) java.math.BigDecimal longitude,
             HttpSession session
     ) {
+        String userId = ControllerHelper.requireRole(session, "PETUGAS");
+        if (userId == null) return "redirect:/petugas/login";
+
         if (id != null) {
             try {
                 switch (action) {
@@ -92,7 +95,7 @@ public class PetugasController {
                     case "complete" -> fieldTaskService.completeTask(id);
                     case "postpone" -> {
                         String reason = description != null && !description.isBlank() ? description : "Ditunda oleh petugas";
-                        fieldTaskService.postponeTask(id, reason);
+                        fieldTaskService.postponeTask(id, reason, userId);
                     }
                     case "reassign" -> {
                         String targetOfficer = newOfficerId != null ? newOfficerId : "";
@@ -100,11 +103,11 @@ public class PetugasController {
                     }
                     case "reportback" -> {
                         log.warn("Lapor balik (invalid) untuk tugas {}: {}", id, description);
-                        fieldTaskService.postponeTask(id, "Laporan invalid: " + (description != null ? description : "Tidak ada alasan"));
+                        fieldTaskService.postponeTask(id, "Laporan invalid: " + (description != null ? description : "Tidak ada alasan"), userId);
                     }
                     case "escalation" -> {
                         log.warn("Eskalasi untuk tugas {}: {}", id, description);
-                        fieldTaskService.postponeTask(id, "Eskalasi: " + (description != null ? description : "Tidak ada alasan"));
+                        fieldTaskService.postponeTask(id, "Eskalasi: " + (description != null ? description : "Tidak ada alasan"), userId);
                     }
                 }
             } catch (Exception e) {
@@ -170,7 +173,14 @@ public class PetugasController {
                 ? shift.getCheckInLatitude() + ", " + shift.getCheckInLongitude() : "-");
         });
         model.addAttribute("attendance", attendance);
-        model.addAttribute("deviceInfo", Map.of("browser", "-", "os", "-"));
+        String deviceBrowser = "-", deviceOs = "-";
+        Optional<OfficerAttendance> shiftOpt = attendanceService.getCurrentShift(userId);
+        if (shiftOpt.isPresent() && shiftOpt.get().getDeviceInfo() != null) {
+            String[] parts = shiftOpt.get().getDeviceInfo().split("/");
+            deviceBrowser = parts.length > 0 ? parts[0].trim() : "-";
+            deviceOs = parts.length > 1 ? parts[1].trim() : "-";
+        }
+        model.addAttribute("deviceInfo", Map.of("browser", deviceBrowser, "os", deviceOs));
         return "petugas/dashboard";
     }
 
@@ -213,6 +223,13 @@ public class PetugasController {
             Map<String, Object> task = toPetugasTaskMap(ft);
             task.put("reporterPhone", ft.getReport() != null && ft.getReport().getReporter() != null
                 ? ft.getReport().getReporter().getPhoneNumber() : "-");
+
+            // pendingReason & pendingSince dari postponement terbaru
+            fieldTaskService.getLatestPostponement(id).ifPresent(lp -> {
+                task.put("pendingReason", lp.getReason());
+                task.put("pendingSince", lp.getRequestedAt() != null
+                    ? lp.getRequestedAt().format(ControllerHelper.DATETIME_FMT) : "-");
+            });
 
             Map<String, Object> locationMap = new HashMap<>();
             String addr = ft.getReport() != null ? (ft.getReport().getLocationHint() != null ? ft.getReport().getLocationHint() : "-") : "-";
@@ -258,10 +275,18 @@ public class PetugasController {
     public String petugasTaskExecution(
             Model model,
             HttpSession session,
-            @RequestParam(value = "id", required = false, defaultValue = "TGS-001") String id
+            @RequestParam(value = "id", required = false, defaultValue = "TGS-001") String id,
+            @RequestParam(value = "step", required = false, defaultValue = "before") String step
     ) {
         String userId = ControllerHelper.requireRole(session, "PETUGAS");
         if (userId == null) return "redirect:/petugas/login";
+
+        // Cek evidence: jika sudah ada SEBELUM, step=after
+        List<TaskEvidence> existingBefore = new ArrayList<>();
+        try {
+            existingBefore = fieldTaskService.getEvidencesByTaskAndType(id, TaskEvidence.EvidenceType.SEBELUM);
+        } catch (Exception e) { /* ignore */ }
+        String effectiveStep = (!existingBefore.isEmpty() || "after".equals(step)) ? "after" : "before";
 
         Optional<FieldTask> realTask = fieldTaskService.getTaskById(id);
         if (realTask.isPresent()) {
@@ -273,9 +298,17 @@ public class PetugasController {
             locationMap.put("latitude", ft.getOfficerLatitude() != null ? ft.getOfficerLatitude().toPlainString() : "3.5952");
             locationMap.put("longitude", ft.getOfficerLongitude() != null ? ft.getOfficerLongitude().toPlainString() : "98.6722");
             task.put("location", locationMap);
+            // workDuration untuk task-execution
+            if (ft.getStartedAt() != null) {
+                LocalDateTime end = ft.getCompletedAt() != null ? ft.getCompletedAt() : LocalDateTime.now();
+                task.put("workDuration", formatDuration(Duration.between(ft.getStartedAt(), end)));
+            } else {
+                task.put("workDuration", "00:00:00");
+            }
             task.put("distanceToTask", "-");
             model.addAttribute("task", task);
             model.addAttribute("materials", new ArrayList<>());
+            model.addAttribute("currentStep", effectiveStep);
             return "petugas/task-execution";
         }
 
@@ -286,17 +319,30 @@ public class PetugasController {
     public String petugasTaskExecutionPost(
             @RequestParam(value = "id", required = false, defaultValue = "TGS-001") String id,
             @RequestParam(value = "action", required = false, defaultValue = "save") String action,
-            @RequestParam(value = "materialName", required = false) String materialName,
-            @RequestParam(value = "quantity", required = false) Integer quantity,
-            @RequestParam(value = "unit", required = false) String unit
+            @RequestParam(value = "photoBeforeData", required = false) String photoBeforeData,
+            @RequestParam(value = "photoAfterData", required = false) String photoAfterData,
+            HttpSession session
     ) {
-        if ("complete".equals(action)) {
-            try {
+        String userId = ControllerHelper.requireRole(session, "PETUGAS");
+        if (userId == null) return "redirect:/petugas/login";
+
+        try {
+            if ("save".equals(action) && photoBeforeData != null && !photoBeforeData.isBlank()) {
+                fieldTaskService.saveTaskEvidence(id, photoBeforeData, TaskEvidence.EvidenceType.SEBELUM);
+                return "redirect:/petugas/task-execution?id=" + id + "&step=after";
+            } else if ("complete".equals(action)) {
+                try {
+                    if (photoAfterData != null && !photoAfterData.isBlank()) {
+                        fieldTaskService.saveTaskEvidence(id, photoAfterData, TaskEvidence.EvidenceType.SESUDAH);
+                    }
+                } catch (Exception ev) {
+                    log.error("Gagal simpan evidence {}, lanjut complete: {}", id, ev.getMessage());
+                }
                 fieldTaskService.completeTask(id);
-            } catch (Exception e) {
-                log.error("Gagal complete tugas {}: {}", id, e.getMessage(), e);
+                return "redirect:/petugas/dashboard";
             }
-            return "redirect:/petugas/dashboard";
+        } catch (Exception e) {
+            log.error("Gagal proses task execution {}: {}", id, e.getMessage(), e);
         }
         return "redirect:/petugas/task-execution?id=" + id;
     }
@@ -530,9 +576,34 @@ public class PetugasController {
         // DRY: gunakan konstanta DATETIME_FMT dari ControllerHelper
         m.put("reportDate", task.getReport() != null && task.getReport().getSubmittedAt() != null
             ? task.getReport().getSubmittedAt().format(ControllerHelper.DATE_FMT) : "-");
-        m.put("slaDeadline", "-");
-        m.put("slaStatusText", "-");
-        m.put("slaStatusClass", "text-gray-600");
+        // SLA data real dari SlaRecord
+        if (task.getSlaRecord() != null) {
+            SlaRecord sla = task.getSlaRecord();
+            m.put("slaDeadline", sla.getSlaDeadlineAt() != null
+                ? sla.getSlaDeadlineAt().format(ControllerHelper.DATETIME_FMT) : "-");
+            boolean isOverdue = sla.getSlaDeadlineAt() != null
+                && sla.getCurrentStatus() != SlaRecord.SlaStatus.SELESAI
+                && LocalDateTime.now().isAfter(sla.getSlaDeadlineAt());
+            if (sla.getCurrentStatus() == SlaRecord.SlaStatus.SELESAI) {
+                m.put("slaStatusText", "Selesai");
+                m.put("slaStatusClass", "text-green-600");
+            } else if (sla.getCurrentStatus() == SlaRecord.SlaStatus.TERLAMBAT || isOverdue) {
+                m.put("slaStatusText", "Terlambat");
+                m.put("slaStatusClass", "text-red-600 font-bold");
+            } else if (sla.getCurrentStatus() == SlaRecord.SlaStatus.TERTUNDA) {
+                m.put("slaStatusText", "Tertunda");
+                m.put("slaStatusClass", "text-yellow-600");
+            } else {
+                long remainingHours = sla.getSlaDeadlineAt() != null
+                    ? Duration.between(LocalDateTime.now(), sla.getSlaDeadlineAt()).toHours() : 0;
+                m.put("slaStatusText", remainingHours + " jam tersisa");
+                m.put("slaStatusClass", remainingHours < 10 ? "text-orange-600 font-bold" : "text-blue-600");
+            }
+        } else {
+            m.put("slaDeadline", "-");
+            m.put("slaStatusText", "-");
+            m.put("slaStatusClass", "text-gray-600");
+        }
         m.put("distanceToTask", "-");
         // DRY: gunakan konstanta DATETIME_FMT dari ControllerHelper
         if (task.getStartedAt() != null) m.put("startedAt", task.getStartedAt().format(ControllerHelper.DATETIME_FMT));

@@ -13,7 +13,17 @@
     </style>
   </th:block>
 
-  <div layout:fragment="content" class="min-h-screen bg-slate-50" x-data="{ showCheckInModal: false, gpsStatus: 'detecting', gpsCoords: null, gpsValid: false, checkInReminder: false }" x-init="
+  <div layout:fragment="content" class="min-h-screen bg-slate-50" x-data="{ 
+    showCheckInModal: false, 
+    gpsStatus: 'detecting', 
+    gpsCoords: null, 
+    gpsValid: false, 
+    checkInReminder: false, 
+    currentTime: new Date().toLocaleString('id-ID'), 
+    browserInfo: navigator.userAgent.match(/(Chrome|Firefox|Safari|Edge|Opera)\/\S+/)?.[0]?.split('/')[0] || navigator.userAgent,
+    osInfo: navigator.platform || navigator.userAgent.match(/(Win|Mac|Linux|Android|iPhone)/)?.[0] || 'Unknown'
+  }" x-init="
+    setInterval(() => { currentTime = new Date().toLocaleString('id-ID') }, 1000);
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => { gpsCoords = pos.coords.latitude.toFixed(5) + ', ' + pos.coords.longitude.toFixed(5); gpsStatus = 'valid'; gpsValid = true; },
@@ -537,32 +547,19 @@
         <div class="space-y-3 mb-6">
           <div class="flex justify-between">
             <span class="text-sm text-gray-600">Waktu:</span>
-            <span
-              class="text-sm font-semibold"
-              th:text="${attendance.checkInTime}"
-              >-</span
-            >
+            <span class="text-sm font-semibold" x-text="currentTime">-</span>
           </div>
-          <div
-            class="flex justify-between"
-            th:if="${attendance['location'] != null}"
-          >
+          <div class="flex justify-between">
             <span class="text-sm text-gray-600">Lokasi:</span>
-            <span class="text-sm font-semibold" th:text="${attendance.location}"
-              >-</span
-            >
+            <span class="text-sm font-semibold" x-text="gpsValid ? gpsCoords : 'Mendeteksi...'">-</span>
           </div>
-          <div class="flex justify-between" th:if="${deviceInfo != null}">
+          <div class="flex justify-between">
             <span class="text-sm text-gray-600">Browser:</span>
-            <span class="text-sm font-semibold" th:text="${deviceInfo.browser}"
-              >-</span
-            >
+            <span class="text-sm font-semibold" x-text="browserInfo">-</span>
           </div>
-          <div class="flex justify-between" th:if="${deviceInfo != null}">
+          <div class="flex justify-between">
             <span class="text-sm text-gray-600">Sistem Operasi:</span>
-            <span class="text-sm font-semibold" th:text="${deviceInfo.os}"
-              >-</span
-            >
+            <span class="text-sm font-semibold" x-text="osInfo">-</span>
           </div>
         </div>
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">

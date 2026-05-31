@@ -367,7 +367,7 @@ public class AdminDinasController {
             @RequestParam(value = "keterangan", required = false) String keterangan
     ) {
         try {
-            fieldTaskService.completeTask(id);
+            fieldTaskService.closeTaskByAdmin(id);
         } catch (Exception e) {
             log.error("Gagal close tiket {}: {}", id, e.getMessage(), e);
         }

@@ -2,6 +2,8 @@ package com.plr.aduaja.service;
 
 import com.plr.aduaja.model.FieldTask;
 import com.plr.aduaja.model.FieldTask.TaskStatus;
+import com.plr.aduaja.model.TaskEvidence;
+import com.plr.aduaja.model.TaskPostponement;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -32,9 +34,17 @@ public interface FieldTaskService {
 
     FieldTask completeTask(String taskId, String evidencePhotoUrl);
 
-    FieldTask postponeTask(String taskId, String reason);
+    FieldTask postponeTask(String taskId, String reason, String requestedById);
 
     FieldTask reassignTask(String taskId, String newOfficerId);
 
     long countByStatus(TaskStatus status);
+
+    Optional<TaskPostponement> getLatestPostponement(String taskId);
+
+    void saveTaskEvidence(String taskId, String photoUrl, TaskEvidence.EvidenceType type);
+
+    List<TaskEvidence> getEvidencesByTaskAndType(String taskId, TaskEvidence.EvidenceType type);
+
+    FieldTask closeTaskByAdmin(String taskId);
 }

@@ -148,19 +148,20 @@ public class FieldTaskServiceImpl implements FieldTaskService {
     }
 
     @Override
-    public FieldTask postponeTask(String taskId, String reason) {
+    public FieldTask postponeTask(String taskId, String reason, String requestedById) {
         FieldTask task = fieldTaskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task not found"));
+        User requestedBy = requestedById != null ? userRepository.findById(requestedById).orElse(null) : null;
         task.setTaskStatus(TaskStatus.TERTUNDA);
         fieldTaskRepository.save(task);
 
-        // FIX: simpan record penundaan ke tabel task_postponements (Encapsulation — data terbungkus di entity)
         TaskPostponement postponement = new TaskPostponement();
         postponement.setTask(task);
+        postponement.setRequestedBy(requestedBy);
         postponement.setReason(reason != null && !reason.isBlank() ? reason : "Ditunda oleh petugas");
         postponement.setRequestedAt(LocalDateTime.now());
         postponement.setApprovalStatus(TaskPostponement.ApprovalStatus.MENUNGGU);
-        taskPostponementRepository.save(postponement);  // ← SEKARANG TERSIMPAN ke DB
+        taskPostponementRepository.save(postponement);
 
         return task;
     }
@@ -179,5 +180,45 @@ public class FieldTaskServiceImpl implements FieldTaskService {
     @Override
     public long countByStatus(TaskStatus status) {
         return fieldTaskRepository.countByTaskStatus(status);
+    }
+
+    @Override
+    public Optional<TaskPostponement> getLatestPostponement(String taskId) {
+        List<TaskPostponement> list = taskPostponementRepository.findByTaskTaskIdOrderByRequestedAtDesc(taskId);
+        return list.isEmpty() ? Optional.empty() : Optional.of(list.get(0));
+    }
+
+    @Override
+    public List<TaskEvidence> getEvidencesByTaskAndType(String taskId, TaskEvidence.EvidenceType type) {
+        return taskEvidenceRepository.findByTaskTaskIdAndEvidenceType(taskId, type);
+    }
+
+    @Override
+    public FieldTask closeTaskByAdmin(String taskId) {
+        FieldTask task = fieldTaskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("Task not found"));
+        task.setTaskStatus(TaskStatus.SELESAI);
+        task.setCompletedAt(LocalDateTime.now());
+        fieldTaskRepository.save(task);
+
+        Report report = task.getReport();
+        if (report != null) {
+            report.setStatus(Report.ReportStatus.SELESAI);
+            reportRepository.save(report);
+        }
+
+        return task;
+    }
+
+    @Override
+    public void saveTaskEvidence(String taskId, String photoUrl, TaskEvidence.EvidenceType type) {
+        FieldTask task = fieldTaskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("Task not found"));
+        TaskEvidence evidence = new TaskEvidence();
+        evidence.setTask(task);
+        evidence.setEvidenceType(type);
+        evidence.setPhotoUrl(photoUrl);
+        evidence.setTakenAt(LocalDateTime.now());
+        taskEvidenceRepository.save(evidence);
     }
 }

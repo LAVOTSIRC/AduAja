@@ -24,6 +24,7 @@
   <div
     layout:fragment="content"
     class="min-h-screen bg-gray-50"
+    th:attr="data-current-step=${currentStep}"
     x-data="{
       step: 'before',
       showCompleteModal: false,
@@ -35,6 +36,11 @@
       afterPhotoBase64: '',
       openCamera: function(step) { startCamera(this, step); }
     }"
+    x-init="
+      s = $el.getAttribute('data-current-step') || 'before';
+      step = s;
+      if (s === 'after') beforePhotoTaken = true;
+    "
   >
     <!-- Header -->
     <div class="max-w-4xl mx-auto px-4 sm:px-6 pt-4">
@@ -313,6 +319,7 @@
           >
             <input type="hidden" name="id" th:value="${task['id']}" />
             <input type="hidden" name="action" value="complete" />
+            <input type="hidden" name="photoAfterData" :value="afterPhotoBase64" />
             <div class="flex gap-3">
               <button
                 type="button"
