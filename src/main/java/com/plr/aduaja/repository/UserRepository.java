@@ -24,6 +24,10 @@ public interface UserRepository extends JpaRepository<User, String> {
 
     List<User> findByRole(User.Role role);
 
+    List<User> findByRoleAndAgencyAgencyId(User.Role role, String agencyId);
+
+    List<User> findByAgencyAgencyId(String agencyId);
+
     List<User> findByRoleAndAccountStatus(User.Role role, User.AccountStatus accountStatus);
 
     List<User> findByAccountStatus(User.AccountStatus accountStatus);

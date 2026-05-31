@@ -5,6 +5,7 @@ import com.plr.aduaja.dto.CreatePetugasDTO;
 import com.plr.aduaja.model.*;
 import com.plr.aduaja.repository.RegionRepository;
 import com.plr.aduaja.repository.UserProfileRepository;
+import com.plr.aduaja.repository.UserRepository;
 import com.plr.aduaja.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -30,6 +31,9 @@ public class AdminDinasController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @Autowired
     private FieldTaskService fieldTaskService;
@@ -61,14 +65,38 @@ public class AdminDinasController {
     @GetMapping("/admin/dinas/dashboard")
     public String adminDinasDashboard(Model model, HttpSession session) {
         // SESSION CHECK — semua halaman admin harus login
-        String sessionUserId = ControllerHelper.requireAnyAdminSession(session);
+        String sessionUserId = ControllerHelper.requireAgencySession(session);
         if (sessionUserId == null) return "redirect:/admin/login";
 
-        model.addAttribute("dinasName", "Dinas Pekerjaan Umum");
-        long diterima = reportService.countByStatus(Report.ReportStatus.DIDISPOSISI);
-        long diproses = fieldTaskService.countByStatus(FieldTask.TaskStatus.SEDANG_DIKERJAKAN);
-        long selesai = fieldTaskService.countByStatus(FieldTask.TaskStatus.SELESAI);
-        long baru = fieldTaskService.countByStatus(FieldTask.TaskStatus.BARU);
+        String agencyId = ControllerHelper.getSessionAgencyId(session);
+        String agencyName = ControllerHelper.getSessionAgencyName(session);
+
+        model.addAttribute("dinasName", agencyName != null ? agencyName : "Dinas Pekerjaan Umum");
+        
+        List<Disposition> allDisp;
+        if (agencyId != null) {
+            allDisp = dispositionService.getDispositionsByAgency(agencyId);
+        } else {
+            allDisp = dispositionService.getAllDispositions();
+        }
+
+        long diterima = allDisp.size();
+        long diproses = allDisp.stream()
+                .filter(d -> d.getReport() != null)
+                .flatMap(d -> fieldTaskService.getTasksByReport(d.getReport().getReportId()).stream())
+                .filter(t -> t.getTaskStatus() == FieldTask.TaskStatus.SEDANG_DIKERJAKAN)
+                .count();
+        long selesai = allDisp.stream()
+                .filter(d -> d.getReport() != null)
+                .flatMap(d -> fieldTaskService.getTasksByReport(d.getReport().getReportId()).stream())
+                .filter(t -> t.getTaskStatus() == FieldTask.TaskStatus.SELESAI)
+                .count();
+        long baru = allDisp.stream()
+                .filter(d -> d.getReport() != null)
+                .flatMap(d -> fieldTaskService.getTasksByReport(d.getReport().getReportId()).stream())
+                .filter(t -> t.getTaskStatus() == FieldTask.TaskStatus.BARU)
+                .count();
+                
         List<Map<String, Object>> stats = new ArrayList<>();
         stats.add(Map.of("title", "Laporan Diterima", "value", diterima, "icon", "inbox", "bgColor", "bg-blue-100", "color", "text-blue-600"));
         stats.add(Map.of("title", "Tugas Baru", "value", baru, "icon", "inbox", "bgColor", "bg-indigo-100", "color", "text-indigo-600"));
@@ -77,7 +105,6 @@ public class AdminDinasController {
         model.addAttribute("stats", stats);
 
         List<Map<String, Object>> pendingAssignments = new ArrayList<>();
-        List<Disposition> allDisp = dispositionService.getAllDispositions();
         for (Disposition d : allDisp) {
             if (d.getReport() != null) {
                 List<FieldTask> existingTasks = fieldTaskService.getTasksByReport(d.getReport().getReportId());
@@ -94,7 +121,7 @@ public class AdminDinasController {
         }
         model.addAttribute("pendingAssignments", pendingAssignments);
 
-        List<Map<String, Object>> petugasList = buildPetugasList();
+        List<Map<String, Object>> petugasList = buildPetugasList(agencyId);
         model.addAttribute("availablePetugas", petugasList.isEmpty() ? new ArrayList<>() : petugasList);
 
         return "admin/dinas/dinas-dashboard";
@@ -116,8 +143,13 @@ public class AdminDinasController {
         return "Siap Bertugas";
     }
 
-    private List<Map<String, Object>> buildPetugasList() {
-        List<User> realPetugas = userService.findByRole(User.Role.PETUGAS);
+    private List<Map<String, Object>> buildPetugasList(String agencyId) {
+        List<User> realPetugas;
+        if (agencyId != null) {
+            realPetugas = userRepository.findByRoleAndAgencyAgencyId(User.Role.PETUGAS, agencyId);
+        } else {
+            realPetugas = userService.findByRole(User.Role.PETUGAS);
+        }
         return realPetugas.stream().map(p -> {
             Map<String, Object> m = new HashMap<>();
             m.put("id", p.getUserId());
@@ -140,11 +172,19 @@ public class AdminDinasController {
             @RequestParam(value = "page", required = false, defaultValue = "1") int page
     ) {
         // SESSION CHECK
-        if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
+        if (ControllerHelper.requireAgencySession(session) == null) return "redirect:/admin/login";
 
-        model.addAttribute("dinasName", "Dinas Pekerjaan Umum");
+        String agencyId = ControllerHelper.getSessionAgencyId(session);
+        String agencyName = ControllerHelper.getSessionAgencyName(session);
+
+        model.addAttribute("dinasName", agencyName != null ? agencyName : "Dinas Pekerjaan Umum");
         List<Map<String, Object>> laporanDinas = new ArrayList<>();
-        List<Disposition> realDispositions = dispositionService.getAllDispositions();
+        List<Disposition> realDispositions;
+        if (agencyId != null) {
+            realDispositions = dispositionService.getDispositionsByAgency(agencyId);
+        } else {
+            realDispositions = dispositionService.getAllDispositions();
+        }
         if (!realDispositions.isEmpty()) {
             // DRY: gunakan konstanta DATE_FMT dari ControllerHelper
             for (Disposition d : realDispositions) {
@@ -192,10 +232,19 @@ public class AdminDinasController {
             @RequestParam(value = "id", required = false) String id
     ) {
         // SESSION CHECK
-        if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
+        if (ControllerHelper.requireAgencySession(session) == null) return "redirect:/admin/login";
+        
+        String agencyId = ControllerHelper.getSessionAgencyId(session);
+        String agencyName = ControllerHelper.getSessionAgencyName(session);
+        model.addAttribute("dinasName", agencyName != null ? agencyName : "Dinas Pekerjaan Umum");
 
         List<Map<String, Object>> incomingReports = new ArrayList<>();
-        List<Disposition> allDisp = dispositionService.getAllDispositions();
+        List<Disposition> allDisp;
+        if (agencyId != null) {
+            allDisp = dispositionService.getDispositionsByAgency(agencyId);
+        } else {
+            allDisp = dispositionService.getAllDispositions();
+        }
         // DRY: gunakan konstanta DATE_FMT dari ControllerHelper
         for (Disposition d : allDisp) {
             if (d.getReport() != null) {
@@ -217,7 +266,7 @@ public class AdminDinasController {
             }
         }
 
-        List<Map<String, Object>> petugasList = buildPetugasList();
+        List<Map<String, Object>> petugasList = buildPetugasList(agencyId);
         model.addAttribute("incomingReports", incomingReports);
         model.addAttribute("petugasList", petugasList);
 
@@ -556,9 +605,13 @@ public class AdminDinasController {
 
     @GetMapping("/admin/dinas/petugas")
     public String adminDinasPetugas(Model model, HttpSession session) {
-        if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
+        if (ControllerHelper.requireAgencySession(session) == null) return "redirect:/admin/login";
 
-        List<Map<String, Object>> petugasList = buildPetugasList();
+        String agencyId = ControllerHelper.getSessionAgencyId(session);
+        String agencyName = ControllerHelper.getSessionAgencyName(session);
+        model.addAttribute("dinasName", agencyName != null ? agencyName : "Dinas Pekerjaan Umum");
+
+        List<Map<String, Object>> petugasList = buildPetugasList(agencyId);
         model.addAttribute("petugasList", petugasList);
         model.addAttribute("createPetugasDTO", new CreatePetugasDTO());
         List<Region> regions = regionRepository.findAll();
@@ -577,6 +630,11 @@ public class AdminDinasController {
         if (dto.getPassword() == null || dto.getPassword().length() < 6) {
             redirectAttributes.addFlashAttribute("error", "Password minimal 6 karakter");
             return "redirect:/admin/dinas/petugas";
+        }
+
+        String agencyId = ControllerHelper.getSessionAgencyId(session);
+        if (agencyId != null) {
+            dto.setAgencyId(agencyId);
         }
 
         try {

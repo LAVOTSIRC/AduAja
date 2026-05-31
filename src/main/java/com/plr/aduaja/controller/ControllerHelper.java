@@ -25,6 +25,9 @@ public final class ControllerHelper {
     public static final DateTimeFormatter TIME_FMT =
             DateTimeFormatter.ofPattern("HH:mm");
 
+    public static final String SESSION_AGENCY_ID = "agencyId";
+    public static final String SESSION_AGENCY_NAME = "agencyName";
+
     // Private constructor — tidak bisa diinstansiasi
     private ControllerHelper() {}
 
@@ -85,6 +88,21 @@ public final class ControllerHelper {
             if (session != null) session.invalidate();
             return null;
         }
+        return userId;
+    }
+
+    public static String getSessionAgencyId(HttpSession session) {
+        return (String) session.getAttribute(SESSION_AGENCY_ID);
+    }
+
+    public static String getSessionAgencyName(HttpSession session) {
+        return (String) session.getAttribute(SESSION_AGENCY_NAME);
+    }
+
+    public static String requireAgencySession(HttpSession session) {
+        String userId = requireAnyAdminSession(session);
+        String agencyId = getSessionAgencyId(session);
+        if (userId == null || agencyId == null) return null;
         return userId;
     }
 }

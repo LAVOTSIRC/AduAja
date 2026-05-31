@@ -833,15 +833,277 @@ Di elemen `<div layout:fragment="content" ...>` yang sudah ada, ubah atau tambah
 >
 ```
 
-### Ringkasan File yang Perlu Diubah (tambahan untuk Prompt 6 & 7)
+---
+
+## Prompt 8: Admin Dinas Belum Terpisah per Instansi — Semua Admin Melihat Semua Laporan
+
+### Masalah
+Saat ini **semua admin dinas** melihat data yang sama persis, karena:
+1. `User.java` entity tidak memiliki relasi ke `Agency` — `ADMIN_DINAS` tidak terikat instansi tertentu.
+2. `AdminDinasController.java` di semua method menggunakan `dispositionService.getAllDispositions()` yang mengembalikan **semua disposisi tanpa filter**.
+3. Daftar petugas di `buildPetugasList()` memanggil `userService.findByRole(User.Role.PETUGAS)` yang mengembalikan **semua petugas di seluruh instansi**.
+4. Session login (`ControllerHelper.requireAnyAdminSession()`) hanya menyimpan `userId` — tidak ada info `agencyId` untuk membedakan admin dinas PU, admin dinas Kebersihan, dll.
+
+**Akibatnya**: Admin Dinas Pekerjaan Umum bisa melihat dan menugaskan laporan yang seharusnya hanya untuk Dinas Kebersihan, dan sebaliknya.
+
+### SRS Reference
+- **FR-DSP-04** (SRS 3.14): Disposisi harus menyertakan identitas dinas tujuan yang jelas.
+- **FR-PRS-01**: Admin Dinas hanya dapat mengelola tugas yang menjadi wewenang instansinya.
+- **FR-AKS-01 s/d 03**: Sistem harus menerapkan pembatasan akses berbasis peran dan instansi.
+
+### Yang Harus Diperbaiki
+
+#### a. Entity `User.java` — Tambah relasi ke Agency
+
+```java
+// ============================================================
+// HAS-A (Association) dengan Agency — untuk ADMIN_DINAS
+// Admin Dinas terikat dengan satu instansi tertentu
+// ============================================================
+@ManyToOne(fetch = FetchType.LAZY)
+@JoinColumn(name = "agency_id")
+private Agency agency;
+```
+
+Tambahkan getter/setter:
+
+```java
+public Agency getAgency() { return agency; }
+public void setAgency(Agency agency) { this.agency = agency; }
+```
+
+> **Catatan**: Field `agency` hanya diisi untuk user dengan role `ADMIN_DINAS`. Untuk role lain (`WARGA`, `ADMIN_PUSAT`, `PETUGAS`) biarkan `null`.
+
+#### b. Service `UserServiceImpl.java` — Update `createPetugas()` agar terikat agency admin yang membuat
+
+Tambahkan overload `createPetugas(CreatePetugasDTO dto, String agencyId)` atau ubah logika di controller agar petugas yang dibuat otomatis terikat dengan agency admin dinas yang membuatnya.
+
+Alternatif: cukup pastikan `CreatePetugasDTO` memiliki field `agencyId` (bisa diisi otomatis oleh controller dari session).
+
+#### c. Repository — Tambah method untuk filter by agency
+
+**`UserRepository.java`:**
+```java
+List<User> findByRoleAndAgencyAgencyId(User.Role role, String agencyId);
+List<User> findByAgencyAgencyId(String agencyId);
+```
+
+**`DispositionRepository.java`:**
+```java
+List<Disposition> findByTargetAgencyAgencyIdOrderByDispatchedAtDesc(String agencyId);
+```
+> Method ini **sudah ada** di `DispositionRepository.java` — digunakan oleh `DispositionServiceImpl.getDispositions(String agencyId)`.
+
+#### d. Controller Helper — Tambah session key untuk agencyId
+
+**`ControllerHelper.java`:**
+```java
+public static final String SESSION_AGENCY_ID = "agencyId";
+public static final String SESSION_AGENCY_NAME = "agencyName";
+
+public static String getSessionAgencyId(HttpSession session) {
+    return (String) session.getAttribute(SESSION_AGENCY_ID);
+}
+
+public static String requireAgencySession(HttpSession session) {
+    String userId = requireAnyAdminSession(session);
+    String agencyId = getSessionAgencyId(session);
+    if (userId == null || agencyId == null) return null;
+    return userId;
+}
+```
+
+#### e. Login — Simpan agencyId ke session saat admin dinas login
+
+Di controller login (misal `AdminLoginController.java` atau yang menangani login admin), setelah user ditemukan dan role-nya `ADMIN_DINAS`:
+
+```java
+if (user.getRole() == User.Role.ADMIN_DINAS && user.getAgency() != null) {
+    session.setAttribute("agencyId", user.getAgency().getAgencyId());
+    session.setAttribute("agencyName", user.getAgency().getAgencyName());
+}
+```
+
+> **Jika tidak ada login flow khusus untuk admin dinas**: Buat endpoint login terpisah atau perbaiki login flow yang ada agar menyimpan agencyId.
+
+#### f. `AdminDinasController.java` — Filter semua query berdasarkan agencyId
+
+**1. Semua method yang memanggil `dispositionService.getAllDispositions()`:**
+
+Ubah menjadi:
+```java
+String agencyId = ControllerHelper.getSessionAgencyId(session);
+if (agencyId == null) return "redirect:/admin/login";
+
+// Sebelumnya: dispositionService.getAllDispositions()
+// Sesudah:
+List<Disposition> dispositions;
+if (agencyId != null) {
+    dispositions = dispositionService.getDispositionsByAgency(agencyId);
+} else {
+    dispositions = dispositionService.getAllDispositions(); // fallback
+}
+```
+
+Method yang perlu diperbaiki:
+- `adminDinasDashboard()` (baris ~68): `allDisp` untuk pendingAssignments
+- `adminDinasQueue()` (baris ~118): `realDispositions` untuk laporanDinas
+- `adminDinasPenugasan()` (baris ~169): `allDisp` untuk incomingReports
+
+**2. Method `buildPetugasList()` — Filter petugas berdasarkan agency:**
+
+```java
+private List<Map<String, Object>> buildPetugasList(String agencyId) {
+    List<User> realPetugas;
+    if (agencyId != null) {
+        realPetugas = userRepository.findByRoleAndAgencyAgencyId(User.Role.PETUGAS, agencyId);
+    } else {
+        realPetugas = userService.findByRole(User.Role.PETUGAS);
+    }
+    // ... sisanya sama
+}
+```
+
+Atau jika tidak ada relasi agency di User untuk PETUGAS:
+
+```java
+// Filter petugas yang dibuat oleh admin dinas dari agency yang sama
+// Atau: semua petugas visible ke semua admin dinas (lebih sederhana)
+// Tergantung kebutuhan bisnis
+```
+
+> **Rekomendasi**: Petugas bisa dilihat oleh semua admin dinas (karena satu kota/kabupaten), tetapi **tugas hanya bisa ditugaskan oleh admin dinas yang berwenang**. Atau jika petugas juga terikat agency, filter seperti di atas.
+
+**3. Method yang menampilkan nama dinas:**
+
+Di `adminDinasDashboard()` dan method lain, ganti hardcoded `"Dinas Pekerjaan Umum"` dengan:
+
+```java
+String agencyName = ControllerHelper.getSessionAgencyName(session);
+model.addAttribute("dinasName", agencyName != null ? agencyName : "Dinas Terkait");
+```
+
+#### g. Skenario Pendaftaran Admin Dinas — Saat admin pusat membuat akun admin dinas
+
+Di `AdminPusatController.java` atau form pembuatan admin dinas, pastikan `agency` diisi:
+
+```java
+// Contoh: saat membuat admin dinas baru
+User adminDinas = new User();
+adminDinas.setRole(User.Role.ADMIN_DINAS);
+Agency agency = agencyRepository.findById(selectedAgencyId)
+    .orElseThrow(() -> new RuntimeException("Agency not found"));
+adminDinas.setAgency(agency);
+// ... field lain
+userRepository.save(adminDinas);
+```
+
+#### h. Update Template — Tampilkan nama dinas yang sesuai
+
+Di semua template admin dinas (`dinas-dashboard.html`, `dinas-queue.html`, `penugasan-petugas.html`, dll), pastikan judul/nama dinas menggunakan `th:text="${dinasName}"` yang sudah dikirim dari controller.
+
+#### i. Update `disposisi-detail.html` — Tampilkan dinas tujuan yang sudah dipilih
+
+Saat admin pusat sudah mendisposisikan laporan ke dinas tertentu, tampilkan informasi dinas tujuan di detail disposisi agar admin pusat tahu ke mana laporan dikirim.
+
+### Contoh Implementasi Lengkap (Method `adminDinasDashboard`)
+
+```java
+@GetMapping("/admin/dinas/dashboard")
+public String adminDinasDashboard(Model model, HttpSession session) {
+    String sessionUserId = ControllerHelper.requireAgencySession(session);
+    if (sessionUserId == null) return "redirect:/admin/login";
+
+    String agencyId = ControllerHelper.getSessionAgencyId(session);
+    String agencyName = ControllerHelper.getSessionAgencyName(session);
+
+    model.addAttribute("dinasName", agencyName != null ? agencyName : "Dinas");
+
+    // Statistik — filter by agency
+    long diterima = dispositionService.getDispositionsByAgency(agencyId).size();
+    // Untuk count by status, perlu bikin method baru atau filter di Java
+    // Sementara: hitung dari fieldTask yang terkait disposisi agency ini
+    long diproses = dispositionService.getDispositionsByAgency(agencyId).stream()
+        .filter(d -> d.getReport() != null)
+        .flatMap(d -> fieldTaskService.getTasksByReport(d.getReport().getReportId()).stream())
+        .filter(t -> t.getTaskStatus() == FieldTask.TaskStatus.SEDANG_DIKERJAKAN)
+        .count();
+
+    // ... sisanya dengan filter agencyId
+    
+    List<Map<String, Object>> pendingAssignments = new ArrayList<>();
+    List<Disposition> allDisp = dispositionService.getDispositionsByAgency(agencyId);
+    for (Disposition d : allDisp) {
+        if (d.getReport() != null) {
+            List<FieldTask> existingTasks = fieldTaskService.getTasksByReport(d.getReport().getReportId());
+            if (existingTasks.isEmpty()) {
+                Map<String, Object> m = new HashMap<>();
+                m.put("id", d.getReport().getReportId());
+                m.put("judul", d.getReport().getTicketNumber() != null ? d.getReport().getTicketNumber() : "Laporan");
+                m.put("kategori", d.getReport().getCategory() != null ? d.getReport().getCategory().getCategoryName() : "Lainnya");
+                m.put("prioritas", d.getPriority() != null ? d.getPriority() : "Sedang");
+                m.put("slaStatus", "-");
+                pendingAssignments.add(m);
+            }
+        }
+    }
+    model.addAttribute("pendingAssignments", pendingAssignments);
+
+    List<Map<String, Object>> petugasList = buildPetugasList(agencyId);
+    model.addAttribute("availablePetugas", petugasList.isEmpty() ? new ArrayList<>() : petugasList);
+
+    return "admin/dinas/dinas-dashboard";
+}
+```
+
+### Catatan Tambahan
+
+1. **Kompatibilitas mundur**: Jika ada admin dinas yang sudah ada di database tanpa `agency`, beri default atau minta admin pusat mengisi agency mereka.
+2. **Sesi login**: Pastikan saat admin dinas login ulang, `agencyId` dan `agencyName` selalu disimpan ke session.
+3. **Admin Pusat**: Admin pusat tetap bisa melihat SEMUA laporan (tidak perlu filter agency). Hanya `AdminDinasController` yang perlu filter.
+4. **Migration SQL**: Jika menggunakan database existing, perlu migration untuk menambah kolom `agency_id` di tabel `users`:
+   ```sql
+   ALTER TABLE users ADD COLUMN agency_id VARCHAR(36);
+   ALTER TABLE users ADD CONSTRAINT fk_users_agency FOREIGN KEY (agency_id) REFERENCES agencies(agency_id);
+   ```
+
+---
+
+## Ringkasan File yang Perlu Diubah
 
 | File | Prompt Terkait |
 |------|----------------|
+| `model/User.java` | 8a |
+| `model/Disposition.java` | 1, 2, 3 |
+| `model/UserProfile.java` | 4, 5 |
+| `dto/DispositionDTO.java` | 1 |
+| `dto/CreatePetugasDTO.java` | 4, 5 |
+| `service/DispositionService.java` | 1 |
+| `service/DispositionServiceImpl.java` | 1, 2, 3 |
+| `service/UserServiceImpl.java` | 4, 5, 8b |
+| `service/FieldTaskService.java` | 7d |
+| `service/FieldTaskServiceImpl.java` | 4, 7c, 7d |
 | `service/SlaRecordService.java` | 7a, 7b |
 | `service/SlaRecordServiceImpl.java` | 7a, 7b |
-| `service/FieldTaskService.java` | 7d |
-| `service/FieldTaskServiceImpl.java` | 7c, 7d |
-| `controller/AdminDinasController.java` | 6b, 6c, 6g, 7e |
-| `controller/ControllerHelper.java` | 6a (opsional) |
-| `templates/admin/dinas/penugasan-petugas.html` | 6d, 6e, 6f |
+| `repository/UserRepository.java` | 8c |
+| `controller/AdminPusatController.java` | 1, 2, 3, 8g |
+| `controller/AdminDinasController.java` | 2, 3, 4, 5, 6b, 6c, 6g, 7e, 8f |
+| `controller/ControllerHelper.java` | 6a (opsional), 8d |
+| `controller/AdminLoginController.java` | 8e (jika ada) |
+| `templates/admin/disposisi-detail.html` | 1, 8i |
+| `templates/admin/dinas/penugasan-petugas.html` | 4, 6d, 6e, 6f |
+| `templates/admin/dinas/petugas.html` | 4, 5 |
+| `templates/admin/dinas/dinas-dashboard.html` | 2 (opsional), 8h |
+| `templates/admin/dinas/dinas-queue.html` | 3 (opsional), 8h |
 | `templates/admin/dinas/progress-update.html` | 7f, 7g, 7h |
+
+## Urutan Implementasi yang Direkomendasikan
+
+1. **Phase 1 - Data Model** (Prompt 1a, 4a, 5a, 8a): Tambah field ke entity (`Disposition`, `UserProfile`, `User.agency`)
+2. **Phase 2 - DTO & Service** (Prompt 1b, 1c, 4b, 5b): Update DTO dan service layer
+3. **Phase 3 - Repository** (Prompt 8c): Tambah method query by agency
+4. **Phase 4 - Controller Helper & Login** (Prompt 8d, 8e): Tambah session key, simpan agencyId saat login
+5. **Phase 5 - Controller** (Prompt 1d, 2, 3, 4d, 5c, 5f, 6b, 6c, 6g, 7e, 8f, 8g): Update controller untuk membaca/menyimpan data baru dan filter by agency
+6. **Phase 6 - Templates** (Prompt 1e, 4e, 4f, 5d, 5e, 6d, 6e, 6f, 7f, 7g, 7h, 8h, 8i): Update HTML templates
+7. **Phase 7 - Validasi** (Prompt 4e, 6): Implementasi peringatan wilayah FR-PRS-03 dan status ketersediaan dinamis
+8. **Phase 8 - Jeda Waktu** (Prompt 7): Implementasi fitur pause/resume SLA

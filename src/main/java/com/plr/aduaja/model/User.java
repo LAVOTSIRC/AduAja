@@ -40,6 +40,14 @@ public class User extends BaseEntity {  // ← INHERITANCE sejati
     @Column(name = "account_status", nullable = false)
     private AccountStatus accountStatus = AccountStatus.PENDING;
 
+    // ============================================================
+    // HAS-A (Association) dengan Agency — untuk ADMIN_DINAS
+    // Admin Dinas terikat dengan satu instansi tertentu
+    // ============================================================
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "agency_id")
+    private Agency agency;
+
     // HAS-A (Composition) ≠ Inheritance
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     private UserProfile userProfile;
@@ -87,6 +95,9 @@ public class User extends BaseEntity {  // ← INHERITANCE sejati
 
     public AccountStatus getAccountStatus() { return accountStatus; }
     public void setAccountStatus(AccountStatus accountStatus) { this.accountStatus = accountStatus; }
+
+    public Agency getAgency() { return agency; }
+    public void setAgency(Agency agency) { this.agency = agency; }
 
     public UserProfile getUserProfile() { return userProfile; }
     public void setUserProfile(UserProfile userProfile) { this.userProfile = userProfile; }

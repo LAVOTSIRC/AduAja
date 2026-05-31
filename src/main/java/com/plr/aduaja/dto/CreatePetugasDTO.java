@@ -8,6 +8,7 @@ public class CreatePetugasDTO {
     private String password;
     private String nip;
     private String wilayahTugasRegionId;
+    private String agencyId;
 
     public String getFullName() { return fullName; }
     public void setFullName(String fullName) { this.fullName = fullName; }
@@ -26,4 +27,7 @@ public class CreatePetugasDTO {
 
     public String getWilayahTugasRegionId() { return wilayahTugasRegionId; }
     public void setWilayahTugasRegionId(String wilayahTugasRegionId) { this.wilayahTugasRegionId = wilayahTugasRegionId; }
+
+    public String getAgencyId() { return agencyId; }
+    public void setAgencyId(String agencyId) { this.agencyId = agencyId; }
 }

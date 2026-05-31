@@ -78,6 +78,11 @@ public class AdminAuthController {
         session.setAttribute("userName", user.getFullName());
         session.setAttribute("userRole", user.getRole().toString());
 
+        if (user.getRole() == User.Role.ADMIN_DINAS && user.getAgency() != null) {
+            session.setAttribute(ControllerHelper.SESSION_AGENCY_ID, user.getAgency().getAgencyId());
+            session.setAttribute(ControllerHelper.SESSION_AGENCY_NAME, user.getAgency().getAgencyName());
+        }
+
         // Redirect ke dashboard yang sesuai role
         if (user.getRole() == User.Role.ADMIN_DINAS) {
             return "redirect:/admin/dinas/dashboard";

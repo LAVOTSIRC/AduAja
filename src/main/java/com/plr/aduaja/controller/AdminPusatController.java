@@ -224,16 +224,6 @@ public class AdminPusatController {
         }
         model.addAttribute("disposisiReports", disposisiReports);
 
-        List<Agency> realAgencies = agencyService.getActiveAgencies();
-        List<Map<String, Object>> dinasList = realAgencies.stream().map(a -> {
-            Map<String, Object> m = new HashMap<>();
-            m.put("id", a.getAgencyId());
-            m.put("name", a.getAgencyName());
-            m.put("kategori", a.getContactEmail() != null ? List.of(a.getContactEmail()) : List.of("Lainnya"));
-            return m;
-        }).collect(Collectors.toList());
-        model.addAttribute("dinasList", dinasList);
-
         Map<String, Object> selectedDisposition = null;
         if ("disposisi".equalsIgnoreCase(tab)) {
             if (id != null && !id.trim().isEmpty()) {
@@ -253,6 +243,32 @@ public class AdminPusatController {
             }
         }
         model.addAttribute("selectedDisposition", selectedDisposition);
+
+        // FR-DSP-02: filter daftar dinas hanya yang beroperasi di region laporan terpilih
+        List<Agency> realAgencies;
+        if (selectedDisposition != null) {
+            String rptId = String.valueOf(selectedDisposition.get("id"));
+            if (rptId != null && !rptId.isBlank()) {
+                Report rpt = reportService.findById(rptId).orElse(null);
+                if (rpt != null && rpt.getRegion() != null) {
+                    realAgencies = agencyService.getActiveAgenciesByRegion(rpt.getRegion().getRegionId());
+                } else {
+                    realAgencies = agencyService.getActiveAgencies();
+                }
+            } else {
+                realAgencies = agencyService.getActiveAgencies();
+            }
+        } else {
+            realAgencies = agencyService.getActiveAgencies();
+        }
+        List<Map<String, Object>> dinasList = realAgencies.stream().map(a -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", a.getAgencyId());
+            m.put("name", a.getAgencyName());
+            m.put("kategori", a.getContactEmail() != null ? List.of(a.getContactEmail()) : List.of("Lainnya"));
+            return m;
+        }).collect(Collectors.toList());
+        model.addAttribute("dinasList", dinasList);
 
         return "admin/dashboard";
     }
@@ -649,9 +665,28 @@ public class AdminPusatController {
         model.addAttribute("reports", reports);
         model.addAttribute("pendingCount", reports.size());
 
+        Map<String, Object> selected = null;
+        if (id != null) {
+            selected = reports.stream()
+                    .filter(r -> r.get("id").equals(id))
+                    .findFirst().orElse(reports.isEmpty() ? null : reports.get(0));
+        }
+        model.addAttribute("selectedReport", selected);
+
+        // FR-DSP-02: filter daftar dinas hanya yang beroperasi di region laporan terpilih
         List<Map<String, Object>> dinasList = new ArrayList<>();
         try {
-            List<Agency> realAgencies = agencyService.getActiveAgencies();
+            List<Agency> realAgencies;
+            if (selected != null && id != null) {
+                Report rpt = reportService.findById(id).orElse(null);
+                if (rpt != null && rpt.getRegion() != null) {
+                    realAgencies = agencyService.getActiveAgenciesByRegion(rpt.getRegion().getRegionId());
+                } else {
+                    realAgencies = agencyService.getActiveAgencies();
+                }
+            } else {
+                realAgencies = agencyService.getActiveAgencies();
+            }
             if (realAgencies != null) {
                 dinasList = realAgencies.stream().map(a -> {
                     Map<String, Object> m = new HashMap<>();
@@ -665,14 +700,6 @@ public class AdminPusatController {
             log.error("Gagal memuat daftar dinas: {}", e.getMessage(), e);
         }
         model.addAttribute("dinasList", dinasList);
-
-        Map<String, Object> selected = null;
-        if (id != null) {
-            selected = reports.stream()
-                    .filter(r -> r.get("id").equals(id))
-                    .findFirst().orElse(reports.isEmpty() ? null : reports.get(0));
-        }
-        model.addAttribute("selectedReport", selected);
         return "admin/disposisi-panel";
     }
 

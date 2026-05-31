@@ -35,6 +35,9 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
     private RegionRepository regionRepository;
 
     @Autowired
+    private AgencyRepository agencyRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     // CATATAN: @PostConstruct activatePendingUsers() dihapus.
@@ -128,6 +131,12 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
         user.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
         user.setRole(User.Role.PETUGAS);
         user.setAccountStatus(User.AccountStatus.ACTIVE);
+
+        if (dto.getAgencyId() != null && !dto.getAgencyId().isBlank()) {
+            Agency agency = agencyRepository.findById(dto.getAgencyId())
+                    .orElseThrow(() -> new RuntimeException("Agency tidak ditemukan"));
+            user.setAgency(agency);
+        }
 
         User savedUser = userRepository.save(user);
 
