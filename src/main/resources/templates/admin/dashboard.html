@@ -667,17 +667,22 @@
                     <p class="text-xs text-gray-600 mb-3" th:text="${cluster[0].wilayah}"></p>
 
                     <div class="space-y-2 mb-3">
-                      <div th:each="ticket : ${cluster}" class="text-xs bg-white p-2 rounded border border-orange-100">
+                      <div th:each="ticket, ticketIter : ${cluster}" class="text-xs bg-white p-2 rounded border border-orange-100">
                         <div class="flex items-center gap-1">
                           <div class="font-mono font-bold text-blue-600" th:text="${ticket.id}"></div>
-                          <span th:if="${iter.index == 0}" class="text-xs px-1 py-0.5 rounded bg-green-100 text-green-700">Parent</span>
-                          <span th:unless="${iter.index == 0}" class="text-xs px-1 py-0.5 rounded bg-gray-100 text-gray-600">Child</span>
+                          <span th:if="${ticketIter.index == 0}" class="text-xs px-1 py-0.5 rounded bg-green-100 text-green-700">Parent</span>
+                          <span th:unless="${ticketIter.index == 0}" class="text-xs px-1 py-0.5 rounded bg-gray-100 text-gray-600">Child</span>
                         </div>
                         <div class="font-medium mt-1 text-gray-900" th:text="${ticket.judul}"></div>
                         <div class="text-gray-500 mt-1" th:text="${ticket.pelapor}"></div>
                       </div>
                     </div>
 
+                    <a th:href="@{/admin/dashboard/detail(id=${cluster[0].id})}"
+                       class="aduaja-btn-secondary w-full text-xs flex items-center justify-center gap-2 text-blue-600 hover:text-blue-700 mb-2">
+                      <i data-lucide="check-circle-2" class="w-3 h-3"></i>
+                      Proses Tiket Utama
+                    </a>
                     <form th:action="@{/admin/merge}" method="post">
                       <input type="hidden" name="clusterIndex" th:value="${iter.index}" />
                       <button type="submit" class="aduaja-btn-secondary w-full text-xs flex items-center justify-center gap-2 text-red-600 hover:text-red-700">

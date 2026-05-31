@@ -161,12 +161,7 @@ public class AdminPusatController {
         panels.add(Map.of("title", "Sengketa", "description", "Kelola banding dan resolusi sengketa (FR-RSL-09 s/d 13)", "icon", "scale", "color", "bg-orange-100 text-orange-600", "href", "/admin/sengketa"));
         model.addAttribute("panels", panels);
 
-        List<Map<String, Object>> queueReports = getAdminValidationList(regionId);
-        // DRY: gunakan konstanta DATE_FMT dari ControllerHelper
-        queueReports.sort(Comparator.comparing(r -> {
-            try { return LocalDate.parse((String) r.get("tanggalMasuk"), ControllerHelper.DATE_FMT); }
-            catch (Exception e) { return LocalDate.MIN; }
-        }));
+        List<Map<String, Object>> queueReports = getQueueList(regionId);
         model.addAttribute("queueReports", queueReports);
 
         // Riwayat laporan yang ditolak (Issue 4)
@@ -440,13 +435,7 @@ public class AdminPusatController {
         if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
 
         String regionId = ControllerHelper.getSessionRegionId(session);
-        List<Map<String, Object>> reports = getAdminValidationList(regionId);
-        // DRY: gunakan konstanta formatter dari ControllerHelper
-        reports.sort(Comparator.comparing(r -> {
-            try { return LocalDate.parse((String) r.get("tanggalMasuk"), ControllerHelper.DATE_FMT); }
-            catch (Exception e) { return LocalDate.MIN; }
-        }));
-        model.addAttribute("queueReports", reports);
+        model.addAttribute("queueReports", getQueueList(regionId));
         return "admin/laporan-queue";
     }
 
@@ -935,7 +924,7 @@ public class AdminPusatController {
             case PERLU_REVISI -> "Revisi";
             case DITOLAK -> "Ditolak";
             case DIVALIDASI -> "Tervalidasi";
-            case DIDISPOSISI -> "Didisposisi";
+            case DIDISPOSISI -> "Dikirim ke Dinas";
             case DITUGASKAN -> "Ditugaskan";
             case SEDANG_DIKERJAKAN -> "Dalam Penanganan";
             case TERTUNDA -> "Tertunda";
@@ -991,9 +980,66 @@ public class AdminPusatController {
         return real.stream().map(this::toAdminValidationMap).collect(java.util.stream.Collectors.toList());
     }
 
+    /**
+     * Queue tracking list: semua status aktif (MENUNGGU_VALIDASI, PERLU_REVISI, DIVALIDASI, DIDISPOSISI).
+     * Child tiket dari merge disembunyikan; parent diperkaya dengan info merge count.
+     */
+    private List<Map<String, Object>> getQueueList(String regionId) {
+        // Kumpulkan laporan dari semua status yang relevan
+        List<Report.ReportStatus> statuses = List.of(
+            Report.ReportStatus.MENUNGGU_VALIDASI,
+            Report.ReportStatus.PERLU_REVISI,
+            Report.ReportStatus.DIVALIDASI,
+            Report.ReportStatus.DIDISPOSISI
+        );
+        List<Report> all = new ArrayList<>();
+        for (Report.ReportStatus s : statuses) {
+            List<Report> chunk = (regionId != null)
+                ? reportService.getReportsByStatusAndRegion(s, regionId)
+                : reportService.getReportsByStatus(s);
+            if (chunk != null) all.addAll(chunk);
+        }
+
+        // Hitung merge groups: parent -> jumlah child
+        List<MergeRecord> activeMerges = getActiveMerges();
+        Set<String> childIds = getMergedChildIds(activeMerges);
+        Map<String, Integer> parentChildCount = new HashMap<>();
+        for (MergeRecord mr : activeMerges) {
+            if (mr.getParentReport() != null) {
+                parentChildCount.merge(mr.getParentReport().getReportId(), 1, Integer::sum);
+            }
+        }
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Report r : all) {
+            if (childIds.contains(r.getReportId())) continue; // sembunyikan child
+            Map<String, Object> m = toAdminValidationMap(r);
+            Integer childCount = parentChildCount.get(r.getReportId());
+            m.put("isMergeGroup", childCount != null && childCount > 0);
+            m.put("mergeCount", childCount != null ? childCount + 1 : 1);
+            result.add(m);
+        }
+
+        // FIFO: urutkan dari terlama di atas
+        result.sort(Comparator.comparing(r -> {
+            try { return LocalDate.parse((String) r.get("tanggalMasuk"), ControllerHelper.DATE_FMT); }
+            catch (Exception e) { return LocalDate.MIN; }
+        }));
+        return result;
+    }
+
     private List<MergeRecord> getActiveMerges() {
         return mergeRecordService.getMerges().stream()
                 .filter(m -> Boolean.TRUE.equals(m.getIsActive()))
+                // FR-ADM-14: cluster hanya tampil selama parent belum melewati tahap validasi awal
+                // Begitu parent di-disposisi (DIDISPOSISI) atau lebih jauh, cluster disembunyikan
+                .filter(m -> {
+                    if (m.getParentReport() == null) return false;
+                    Report.ReportStatus s = m.getParentReport().getStatus();
+                    return s == Report.ReportStatus.MENUNGGU_VALIDASI
+                        || s == Report.ReportStatus.DIVALIDASI
+                        || s == Report.ReportStatus.PERLU_REVISI;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -1030,14 +1076,21 @@ public class AdminPusatController {
             if (clusterRecords.isEmpty()) continue;
             List<Map<String, Object>> cluster = new ArrayList<>();
             Report parent = clusterRecords.get(0).getParentReport();
+            Map<String, Object> parentMap = null;
             if (parent != null) {
-                cluster.add(toMergeTicketMap(parent));
+                parentMap = toMergeTicketMap(parent);
+                cluster.add(parentMap);
             }
             for (MergeRecord mr : clusterRecords) {
                 Report child = mr.getChildReport();
                 if (child != null) {
                     cluster.add(toMergeTicketMap(child));
                 }
+            }
+            // Compute actual similarity between parent and first child
+            if (parentMap != null && clusterRecords.get(0).getChildReport() != null) {
+                int sim = computeReportSimilarity(parent, clusterRecords.get(0).getChildReport());
+                parentMap.put("similarityScore", sim);
             }
             clusters.add(cluster);
         }
@@ -1079,5 +1132,75 @@ public class AdminPusatController {
     // sehingga tidak perlu duplikasi di AdminDinasController
     private String dummyReportImage() {
         return ControllerHelper.dummyReportImage();
+    }
+
+    // ==========================================
+    // SIMILARITY ENGINE — sama dengan algoritma di frontend JS
+    // GPS (0-50) + kategori (0-25) + lokasi (0-15) + deskripsi (0-10)
+    // ==========================================
+
+    private int computeReportSimilarity(Report ref, Report other) {
+        if (ref == null || other == null) return 0;
+        int score = 0;
+
+        // 1. GPS proximity (0-50 pts)
+        if (ref.getLatitude() != null && ref.getLongitude() != null
+                && other.getLatitude() != null && other.getLongitude() != null) {
+            double dist = haversineMeters(
+                    ref.getLatitude().doubleValue(), ref.getLongitude().doubleValue(),
+                    other.getLatitude().doubleValue(), other.getLongitude().doubleValue());
+            if      (dist <=   100) score += 50;
+            else if (dist <=   250) score += 44;
+            else if (dist <=   500) score += 36;
+            else if (dist <=  1000) score += 26;
+            else if (dist <=  2500) score += 14;
+            else if (dist <=  5000) score +=  6;
+        }
+
+        // 2. Same category (0 or 25 pts)
+        if (ref.getCategory() != null && other.getCategory() != null
+                && ref.getCategory().getCategoryId() != null
+                && ref.getCategory().getCategoryId().equals(other.getCategory().getCategoryId())) {
+            score += 25;
+        }
+
+        // 3. Location hint word overlap (0-15 pts)
+        if (ref.getLocationHint() != null && other.getLocationHint() != null) {
+            score += wordOverlapScore(ref.getLocationHint(), other.getLocationHint(), 15);
+        }
+
+        // 4. Description word overlap (0-10 pts)
+        if (ref.getDescription() != null && other.getDescription() != null) {
+            score += wordOverlapScore(ref.getDescription(), other.getDescription(), 10);
+        }
+
+        return Math.min(100, score);
+    }
+
+    private double haversineMeters(double lat1, double lng1, double lat2, double lng2) {
+        final double R = 6371000.0;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLng = Math.toRadians(lng2 - lng1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                 + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                 * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    private int wordOverlapScore(String s1, String s2, int maxPts) {
+        java.util.Set<String> stop = new java.util.HashSet<>(java.util.Arrays.asList(
+                "yang", "dan", "di", "ke", "dari", "ini", "itu", "ada",
+                "tidak", "dengan", "untuk", "pada", "telah", "sudah", "juga", "atau"));
+        java.util.Set<String> w1 = new java.util.HashSet<>();
+        for (String w : s1.toLowerCase().split("\\W+")) {
+            if (w.length() > 2 && !stop.contains(w)) w1.add(w);
+        }
+        java.util.Set<String> w2 = new java.util.HashSet<>();
+        for (String w : s2.toLowerCase().split("\\W+")) {
+            if (w.length() > 2 && !stop.contains(w)) w2.add(w);
+        }
+        if (w1.isEmpty() || w2.isEmpty()) return 0;
+        long common = w1.stream().filter(w2::contains).count();
+        return (int) Math.round((double) common / Math.max(w1.size(), w2.size()) * maxPts);
     }
 }

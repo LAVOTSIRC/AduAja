@@ -366,22 +366,22 @@
       function reverseGeocode(lat, lng) {
         clearTimeout(_reverseGeocodeTimer);
         _reverseGeocodeTimer = setTimeout(() => {
-          fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&addressdetails=1')
+          fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&addressdetails=1&accept-language=id')
             .then(r => r.json())
             .then(data => {
               // FR-WRG-17: Auto-detect region dari reverse geocode Nominatim
-              // Cari kecocokan antara nama region database dengan respons Nominatim
               const addr = data.address || {};
+
+              // Nama lokasi terbaik dari Nominatim (prioritas: kota > distrik > kabupaten > provinsi)
+              const nominatimName = addr.city || addr.city_district || addr.county
+                                  || addr.state_district || addr.municipality
+                                  || addr.town || addr.village || addr.state || null;
+
               const candidates = [
-                addr.county,
-                addr.city,
-                addr.city_district,
-                addr.municipality,
-                addr.suburb,
-                addr.town,
-                addr.village,
-                addr.state
+                addr.county, addr.city, addr.city_district,
+                addr.municipality, addr.suburb, addr.town, addr.village, addr.state
               ].filter(Boolean);
+
               let bestMatch = { id: '', name: '', score: 0 };
               for (const c of candidates) {
                 const cl = c.toLowerCase();
@@ -396,19 +396,30 @@
                   }
                 }
               }
+
               if (bestMatch.id) {
+                // Cocok dengan data wilayah di database — tampilkan hijau
                 document.getElementById('regionIdInput').value = bestMatch.id;
                 document.getElementById('regionDetectText').textContent = bestMatch.name;
                 document.getElementById('regionDetect').classList.remove('hidden');
                 document.getElementById('regionDetectName').className = 'text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2 flex items-center gap-2';
+              } else if (nominatimName) {
+                // Tidak ada di database, tapi Nominatim berhasil mendeteksi nama lokasi
+                document.getElementById('regionDetectText').textContent = nominatimName;
+                document.getElementById('regionDetect').classList.remove('hidden');
+                document.getElementById('regionDetectName').className = 'text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 flex items-center gap-2';
               } else {
-                document.getElementById('regionDetectText').textContent = 'Tidak dapat mendeteksi wilayah (coba klik/tarik marker di peta)';
+                // Nominatim tidak mengembalikan nama lokasi yang berguna
+                document.getElementById('regionDetectText').textContent = 'Wilayah tidak terdeteksi — coba klik/tarik marker di peta';
                 document.getElementById('regionDetect').classList.remove('hidden');
                 document.getElementById('regionDetectName').className = 'text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-center gap-2';
               }
             })
             .catch(() => {
-              // Abaikan error network
+              // Network error — tampilkan pesan
+              document.getElementById('regionDetectText').textContent = 'Tidak dapat terhubung ke layanan peta — coba lagi';
+              document.getElementById('regionDetect').classList.remove('hidden');
+              document.getElementById('regionDetectName').className = 'text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-center gap-2';
             });
         }, 500);
       }
@@ -844,4 +855,3 @@
     </script>
   </th:block>
 </html>
-

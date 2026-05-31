@@ -166,7 +166,7 @@
         </div>
 
         <!-- 4. VALIDATION FORM - DI BAWAH DESKRIPSI -->
-        <div class="aduaja-panel" th:if="${!isInDisposisi}">
+        <div class="aduaja-panel" th:if="${!isInDisposisi and selectedReport.status != 'Ditolak'}">
           <div class="aduaja-card-header bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
             <h2 class="aduaja-card-title text-blue-900">
               <i data-lucide="check-circle" class="w-5 h-5 text-blue-600"></i>
@@ -176,48 +176,66 @@
           </div>
 
           <div class="px-6 py-6">
-            <form th:action="@{/admin/validation}" method="post" class="space-y-6" x-data="{ actionType: '' }">
+            <!-- FR-ADM-09: reason wajib sebelum Tolak/Revisi; tombol di-disable sampai terisi -->
+            <form th:action="@{/admin/validation}" method="post" class="space-y-6"
+                  x-data="{ actionType: '', reason: '' }">
               <input type="hidden" name="id" th:value="${selectedReport['id']}" />
 
-              <!-- Reason textarea - DI ATAS TOMBOL -->
+              <!-- Reason textarea -->
               <div>
                 <label for="reason" class="block text-sm font-semibold mb-2 text-gray-900">
                   Alasan / Keterangan
-                  <span x-show="actionType === 'rejected' || actionType === 'revision'" class="text-red-500">* (Wajib untuk Tolak/Revisi)</span>
+                  <span x-show="actionType === 'rejected' || actionType === 'revision'"
+                        class="text-red-500 font-semibold">* Wajib diisi</span>
                 </label>
                 <textarea id="reason" name="reason" rows="4" class="aduaja-input"
-                  placeholder="Jelaskan alasan keputusan validasi..."
+                  x-model="reason"
+                  placeholder="Jelaskan alasan keputusan validasi (wajib untuk Tolak dan Revisi)..."
                   :required="actionType === 'rejected' || actionType === 'revision'"></textarea>
-                <p class="mt-2 text-xs text-gray-500">
-                  <span x-show="actionType === 'approved'">Jika diterima, tiket akan masuk ke tab Disposisi.</span>
-                  <span x-show="actionType === 'rejected'">Tiket akan ditolak dan kembali ke pelapor untuk diperbaiki.</span>
-                  <span x-show="actionType === 'revision'">Pelapor diminta untuk merevisi laporan mereka.</span>
-                </p>
+                <div class="mt-1.5 flex items-center justify-between">
+                  <p class="text-xs text-gray-500">
+                    <span x-show="actionType === 'approved'">Opsional — tiket akan masuk ke tab Disposisi.</span>
+                    <span x-show="actionType === 'rejected'" class="text-red-600">Wajib — alasan akan dikirim ke pelapor.</span>
+                    <span x-show="actionType === 'revision'" class="text-amber-600">Wajib — pelapor perlu tahu apa yang harus diperbaiki.</span>
+                  </p>
+                  <span class="text-xs text-gray-400" x-text="reason.length + ' karakter'"></span>
+                </div>
               </div>
 
-              <!-- Buttons - DI BAWAH -->
+              <!-- Action buttons -->
               <div class="border-t border-gray-200 pt-6">
                 <p class="font-semibold mb-3 text-gray-900">Keputusan Validasi</p>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <!-- Terima: selalu aktif -->
                   <button name="action" value="approved" type="submit"
                     @click="actionType = 'approved'"
                     class="aduaja-btn-primary bg-green-600 hover:bg-green-700 flex items-center justify-center gap-2 py-3">
                     <i data-lucide="check" class="w-4 h-4"></i>
                     <span>Terima &amp; Kirim ke Disposisi</span>
                   </button>
+                  <!-- Tolak: disabled sampai reason diisi (FR-ADM-09) -->
                   <button name="action" value="rejected" type="submit"
                     @click="actionType = 'rejected'"
-                    class="aduaja-btn-primary bg-red-600 hover:bg-red-700 flex items-center justify-center gap-2 py-3">
+                    :disabled="reason.trim().length === 0"
+                    :class="reason.trim().length === 0 ? 'opacity-50 cursor-not-allowed' : ''"
+                    class="aduaja-btn-primary bg-red-600 hover:bg-red-700 flex items-center justify-center gap-2 py-3 transition-opacity">
                     <i data-lucide="x" class="w-4 h-4"></i>
                     <span>Tolak Laporan</span>
                   </button>
+                  <!-- Revisi: disabled sampai reason diisi (FR-ADM-09) -->
                   <button name="action" value="revision" type="submit"
                     @click="actionType = 'revision'"
-                    class="aduaja-btn-primary bg-yellow-600 hover:bg-yellow-700 flex items-center justify-center gap-2 py-3">
+                    :disabled="reason.trim().length === 0"
+                    :class="reason.trim().length === 0 ? 'opacity-50 cursor-not-allowed' : ''"
+                    class="aduaja-btn-primary bg-yellow-600 hover:bg-yellow-700 flex items-center justify-center gap-2 py-3 transition-opacity">
                     <i data-lucide="edit" class="w-4 h-4"></i>
                     <span>Minta Revisi</span>
                   </button>
                 </div>
+                <p class="text-xs text-gray-400 mt-2 text-center"
+                   x-show="reason.trim().length === 0">
+                  Isi alasan/keterangan terlebih dahulu untuk mengaktifkan tombol Tolak dan Revisi
+                </p>
               </div>
             </form>
           </div>
