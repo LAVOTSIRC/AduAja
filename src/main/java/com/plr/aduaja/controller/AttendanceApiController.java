@@ -2,6 +2,7 @@ package com.plr.aduaja.controller;
 
 import com.plr.aduaja.model.OfficerAttendance;
 import com.plr.aduaja.service.AttendanceService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +12,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/attendance")
 public class AttendanceApiController {
@@ -44,6 +46,7 @@ public class AttendanceApiController {
             OfficerAttendance attendance = attendanceService.checkIn(officerId, latitude, longitude, deviceInfo);
             return ResponseEntity.status(HttpStatus.CREATED).body(attendance);
         } catch (Exception e) {
+            log.error("Gagal check-in petugas {}: {}", officerId, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
     }
@@ -53,6 +56,7 @@ public class AttendanceApiController {
         try {
             return ResponseEntity.ok(attendanceService.checkOut(attendanceId));
         } catch (Exception e) {
+            log.error("Gagal check-out {}: {}", attendanceId, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
     }
@@ -62,6 +66,7 @@ public class AttendanceApiController {
         try {
             return ResponseEntity.ok(attendanceService.setBreak(attendanceId));
         } catch (Exception e) {
+            log.error("Gagal set istirahat {}: {}", attendanceId, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
     }
@@ -71,6 +76,7 @@ public class AttendanceApiController {
         try {
             return ResponseEntity.ok(attendanceService.resumeFromBreak(attendanceId));
         } catch (Exception e) {
+            log.error("Gagal resume dari istirahat {}: {}", attendanceId, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
     }

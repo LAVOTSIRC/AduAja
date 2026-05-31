@@ -3,6 +3,7 @@ package com.plr.aduaja.controller;
 import com.plr.aduaja.model.User;
 import com.plr.aduaja.service.UserService;
 import com.plr.aduaja.repository.UserRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/users")
 public class UserApiController {
@@ -52,6 +54,7 @@ public class UserApiController {
             // API endpoint langsung simpan user (sudah terbentuk dari luar)
             return ResponseEntity.status(HttpStatus.CREATED).body(userService.updateUser(user));
         } catch (Exception e) {
+            log.error("Gagal buat user: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
     }
@@ -62,6 +65,7 @@ public class UserApiController {
             user.setUserId(id);
             return ResponseEntity.ok(userService.updateUser(user));
         } catch (Exception e) {
+            log.error("Gagal update user {}: {}", id, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
     }

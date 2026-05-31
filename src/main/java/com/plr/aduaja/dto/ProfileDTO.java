@@ -14,6 +14,8 @@ public class ProfileDTO {
     private String nik;
     private String alamatLengkap;
     private String profilePhotoUrl;
+    private String domisiliLatitude;
+    private String domisiliLongitude;
 
     // ENKAPSULASI: hanya getter & setter
     public String getFullName() { return fullName; }
@@ -33,4 +35,10 @@ public class ProfileDTO {
 
     public String getProfilePhotoUrl() { return profilePhotoUrl; }
     public void setProfilePhotoUrl(String profilePhotoUrl) { this.profilePhotoUrl = profilePhotoUrl; }
+
+    public String getDomisiliLatitude() { return domisiliLatitude; }
+    public void setDomisiliLatitude(String domisiliLatitude) { this.domisiliLatitude = domisiliLatitude; }
+
+    public String getDomisiliLongitude() { return domisiliLongitude; }
+    public void setDomisiliLongitude(String domisiliLongitude) { this.domisiliLongitude = domisiliLongitude; }
 }

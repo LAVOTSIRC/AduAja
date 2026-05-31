@@ -4,6 +4,7 @@ import com.plr.aduaja.model.User;
 import com.plr.aduaja.model.UserProfile;
 import com.plr.aduaja.repository.UserRepository;
 import com.plr.aduaja.repository.UserProfileRepository;
+import com.plr.aduaja.dto.CreatePetugasDTO;
 import com.plr.aduaja.dto.RegisterDTO;
 import com.plr.aduaja.dto.ProfileDTO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +12,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -33,6 +35,11 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    // CATATAN: @PostConstruct activatePendingUsers() dihapus.
+    // Aktivasi akun HANYA dilakukan melalui OtpServiceImpl.verifyOtp()
+    // setelah user berhasil verifikasi kode OTP.
+    // Mengaktifkan semua PENDING otomatis akan mem-bypass proses verifikasi OTP.
 
     // ===========================
     // @Override — Run-time Polymorphism
@@ -82,7 +89,9 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
         // ENKAPSULASI: password di-hash, tidak pernah disimpan plaintext
         user.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
         user.setRole(User.Role.WARGA);
-        user.setAccountStatus(User.AccountStatus.PENDING);  // Harus OTP dulu
+        // Status PENDING: user harus verifikasi OTP dulu sebelum bisa login
+        // OtpServiceImpl.verifyOtp() yang akan mengubah status ke ACTIVE
+        user.setAccountStatus(User.AccountStatus.PENDING);
 
         User savedUser = userRepository.save(user);
 
@@ -99,6 +108,27 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
         userProfileRepository.save(profile);
 
         return savedUser;
+    }
+
+    @Override
+    public User createPetugas(CreatePetugasDTO dto) {
+        if (userRepository.existsByEmail(dto.getEmail())) {
+            throw new RuntimeException("Email sudah terdaftar");
+        }
+        if (dto.getPhoneNumber() != null && !dto.getPhoneNumber().isBlank()
+                && userRepository.existsByPhoneNumber(dto.getPhoneNumber())) {
+            throw new RuntimeException("Nomor HP sudah terdaftar");
+        }
+
+        User user = new User();
+        user.setFullName(dto.getFullName());
+        user.setEmail(dto.getEmail());
+        user.setPhoneNumber(dto.getPhoneNumber());
+        user.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
+        user.setRole(User.Role.PETUGAS);
+        user.setAccountStatus(User.AccountStatus.ACTIVE);
+
+        return userRepository.save(user);
     }
 
     @Override  // ← POLYMORPHISM: Override dari interface
@@ -140,6 +170,12 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
         }
         if (dto.getAlamatLengkap() != null) {
             profile.setAlamatLengkap(dto.getAlamatLengkap());
+        }
+        if (dto.getDomisiliLatitude() != null && !dto.getDomisiliLatitude().isBlank()) {
+            profile.setDomisiliLatitude(new BigDecimal(dto.getDomisiliLatitude()));
+        }
+        if (dto.getDomisiliLongitude() != null && !dto.getDomisiliLongitude().isBlank()) {
+            profile.setDomisiliLongitude(new BigDecimal(dto.getDomisiliLongitude()));
         }
         if (dto.getProfilePhotoUrl() != null && !dto.getProfilePhotoUrl().isBlank()) {
             profile.setProfilePhotoUrl(dto.getProfilePhotoUrl());

@@ -26,9 +26,8 @@
 
       .badge-kategori-jalan { background: linear-gradient(135deg, #eff6ff, #dbeafe); color: #2563eb; border: 1px solid #bfdbfe; }
       .badge-kategori-penerangan { background: linear-gradient(135deg, #fefce8, #fef9c3); color: #ca8a04; border: 1px solid #fef08a; }
-      .badge-kategori-drainase { background: linear-gradient(135deg, #ecfeff, #cffafe); color: #0891b2; border: 1px solid #a5f3fc; }
       .badge-kategori-taman { background: linear-gradient(135deg, #f0fdf4, #dcfce7); color: #16a34a; border: 1px solid #bbf7d0; }
-      .badge-kategori-lingkungan { background: linear-gradient(135deg, #f0fdfa, #ccfbf1); color: #0d9488; border: 1px solid #99f6e4; }
+      .badge-kategori-kebersihan { background: linear-gradient(135deg, #ecfdf5, #d1fae5); color: #059669; border: 1px solid #a7f3d0; }
       .badge-kategori-default { background: linear-gradient(135deg, #f9fafb, #f3f4f6); color: #6b7280; border: 1px solid #e5e7eb; }
     </style>
   </th:block>
@@ -81,7 +80,7 @@
 
           <div th:if="${selectedReport == null}" class="flex items-center justify-center h-96 text-gray-400">
             <div class="text-center">
-              <i data-lucide="file-text" class="w-12 h-12 mx-auto mb-3"></i>
+              <i data-lucide="file" class="w-12 h-12 mx-auto mb-3"></i>
               <p>Pilih laporan dari daftar untuk memulai validasi</p>
             </div>
           </div>
@@ -156,7 +155,7 @@
               <!-- Deskripsi - PALING ATAS SEBELUM FORM -->
               <div>
                 <p class="text-sm font-semibold mb-2 text-gray-900 flex items-center gap-2">
-                  <i data-lucide="file-text" class="w-4 h-4 text-gray-400"></i>Deskripsi Laporan
+                  <i data-lucide="file" class="w-4 h-4 text-gray-400"></i>Deskripsi Laporan
                 </p>
                 <div class="p-4 border border-gray-200 rounded-xl bg-gray-50/50">
                   <p class="text-sm text-gray-700 leading-relaxed" th:text="${selectedReport.deskripsi}">Deskripsi</p>

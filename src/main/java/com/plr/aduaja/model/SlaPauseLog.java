@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "sla_pause_logs")
-public class SlaPauseLog {
+public class SlaPauseLog extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

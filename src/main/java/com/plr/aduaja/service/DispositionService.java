@@ -1,78 +1,31 @@
 package com.plr.aduaja.service;
 
-import com.plr.aduaja.model.*;
-import com.plr.aduaja.model.SlaRecord.SlaStatus;
-import com.plr.aduaja.repository.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
+import com.plr.aduaja.model.Disposition;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-@Service
-public class DispositionService {
+public interface DispositionService {
 
-    @Autowired
-    private DispositionRepository dispositionRepository;
+    List<Disposition> getAllDispositions();
 
-    @Autowired
-    private ReportRepository reportRepository;
+    Optional<Disposition> getDispositionById(String id);
 
-    @Autowired
-    private UserRepository userRepository;
+    Optional<Disposition> getDispositionByReportId(String reportId);
 
-    @Autowired
-    private AgencyRepository agencyRepository;
+    // OVERLOADING: getDispositions() — Compile-time Polymorphism (nama sama, parameter beda)
+    List<Disposition> getDispositions();  // OVERLOAD 1: semua disposisi
 
-    @Autowired
-    private SlaRecordRepository slaRecordRepository;
+    List<Disposition> getDispositions(String agencyId);  // OVERLOAD 2: filter by agency
 
-    public List<Disposition> getAllDispositions() {
-        return dispositionRepository.findAll();
-    }
+    List<Disposition> getDispositions(LocalDateTime from, LocalDateTime to);  // OVERLOAD 3: filter by date range
 
-    public Optional<Disposition> getDispositionById(String id) {
-        return dispositionRepository.findById(id);
-    }
+    List<Disposition> getDispositions(String agencyId, LocalDateTime from, LocalDateTime to);  // OVERLOAD 4
 
-    public Optional<Disposition> getDispositionByReportId(String reportId) {
-        return dispositionRepository.findByReportReportId(reportId);
-    }
+    List<Disposition> getDispositionsByAgency(String agencyId);
 
-    public List<Disposition> getDispositionsByAgency(String agencyId) {
-        return dispositionRepository.findByTargetAgencyAgencyIdOrderByDispatchedAtDesc(agencyId);
-    }
+    List<Disposition> getDispositionsByDispatcher(String dispatchedByUserId);
 
-    public Disposition createDisposition(String reportId, String dispatchedById, String targetAgencyId, String notes) {
-        Report report = reportRepository.findById(reportId)
-                .orElseThrow(() -> new RuntimeException("Report not found"));
-        User dispatchedBy = userRepository.findById(dispatchedById)
-                .orElseThrow(() -> new RuntimeException("Dispatcher not found"));
-        Agency targetAgency = agencyRepository.findById(targetAgencyId)
-                .orElseThrow(() -> new RuntimeException("Target agency not found"));
-
-        Disposition disposition = new Disposition();
-        disposition.setReport(report);
-        disposition.setDispatchedBy(dispatchedBy);
-        disposition.setTargetAgency(targetAgency);
-        disposition.setDispatchedAt(LocalDateTime.now());
-        disposition.setNotes(notes);
-
-        Disposition saved = dispositionRepository.save(disposition);
-
-        SlaRecord sla = new SlaRecord();
-        sla.setReport(report);
-        sla.setSlaStartAt(LocalDateTime.now());
-        if (report.getCategory() != null && report.getCategory().getSlaDurationHours() != null) {
-            sla.setSlaDeadlineAt(LocalDateTime.now().plusHours(report.getCategory().getSlaDurationHours()));
-        } else {
-            sla.setSlaDeadlineAt(LocalDateTime.now().plusHours(48));
-        }
-        sla.setCurrentStatus(SlaStatus.BERJALAN);
-        sla.setTotalPausedMinutes(0);
-        slaRecordRepository.save(sla);
-
-        return saved;
-    }
+    Disposition createDisposition(String reportId, String dispatchedById, String targetAgencyId, String notes);
 }

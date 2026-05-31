@@ -19,5 +19,8 @@ public interface DisputeRecordRepository extends JpaRepository<DisputeRecord, St
 
     List<DisputeRecord> findByResolutionIsNull();
 
+    List<DisputeRecord> findByResolution(ResolutionType resolution);
+
     long countByResolutionIsNull();
 }
+

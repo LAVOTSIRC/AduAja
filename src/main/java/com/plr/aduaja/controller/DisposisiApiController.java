@@ -4,6 +4,7 @@ import com.plr.aduaja.model.Agency;
 import com.plr.aduaja.model.Disposition;
 import com.plr.aduaja.service.DispositionService;
 import com.plr.aduaja.service.AgencyService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/disposisi")
 public class DisposisiApiController {
@@ -55,6 +57,7 @@ public class DisposisiApiController {
             Disposition disposition = dispositionService.createDisposition(reportId, dispatchedById, targetAgencyId, notes);
             return ResponseEntity.status(HttpStatus.CREATED).body(disposition);
         } catch (Exception e) {
+            log.error("Gagal buat disposisi: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
     }

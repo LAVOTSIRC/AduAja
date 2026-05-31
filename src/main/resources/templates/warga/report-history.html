@@ -20,12 +20,7 @@
           </a>
           <div>
             <h1 class="font-bold text-gray-900">Riwayat Laporan</h1>
-            <p
-              class="text-xs text-gray-500"
-              th:text="|${totalCount} total laporan|"
-            >
-              0 total laporan
-            </p>
+            <p class="text-xs text-gray-500" th:text="|${totalCount} laporan|">0 laporan</p>
           </div>
         </div>
       </div>
@@ -58,14 +53,14 @@
       <div class="mb-6 overflow-x-auto">
         <div class="flex gap-2 min-w-max pb-2">
           <a
-            th:each="status : ${statusOptions}"
-            th:href="@{/warga/report-history(status=${status}, q=${searchQuery})}"
-            th:class="${activeStatus == status} ? 'px-4 py-2 rounded-lg font-medium text-sm transition-colors whitespace-nowrap bg-blue-600 text-white' : 'px-4 py-2 rounded-lg font-medium text-sm transition-colors whitespace-nowrap bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'"
+            th:each="opt : ${statusOptions}"
+            th:href="@{/warga/report-history(status=${opt.name}, q=${searchQuery})}"
+            th:class="${activeStatus == opt.name} ? 'px-4 py-2 rounded-lg font-medium text-sm transition-colors whitespace-nowrap bg-blue-600 text-white' : 'px-4 py-2 rounded-lg font-medium text-sm transition-colors whitespace-nowrap bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'"
           >
-            <span th:text="${status}">Status</span>
+            <span th:text="${opt.name}">Status</span>
             <span
               class="ml-2 text-xs opacity-75"
-              th:text="|(${statusCounts[status]})|"
+              th:text="|(${opt.count})|"
               >(0)</span
             >
           </a>
@@ -121,13 +116,43 @@
                 <span>&bull;</span>
                 <span th:text="${report.location}">Lokasi</span>
                 <span>&bull;</span>
-                <span th:text="${#temporals.format(report.date, 'd MMMM yyyy')}"
-                  >Tanggal</span
-                >
+                <!-- FR-WRG-06: Metadata kronologis (dibuat & diperbarui) -->
+                <span class="flex items-center gap-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  Dibuat: <span th:text="${#temporals.format(report.date, 'd MMM yyyy')}">Tanggal</span>
+                </span>
+                <span th:if="${report.updatedAt != null and report.updatedAt != '-'}" class="flex items-center gap-1 text-blue-500">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                  Diperbarui: <span th:text="${report.updatedAt}"></span>
+                </span>
               </div>
+
             </div>
           </div>
         </a>
+      </div>
+
+      <div th:if="${reports != null and !#lists.isEmpty(reports)}" class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-gray-200">
+        <p class="text-sm text-gray-600">
+          Menampilkan <span class="font-medium" th:text="${startIndex}">1</span>-<span class="font-medium" th:text="${endIndex}">1</span>
+          dari <span class="font-medium" th:text="${totalCount}">0</span> laporan
+        </p>
+        <div th:if="${totalPages > 1}" class="flex items-center gap-1">
+          <a th:if="${page > 1}"
+             th:href="@{/warga/report-history(page=${page - 1}, status=${filterStatus}, q=${searchQuery})}"
+             class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors">
+            Sebelumnya
+          </a>
+          <a th:each="p : ${pageNumbers}"
+             th:href="@{/warga/report-history(page=${p}, status=${filterStatus}, q=${searchQuery})}"
+             th:class="${p == page} ? 'px-3 py-1.5 rounded-lg text-sm bg-blue-600 text-white font-medium' : 'px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors'"
+             th:text="${p}">1</a>
+          <a th:if="${page < totalPages}"
+             th:href="@{/warga/report-history(page=${page + 1}, status=${filterStatus}, q=${searchQuery})}"
+             class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors">
+            Selanjutnya
+          </a>
+        </div>
       </div>
 
       <div

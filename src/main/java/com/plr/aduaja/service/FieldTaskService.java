@@ -1,90 +1,40 @@
 package com.plr.aduaja.service;
 
-import com.plr.aduaja.model.*;
+import com.plr.aduaja.model.FieldTask;
 import com.plr.aduaja.model.FieldTask.TaskStatus;
-import com.plr.aduaja.repository.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-@Service
-public class FieldTaskService {
+public interface FieldTaskService {
 
-    @Autowired
-    private FieldTaskRepository fieldTaskRepository;
+    List<FieldTask> getAllTasks();
 
-    @Autowired
-    private ReportRepository reportRepository;
+    Optional<FieldTask> getTaskById(String taskId);
 
-    @Autowired
-    private UserRepository userRepository;
+    List<FieldTask> getTasksByOfficer(String officerId);
 
-    @Autowired
-    private SlaRecordRepository slaRecordRepository;
+    List<FieldTask> getTasksByOfficerAndStatus(String officerId, TaskStatus status);
 
-    public List<FieldTask> getAllTasks() {
-        return fieldTaskRepository.findAll();
-    }
+    List<FieldTask> getTasksByStatus(TaskStatus status);
 
-    public Optional<FieldTask> getTaskById(String taskId) {
-        return fieldTaskRepository.findById(taskId);
-    }
+    List<FieldTask> getTasksByReport(String reportId);
 
-    public List<FieldTask> getTasksByOfficer(String officerId) {
-        return fieldTaskRepository.findByOfficerUserId(officerId);
-    }
+    List<FieldTask> getTasksByDateRange(LocalDateTime start, LocalDateTime end);
 
-    public List<FieldTask> getTasksByOfficerAndStatus(String officerId, TaskStatus status) {
-        return fieldTaskRepository.findByOfficerUserIdAndTaskStatus(officerId, status);
-    }
+    FieldTask createTask(String reportId, String officerId, String assignedById);
 
-    public List<FieldTask> getTasksByReport(String reportId) {
-        return fieldTaskRepository.findByReportReportId(reportId);
-    }
+    FieldTask startTask(String taskId, BigDecimal latitude, BigDecimal longitude);
 
-    public FieldTask createTask(String reportId, String officerId, String assignedById) {
-        Report report = reportRepository.findById(reportId)
-                .orElseThrow(() -> new RuntimeException("Report not found"));
-        User officer = userRepository.findById(officerId)
-                .orElseThrow(() -> new RuntimeException("Officer not found"));
-        User assignedBy = userRepository.findById(assignedById)
-                .orElseThrow(() -> new RuntimeException("Assigner not found"));
+    FieldTask completeTask(String taskId);
 
-        FieldTask task = new FieldTask();
-        task.setReport(report);
-        task.setOfficer(officer);
-        task.setAssignedBy(assignedBy);
-        task.setTaskStatus(TaskStatus.BARU);
+    FieldTask completeTask(String taskId, String evidencePhotoUrl);
 
-        SlaRecord sla = slaRecordRepository.findByReportReportId(reportId).orElse(null);
-        task.setSlaRecord(sla);
+    FieldTask postponeTask(String taskId, String reason);
 
-        return fieldTaskRepository.save(task);
-    }
+    FieldTask reassignTask(String taskId, String newOfficerId);
 
-    public FieldTask startTask(String taskId, BigDecimal latitude, BigDecimal longitude) {
-        FieldTask task = fieldTaskRepository.findById(taskId)
-                .orElseThrow(() -> new RuntimeException("Task not found"));
-        task.setTaskStatus(TaskStatus.SEDANG_DIKERJAKAN);
-        task.setStartedAt(LocalDateTime.now());
-        task.setOfficerLatitude(latitude);
-        task.setOfficerLongitude(longitude);
-        return fieldTaskRepository.save(task);
-    }
-
-    public FieldTask completeTask(String taskId) {
-        FieldTask task = fieldTaskRepository.findById(taskId)
-                .orElseThrow(() -> new RuntimeException("Task not found"));
-        task.setTaskStatus(TaskStatus.SELESAI);
-        task.setCompletedAt(LocalDateTime.now());
-        return fieldTaskRepository.save(task);
-    }
-
-    public long countByStatus(TaskStatus status) {
-        return fieldTaskRepository.countByTaskStatus(status);
-    }
+    long countByStatus(TaskStatus status);
 }

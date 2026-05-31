@@ -7,13 +7,76 @@
   <th:block layout:fragment="extraHead">
     <title>AduAja - Profil Saya</title>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
       [x-cloak] { display: none !important; }
+      #map { height: 300px; border-radius: 0.75rem; z-index: 1; }
     </style>
   </th:block>
 
   <div layout:fragment="content" class="min-h-screen bg-gray-50"
-       x-data="{ isEditing: false }">
+       x-data="{
+         isEditing: false,
+         lat: '',
+         lng: '',
+         map: null,
+         marker: null,
+          initMap() {
+            if (this.map) return;
+            if (!this.lat || !this.lng) {
+              this.locateMe(true);
+            }
+            const defaultLat = this.lat || -3.5891;
+            const defaultLng = this.lng || 98.6738;
+            this.map = L.map('map').setView([defaultLat, defaultLng], 14);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              maxZoom: 19,
+              attribution: '&copy; OpenStreetMap'
+            }).addTo(this.map);
+            if (this.lat && this.lng) {
+              this.marker = L.marker([this.lat, this.lng]).addTo(this.map);
+            }
+            this.map.on('click', (e) => {
+              if (!this.isEditing) return;
+              if (this.marker) this.marker.setLatLng(e.latlng);
+              else this.marker = L.marker(e.latlng).addTo(this.map);
+              this.lat = e.latlng.lat.toFixed(6);
+              this.lng = e.latlng.lng.toFixed(6);
+            });
+            setTimeout(() => this.map && this.map.invalidateSize(), 200);
+          },
+          locateMe(silent = false) {
+            if (!navigator.geolocation) return;
+            navigator.geolocation.getCurrentPosition(
+              (pos) => {
+                this.lat = pos.coords.latitude.toFixed(6);
+                this.lng = pos.coords.longitude.toFixed(6);
+                if (this.marker) this.marker.setLatLng([pos.coords.latitude, pos.coords.longitude]);
+                else if (this.map) this.marker = L.marker([pos.coords.latitude, pos.coords.longitude]).addTo(this.map);
+                if (this.map) this.map.setView([pos.coords.latitude, pos.coords.longitude], 15);
+              },
+              () => { if (!silent) alert('Gagal mendapatkan lokasi. Pastikan GPS diaktifkan.'); },
+              { enableHighAccuracy: true, timeout: 10000 }
+            );
+          },
+         geocodeAddress() {
+           const addr = document.getElementById('alamatLengkap').value;
+           if (!addr) return;
+           fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(addr + ', Indonesia'))
+             .then(r => r.json())
+             .then(data => {
+               if (data && data.length > 0) {
+                 const loc = data[0];
+                 this.lat = parseFloat(loc.lat).toFixed(6);
+                 this.lng = parseFloat(loc.lon).toFixed(6);
+                 if (this.marker) this.marker.setLatLng([loc.lat, loc.lon]);
+                 else this.marker = L.marker([loc.lat, loc.lon]).addTo(this.map);
+                 this.map.setView([loc.lat, loc.lon], 15);
+               }
+             });
+         }
+       }">
 
     <!-- Header -->
     <header class="bg-white shadow-sm sticky top-0 z-10">
@@ -28,11 +91,10 @@
               <p class="text-xs text-gray-500">Kelola informasi pribadi Anda</p>
             </div>
           </div>
-          <!-- Button Edit / Simpan -->
           <div x-show="!isEditing">
             <button
               id="btn-edit-profile"
-              @click="isEditing = true"
+              @click="isEditing = true; setTimeout(() => initMap(), 300)"
               class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <i data-lucide="edit-2" class="w-4 h-4"></i>
@@ -60,19 +122,34 @@
     </header>
 
     <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <!-- Profile Banner Card -->
+      <!-- Profile Banner Card with Photo -->
       <div class="bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl p-8 mb-6 text-white">
         <div class="flex flex-col sm:flex-row items-center gap-6">
-          <div class="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center">
-            <i data-lucide="user" class="w-12 h-12"></i>
+          <div class="relative group">
+            <div class="w-28 h-28 rounded-full overflow-hidden bg-white/20 flex items-center justify-center">
+              <img th:if="${user.userProfile?.profilePhotoUrl}" th:src="@{${user.userProfile.profilePhotoUrl}}"
+                   alt="Foto Profil" class="w-full h-full object-cover" />
+              <i th:unless="${user.userProfile?.profilePhotoUrl}" data-lucide="user" class="w-14 h-14 text-white/80"></i>
+            </div>
+            <div x-show="isEditing" x-cloak
+                 class="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center cursor-pointer"
+                 @click="document.getElementById('photo-upload-input').click()">
+              <i data-lucide="camera" class="w-8 h-8 text-white"></i>
+            </div>
+            <form th:action="@{/warga/profile/photo}" method="post" enctype="multipart/form-data"
+                  id="photo-upload-form" class="hidden">
+              <input type="file" name="photo" id="photo-upload-input" accept="image/*"
+                     onchange="document.getElementById('photo-upload-form').submit()" />
+            </form>
           </div>
           <div class="text-center sm:text-left">
             <h2 class="text-2xl font-bold" th:text="${user.fullName}">Nama User</h2>
             <p class="text-blue-100" th:text="${user.email}">email@email.com</p>
             <div class="flex items-center gap-2 mt-2">
               <span class="bg-white/20 text-white text-xs px-3 py-1 rounded-full" th:text="${user.role}">WARGA</span>
-              <span class="text-xs text-blue-200"
-                    th:text="${user.accountStatus == 'ACTIVE' ? '● Aktif' : '● Tidak Aktif'}">● Aktif</span>
+              <span class="text-xs"
+                    th:classappend="${user.accountStatus != null and user.accountStatus.name() == 'ACTIVE'} ? 'text-green-300' : 'text-red-300'"
+                    th:text="${user.accountStatus != null and user.accountStatus.name() == 'ACTIVE'} ? '● Aktif' : '● Tidak Aktif'">● Aktif</span>
             </div>
           </div>
         </div>
@@ -106,38 +183,22 @@
             Informasi Pribadi
           </h3>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <!-- Nama Lengkap -->
             <div class="sm:col-span-2">
               <label class="block text-sm font-medium text-gray-700 mb-2">Nama Lengkap</label>
-              <input
-                type="text"
-                th:field="*{fullName}"
-                x-bind:disabled="!isEditing"
-                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
-              />
+              <input type="text" th:field="*{fullName}" x-bind:disabled="!isEditing"
+                     class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 transition-colors" />
             </div>
-            <!-- NIK -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">NIK</label>
-              <input
-                type="text"
-                th:field="*{nik}"
-                maxlength="16"
-                x-bind:disabled="!isEditing"
-                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
-                placeholder="16 digit NIK"
-              />
+              <input type="text" th:field="*{nik}" maxlength="16" x-bind:disabled="!isEditing"
+                     class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
+                     placeholder="16 digit NIK" />
             </div>
-            <!-- Nomor HP -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Nomor HP</label>
-              <input
-                type="tel"
-                th:field="*{phoneNumber}"
-                x-bind:disabled="!isEditing"
-                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
-                placeholder="08xxxxxxxxxx"
-              />
+              <input type="tel" th:field="*{phoneNumber}" x-bind:disabled="!isEditing"
+                     class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
+                     placeholder="08xxxxxxxxxx" />
             </div>
           </div>
         </div>
@@ -150,31 +211,50 @@
           </h3>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-            <input
-              type="email"
-              th:field="*{email}"
-              x-bind:disabled="!isEditing"
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
-              placeholder="nama@email.com"
-            />
+            <input type="email" th:field="*{email}" x-bind:disabled="!isEditing"
+                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 transition-colors"
+                   placeholder="nama@email.com" />
           </div>
         </div>
 
-        <!-- Alamat -->
+        <!-- Alamat Domisili with Map -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <h3 class="font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <i data-lucide="map-pin" class="w-5 h-5 text-blue-600"></i>
             Alamat Domisili
           </h3>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Alamat Lengkap</label>
-            <textarea
-              th:field="*{alamatLengkap}"
-              rows="3"
-              x-bind:disabled="!isEditing"
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 resize-none transition-colors"
-              placeholder="Masukkan alamat lengkap"
-            ></textarea>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Alamat Lengkap</label>
+              <div class="flex gap-2">
+                <textarea id="alamatLengkap" th:field="*{alamatLengkap}" rows="2" x-bind:disabled="!isEditing"
+                  class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 resize-none transition-colors"
+                  placeholder="Masukkan alamat lengkap"></textarea>
+                <button type="button" x-show="isEditing" x-cloak @click="geocodeAddress()"
+                  class="px-3 py-3 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors self-start mt-0"
+                  title="Cari di peta">
+                  <i data-lucide="search" class="w-5 h-5"></i>
+                </button>
+              </div>
+              <p class="text-xs text-gray-400 mt-1">Klik tombol cari untuk mencari lokasi di peta berdasarkan alamat</p>
+            </div>
+            <input type="hidden" name="domisiliLatitude" th:value="${profileDTO.domisiliLatitude}" x-model="lat" />
+            <input type="hidden" name="domisiliLongitude" th:value="${profileDTO.domisiliLongitude}" x-model="lng" />
+            <div x-show="isEditing" x-cloak>
+              <div class="flex gap-2 mb-2">
+                <button type="button" @click="locateMe()"
+                  class="flex items-center gap-1 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">
+                  <i data-lucide="crosshair" class="w-4 h-4"></i>
+                  <span>Lokasi Saya</span>
+                </button>
+              </div>
+              <div id="map"></div>
+              <p class="text-xs text-gray-400 mt-1">Klik peta untuk menandai lokasi domisili, atau gunakan GPS di atas</p>
+            </div>
+            <div x-show="lat && lng" class="flex gap-4 text-sm text-gray-600">
+              <span x-text="'Lat: ' + lat"></span>
+              <span x-text="'Lng: ' + lng"></span>
+            </div>
           </div>
         </div>
       </form>
@@ -186,7 +266,10 @@
           Pengaturan Akun
         </h3>
         <div class="space-y-3">
+          <!-- Modal Ubah Password (trigger) -->
           <button id="btn-change-password"
+                  type="button"
+                  onclick="document.getElementById('changePasswordModal').classList.remove('hidden')"
                   class="w-full text-left px-4 py-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
             <div class="flex items-center justify-between">
               <div>
@@ -207,6 +290,52 @@
                 <i data-lucide="log-out" class="w-5 h-5"></i>
               </div>
             </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Modal Ubah Password -->
+      <div id="changePasswordModal"
+           class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-gray-900">Ubah Password</h3>
+            <button type="button"
+                    onclick="document.getElementById('changePasswordModal').classList.add('hidden')"
+                    class="p-1 hover:bg-gray-100 rounded-lg">
+              <i data-lucide="x" class="w-5 h-5 text-gray-500"></i>
+            </button>
+          </div>
+          <form th:action="@{/warga/change-password}" method="post" class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Password Saat Ini</label>
+              <input type="password" name="currentPassword" required
+                     class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                     placeholder="Masukkan password saat ini" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Password Baru</label>
+              <input type="password" name="newPassword" required minlength="8"
+                     class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                     placeholder="Min. 8 karakter" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Konfirmasi Password Baru</label>
+              <input type="password" name="confirmNewPassword" required minlength="8"
+                     class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                     placeholder="Ulangi password baru" />
+            </div>
+            <div class="flex gap-3 pt-2">
+              <button type="button"
+                      onclick="document.getElementById('changePasswordModal').classList.add('hidden')"
+                      class="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+                Batal
+              </button>
+              <button type="submit"
+                      class="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                Simpan Password
+              </button>
+            </div>
           </form>
         </div>
       </div>
