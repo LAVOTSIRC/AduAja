@@ -19,6 +19,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -87,6 +88,8 @@ public class AdminPusatController {
         if (sessionUserId == null) return "redirect:/admin/login";
         model.addAttribute("userRole", role);
 
+        String regionId = ControllerHelper.getSessionRegionId(session);
+
         if ("admin_dinas".equalsIgnoreCase(role)) {
             model.addAttribute("dinasName", "Dinas Pekerjaan Umum");
             long diterima = reportService.countByStatus(Report.ReportStatus.DIDISPOSISI);
@@ -134,10 +137,10 @@ public class AdminPusatController {
             }).collect(Collectors.toList());
             model.addAttribute("availablePetugas", petugasList.isEmpty() ? new ArrayList<>() : petugasList);
         } else {
-            long laporanMasuk = reportService.countByStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
-            long menungguValidasi = reportService.countByStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
-            long dalamAntreanDinas = reportService.countByStatus(Report.ReportStatus.DIVALIDASI);
-            long selesaiHariIni = reportService.countByStatus(Report.ReportStatus.SELESAI);
+            long laporanMasuk = regionId != null ? reportService.countByStatusAndRegion(Report.ReportStatus.MENUNGGU_VALIDASI, regionId) : reportService.countByStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
+            long menungguValidasi = laporanMasuk;
+            long dalamAntreanDinas = regionId != null ? reportService.countByStatusAndRegion(Report.ReportStatus.DIVALIDASI, regionId) : reportService.countByStatus(Report.ReportStatus.DIVALIDASI);
+            long selesaiHariIni = regionId != null ? reportService.countByStatusAndRegion(Report.ReportStatus.SELESAI, regionId) : reportService.countByStatus(Report.ReportStatus.SELESAI);
             List<Map<String, Object>> stats = new ArrayList<>();
             stats.add(Map.of("title", "Laporan Masuk", "value", laporanMasuk,
                     "icon", "file", "bgColor", "bg-blue-100", "color", "text-blue-600"));
@@ -158,7 +161,7 @@ public class AdminPusatController {
         panels.add(Map.of("title", "Sengketa", "description", "Kelola banding dan resolusi sengketa (FR-RSL-09 s/d 13)", "icon", "scale", "color", "bg-orange-100 text-orange-600", "href", "/admin/sengketa"));
         model.addAttribute("panels", panels);
 
-        List<Map<String, Object>> queueReports = getAdminValidationList();
+        List<Map<String, Object>> queueReports = getAdminValidationList(regionId);
         // DRY: gunakan konstanta DATE_FMT dari ControllerHelper
         queueReports.sort(Comparator.comparing(r -> {
             try { return LocalDate.parse((String) r.get("tanggalMasuk"), ControllerHelper.DATE_FMT); }
@@ -167,7 +170,7 @@ public class AdminPusatController {
         model.addAttribute("queueReports", queueReports);
 
         // Riwayat laporan yang ditolak (Issue 4)
-        List<Report> rejectedReports = reportService.getReportsByStatus(Report.ReportStatus.DITOLAK);
+        List<Report> rejectedReports = regionId != null ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.DITOLAK, regionId) : reportService.getReportsByStatus(Report.ReportStatus.DITOLAK);
         List<Map<String, Object>> rejectedList = rejectedReports.stream().map(r -> {
             Map<String, Object> m = new HashMap<>();
             m.put("id", r.getReportId());
@@ -183,7 +186,7 @@ public class AdminPusatController {
         model.addAttribute("rejectedReports", rejectedList);
         model.addAttribute("rejectedCount", rejectedList.size());
 
-        List<Map<String, Object>> validationReports = getAdminValidationList();
+        List<Map<String, Object>> validationReports = getAdminValidationList(regionId);
         model.addAttribute("validationReports", validationReports);
 
         Map<String, Object> selected = null;
@@ -196,7 +199,7 @@ public class AdminPusatController {
 
         List<MergeRecord> activeMerges = getActiveMerges();
         Set<String> mergedChildIds = getMergedChildIds(activeMerges);
-        List<Report> mergeCandidates = reportService.getReportsByStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
+        List<Report> mergeCandidates = regionId != null ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.MENUNGGU_VALIDASI, regionId) : reportService.getReportsByStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
         List<Map<String, Object>> mergeTickets = mergeCandidates.stream()
             .filter(r -> !mergedChildIds.contains(r.getReportId()))
             .map(this::toMergeTicketMap)
@@ -207,7 +210,7 @@ public class AdminPusatController {
         model.addAttribute("hiddenChildCount", mergedChildIds.size());
 
         List<Map<String, Object>> disposisiReports = new ArrayList<>();
-        List<Report> validated = reportService.getReportsByStatus(Report.ReportStatus.DIVALIDASI);
+        List<Report> validated = regionId != null ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.DIVALIDASI, regionId) : reportService.getReportsByStatus(Report.ReportStatus.DIVALIDASI);
         for (Report r : validated) {
             Map<String, Object> m = new HashMap<>();
             m.put("id", r.getReportId());
@@ -222,16 +225,6 @@ public class AdminPusatController {
             disposisiReports.add(m);
         }
         model.addAttribute("disposisiReports", disposisiReports);
-
-        List<Agency> realAgencies = agencyService.getActiveAgencies();
-        List<Map<String, Object>> dinasList = realAgencies.stream().map(a -> {
-            Map<String, Object> m = new HashMap<>();
-            m.put("id", a.getAgencyId());
-            m.put("name", a.getAgencyName());
-            m.put("kategori", a.getContactEmail() != null ? List.of(a.getContactEmail()) : List.of("Lainnya"));
-            return m;
-        }).collect(Collectors.toList());
-        model.addAttribute("dinasList", dinasList);
 
         Map<String, Object> selectedDisposition = null;
         if ("disposisi".equalsIgnoreCase(tab)) {
@@ -253,6 +246,32 @@ public class AdminPusatController {
         }
         model.addAttribute("selectedDisposition", selectedDisposition);
 
+        // FR-DSP-02: filter daftar dinas hanya yang beroperasi di region laporan terpilih
+        List<Agency> realAgencies;
+        if (selectedDisposition != null) {
+            String rptId = String.valueOf(selectedDisposition.get("id"));
+            if (rptId != null && !rptId.isBlank()) {
+                Report rpt = reportService.findById(rptId).orElse(null);
+                if (rpt != null && rpt.getRegion() != null) {
+                    realAgencies = agencyService.getActiveAgenciesByRegion(rpt.getRegion().getRegionId());
+                } else {
+                    realAgencies = agencyService.getActiveAgencies();
+                }
+            } else {
+                realAgencies = agencyService.getActiveAgencies();
+            }
+        } else {
+            realAgencies = agencyService.getActiveAgencies();
+        }
+        List<Map<String, Object>> dinasList = realAgencies.stream().map(a -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", a.getAgencyId());
+            m.put("name", a.getAgencyName());
+            m.put("kategori", a.getContactEmail() != null ? List.of(a.getContactEmail()) : List.of("Lainnya"));
+            return m;
+        }).collect(Collectors.toList());
+        model.addAttribute("dinasList", dinasList);
+
         return "admin/dashboard";
     }
 
@@ -263,13 +282,16 @@ public class AdminPusatController {
     @GetMapping("/admin/dashboard/detail")
     public String adminQueueDetail(
             Model model,
+            HttpSession session,
             @RequestParam(value = "id", required = false) String id
     ) {
+        if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
+        String regionId = ControllerHelper.getSessionRegionId(session);
         Map<String, Object> selectedReport = null;
         boolean isInDisposisi = false;
 
         if (id != null && !id.trim().isEmpty()) {
-            List<Map<String, Object>> validationReports = getAdminValidationList();
+            List<Map<String, Object>> validationReports = getAdminValidationList(regionId);
             for (Map<String, Object> r : validationReports) {
                 if (id.trim().equals(String.valueOf(r.get("id")))) {
                     selectedReport = r;
@@ -323,8 +345,10 @@ public class AdminPusatController {
     @GetMapping("/admin/dashboard/disposisi-detail")
     public String adminDisposisiDetail(
             Model model,
+            HttpSession session,
             @RequestParam(value = "id", required = false) String id
     ) {
+        if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
         Map<String, Object> selectedDisposition = null;
         if (id != null && !id.trim().isEmpty()) {
             Report r = reportService.findById(id.trim()).orElse(null);
@@ -356,14 +380,35 @@ public class AdminPusatController {
                     if (d.getTargetAgency() != null) {
                         dispMap.put("dinasRekomendasi", d.getTargetAgency().getAgencyName());
                     }
-                    if (d.getNotes() != null) {
+                    if (d.getPriority() != null) {
+                        dispMap.put("prioritasSistem", d.getPriority());
+                    }
+                    if (d.getDeadline() != null) {
+                        dispMap.put("deadline", d.getDeadline().format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")));
+                    }
+                    if (d.getInstructions() != null) {
+                        dispMap.put("instruksiAdmin", d.getInstructions());
+                    } else if (d.getNotes() != null) {
                         dispMap.put("instruksiAdmin", d.getNotes());
                     }
                 });
             }
         }
 
-        List<Agency> realAgencies = agencyService.getActiveAgencies();
+        String reportRegionId = null;
+        if (selectedDisposition != null && id != null) {
+            Report r = reportService.findById(id.trim()).orElse(null);
+            if (r != null && r.getRegion() != null) {
+                reportRegionId = r.getRegion().getRegionId();
+            }
+        }
+        if (reportRegionId == null) {
+            reportRegionId = ControllerHelper.getSessionRegionId(session);
+        }
+
+        List<Agency> realAgencies = reportRegionId != null
+                ? agencyService.getActiveAgenciesByRegion(reportRegionId)
+                : agencyService.getActiveAgencies();
         List<Map<String, Object>> dinasList = realAgencies.stream().map(a -> {
             Map<String, Object> m = new HashMap<>();
             m.put("id", a.getAgencyId());
@@ -379,9 +424,10 @@ public class AdminPusatController {
     @GetMapping("/admin/disposisi-detail")
     public String adminDisposisiDetailDirect(
             Model model,
+            HttpSession session,
             @RequestParam(value = "id", required = false) String id
     ) {
-        return adminDisposisiDetail(model, id);
+        return adminDisposisiDetail(model, session, id);
     }
 
     // ==========================================
@@ -393,7 +439,8 @@ public class AdminPusatController {
         // SESSION CHECK
         if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
 
-        List<Map<String, Object>> reports = getAdminValidationList();
+        String regionId = ControllerHelper.getSessionRegionId(session);
+        List<Map<String, Object>> reports = getAdminValidationList(regionId);
         // DRY: gunakan konstanta formatter dari ControllerHelper
         reports.sort(Comparator.comparing(r -> {
             try { return LocalDate.parse((String) r.get("tanggalMasuk"), ControllerHelper.DATE_FMT); }
@@ -416,7 +463,8 @@ public class AdminPusatController {
         // SESSION CHECK
         if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
 
-        List<Map<String, Object>> reports = getAdminValidationList();
+        String regionId = ControllerHelper.getSessionRegionId(session);
+        List<Map<String, Object>> reports = getAdminValidationList(regionId);
         model.addAttribute("reports", reports);
         model.addAttribute("pendingCount", reports.size());
 
@@ -511,9 +559,10 @@ public class AdminPusatController {
     public String adminMergeTicketPanel(Model model, HttpSession session) {
         // SESSION CHECK
         if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
+        String regionId = ControllerHelper.getSessionRegionId(session);
         List<MergeRecord> activeMerges = getActiveMerges();
         Set<String> mergedChildIds = getMergedChildIds(activeMerges);
-        List<Report> mergeCandidates = reportService.getReportsByStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
+        List<Report> mergeCandidates = regionId != null ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.MENUNGGU_VALIDASI, regionId) : reportService.getReportsByStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
         List<Map<String, Object>> mergeTickets = mergeCandidates.stream()
                 .filter(r -> !mergedChildIds.contains(r.getReportId()))
                 .map(this::toMergeTicketMap)
@@ -619,8 +668,10 @@ public class AdminPusatController {
     ) {
         // SESSION CHECK
         if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
+
+        String regionId = ControllerHelper.getSessionRegionId(session);
         List<Map<String, Object>> reports = new ArrayList<>();
-        List<Report> validated = reportService.getReportsByStatus(Report.ReportStatus.DIVALIDASI);
+        List<Report> validated = regionId != null ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.DIVALIDASI, regionId) : reportService.getReportsByStatus(Report.ReportStatus.DIVALIDASI);
         if (!validated.isEmpty()) {
             for (Report r : validated) {
                 Map<String, Object> m = new HashMap<>();
@@ -640,9 +691,28 @@ public class AdminPusatController {
         model.addAttribute("reports", reports);
         model.addAttribute("pendingCount", reports.size());
 
+        Map<String, Object> selected = null;
+        if (id != null) {
+            selected = reports.stream()
+                    .filter(r -> r.get("id").equals(id))
+                    .findFirst().orElse(reports.isEmpty() ? null : reports.get(0));
+        }
+        model.addAttribute("selectedReport", selected);
+
+        // FR-DSP-02: filter daftar dinas hanya yang beroperasi di region laporan terpilih
         List<Map<String, Object>> dinasList = new ArrayList<>();
         try {
-            List<Agency> realAgencies = agencyService.getActiveAgencies();
+            List<Agency> realAgencies;
+            if (selected != null && id != null) {
+                Report rpt = reportService.findById(id).orElse(null);
+                if (rpt != null && rpt.getRegion() != null) {
+                    realAgencies = agencyService.getActiveAgenciesByRegion(rpt.getRegion().getRegionId());
+                } else {
+                    realAgencies = agencyService.getActiveAgencies();
+                }
+            } else {
+                realAgencies = agencyService.getActiveAgencies();
+            }
             if (realAgencies != null) {
                 dinasList = realAgencies.stream().map(a -> {
                     Map<String, Object> m = new HashMap<>();
@@ -656,14 +726,6 @@ public class AdminPusatController {
             log.error("Gagal memuat daftar dinas: {}", e.getMessage(), e);
         }
         model.addAttribute("dinasList", dinasList);
-
-        Map<String, Object> selected = null;
-        if (id != null) {
-            selected = reports.stream()
-                    .filter(r -> r.get("id").equals(id))
-                    .findFirst().orElse(reports.isEmpty() ? null : reports.get(0));
-        }
-        model.addAttribute("selectedReport", selected);
         return "admin/disposisi-panel";
     }
 
@@ -675,7 +737,8 @@ public class AdminPusatController {
             @RequestParam(value = "dinasId", required = false) String dinasId,
             @RequestParam(value = "catatan", required = false) String catatan,
             @RequestParam(value = "priority", required = false) String priority,
-            @RequestParam(value = "deadline", required = false) String deadline
+            @RequestParam(value = "deadline", required = false) String deadline,
+            @RequestParam(value = "instructions", required = false) String instructions
     ) {
         // SESSION CHECK
         String adminId = ControllerHelper.requireAnyAdminSession(session);
@@ -685,7 +748,16 @@ public class AdminPusatController {
 
         try {
             if (ticketId != null && !ticketId.isEmpty()) {
-                // Simpan priority ke Report sebelum disposisi
+                // Parse deadline if provided
+                LocalDateTime deadlineDt = null;
+                if (deadline != null && !deadline.isBlank()) {
+                    deadlineDt = LocalDateTime.parse(deadline, DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"));
+                }
+
+                // Prefer explicit 'instructions' over generic 'catatan'
+                String notes = (instructions != null && !instructions.isBlank()) ? instructions : catatan;
+
+                // Persist priority to report and create SLA record if needed
                 final String finalPriority = (priority != null && !priority.isBlank()) ? priority.trim() : null;
                 if (finalPriority != null) {
                     Report rpt = reportService.findById(ticketId).orElse(null);
@@ -698,15 +770,18 @@ public class AdminPusatController {
                                 case "Kritis" -> 24;
                                 case "Tinggi" -> 48;
                                 case "Sedang" -> 72;
-                                default -> 120; // Rendah
+                                default -> 120; // Rendah atau default
                             };
                             slaRecordService.createSlaRecord(rpt.getReportId(), durationHours);
                         }
+                        // Try to persist priority by calling service update (will save entity)
                         reportService.updateStatus(ticketId, rpt.getStatus(), null, adminId);
                     }
                 }
-                dispositionService.createDisposition(ticketId, adminId, dinasId, catatan);
-                reportService.updateStatus(ticketId, Report.ReportStatus.DIDISPOSISI, catatan, adminId);
+
+                // Create disposition with available metadata (notes, priority, deadline, instructions)
+                dispositionService.createDisposition(ticketId, adminId, dinasId, notes, finalPriority, deadlineDt, instructions);
+                reportService.updateStatus(ticketId, Report.ReportStatus.DIDISPOSISI, notes, adminId);
                 redirectAttributes.addFlashAttribute("success", "Laporan berhasil didisposisikan ke dinas.");
             }
         } catch (Exception e) {
@@ -742,7 +817,14 @@ public class AdminPusatController {
     ) {
         // SESSION CHECK
         if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
+        String regionId = ControllerHelper.getSessionRegionId(session);
         List<DisputeRecord> realDisputes = disputeService.getPendingDisputes();
+        if (regionId != null) {
+            realDisputes = realDisputes.stream()
+                .filter(d -> d.getReport() != null && d.getReport().getRegion() != null
+                    && regionId.equals(d.getReport().getRegion().getRegionId()))
+                .collect(Collectors.toList());
+        }
         // DRY: gunakan konstanta DATE_FMT dari ControllerHelper
         List<Map<String, Object>> disputes = realDisputes.stream().map(d -> {
             Map<String, Object> m = new HashMap<>();
@@ -790,12 +872,7 @@ public class AdminPusatController {
             @RequestParam(value = "keputusan", required = false) String keputusan,
             @RequestParam(value = "catatan", required = false) String catatan
     ) {
-        // SESSION CHECK: ambil adminId dari session; fallback ke email jika belum ada
         String adminId = ControllerHelper.requireAnyAdminSession(session);
-        if (adminId == null) {
-            adminId = userService.getUserByEmail("admin@aduaja.go.id")
-                    .map(User::getUserId).orElse(null);
-        }
         if (adminId == null) return "redirect:/admin/login";
 
         try {
@@ -831,11 +908,19 @@ public class AdminPusatController {
         // SESSION CHECK
         if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
 
+        String regionId = ControllerHelper.getSessionRegionId(session);
         model.addAttribute("slaStats", slaMonitoringService.getSlaStatistics());
         model.addAttribute("lateItems", slaMonitoringService.getLateItems());
-        model.addAttribute("allSla", slaRecordService.getAllRecords());
-        // PERBAIKAN ROUTING: slaPanel sebelumnya return "admin/dashboard" (SALAH!)
-        // Harus return ke view yang tepat: admin/sla
+        if (regionId != null) {
+            List<SlaRecord> allSla = slaRecordService.getAllRecords();
+            allSla = allSla.stream()
+                .filter(s -> s.getReport() != null && s.getReport().getRegion() != null
+                    && regionId.equals(s.getReport().getRegion().getRegionId()))
+                .collect(Collectors.toList());
+            model.addAttribute("allSla", allSla);
+        } else {
+            model.addAttribute("allSla", slaRecordService.getAllRecords());
+        }
         return "admin/sla";
     }
 
@@ -895,7 +980,13 @@ public class AdminPusatController {
     }
 
     private List<Map<String, Object>> getAdminValidationList() {
-        List<Report> real = reportService.getReportsByStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
+        return getAdminValidationList(null);
+    }
+
+    private List<Map<String, Object>> getAdminValidationList(String regionId) {
+        List<Report> real = regionId != null
+            ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.MENUNGGU_VALIDASI, regionId)
+            : reportService.getReportsByStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
         real.sort(Comparator.nullsLast(Comparator.comparing(Report::getSubmittedAt, Comparator.nullsLast(Comparator.naturalOrder()))));
         return real.stream().map(this::toAdminValidationMap).collect(java.util.stream.Collectors.toList());
     }

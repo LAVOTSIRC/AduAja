@@ -33,6 +33,13 @@ public class UserProfile extends BaseEntity {  // ← INHERITANCE sejati
     @JoinColumn(name = "domisili_region_id")
     private Region domisiliRegion;
 
+    @Column(name = "nip", length = 50)
+    private String nip;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "wilayah_tugas_region_id")
+    private Region wilayahTugas;
+
     @Column(name = "alamat_lengkap", columnDefinition = "TEXT")
     private String alamatLengkap;
 
@@ -57,6 +64,12 @@ public class UserProfile extends BaseEntity {  // ← INHERITANCE sejati
 
     public Region getDomisiliRegion() { return domisiliRegion; }
     public void setDomisiliRegion(Region domisiliRegion) { this.domisiliRegion = domisiliRegion; }
+
+    public String getNip() { return nip; }
+    public void setNip(String nip) { this.nip = nip; }
+
+    public Region getWilayahTugas() { return wilayahTugas; }
+    public void setWilayahTugas(Region wilayahTugas) { this.wilayahTugas = wilayahTugas; }
 
     public String getAlamatLengkap() { return alamatLengkap; }
     public void setAlamatLengkap(String alamatLengkap) { this.alamatLengkap = alamatLengkap; }

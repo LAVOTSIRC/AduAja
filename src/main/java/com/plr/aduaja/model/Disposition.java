@@ -30,6 +30,15 @@ public class Disposition extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
+    @Column(length = 20)
+    private String priority;
+
+    @Column(name = "deadline")
+    private LocalDateTime deadline;
+
+    @Column(name = "instructions", columnDefinition = "TEXT")
+    private String instructions;
+
     public String getDispositionId() { return dispositionId; }
     public void setDispositionId(String dispositionId) { this.dispositionId = dispositionId; }
 
@@ -47,4 +56,13 @@ public class Disposition extends BaseEntity {
 
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }
+
+    public String getPriority() { return priority; }
+    public void setPriority(String priority) { this.priority = priority; }
+
+    public LocalDateTime getDeadline() { return deadline; }
+    public void setDeadline(LocalDateTime deadline) { this.deadline = deadline; }
+
+    public String getInstructions() { return instructions; }
+    public void setInstructions(String instructions) { this.instructions = instructions; }
 }

@@ -7,13 +7,16 @@ import com.plr.aduaja.model.ConfirmationRequest;
 import com.plr.aduaja.model.Report;
 import com.plr.aduaja.model.Report.ReportStatus;
 import com.plr.aduaja.model.SlaRecord;
+import com.plr.aduaja.model.Region;
 import com.plr.aduaja.model.User;
+import com.plr.aduaja.repository.RegionRepository;
 import com.plr.aduaja.repository.ReportCategoryRepository;
 import com.plr.aduaja.service.ConfirmationService;
 import com.plr.aduaja.service.DisputeService;
 import com.plr.aduaja.service.NotificationService;
 import com.plr.aduaja.service.ReportService;
 import com.plr.aduaja.service.SlaRecordService;
+import com.plr.aduaja.service.SupabaseStorageService;
 import com.plr.aduaja.service.UserService;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,7 +57,13 @@ public class WargaController {
     private SlaRecordService slaRecordService;
 
     @Autowired
+    private SupabaseStorageService supabaseStorageService;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private RegionRepository regionRepository;
 
     // ABSTRAKSI: Controller tidak inject Repository langsung
 
@@ -127,6 +136,19 @@ public class WargaController {
         if (userId == null) return "redirect:/warga/login";
         model.addAttribute("createReportDTO", new CreateReportDTO());
         model.addAttribute("categories", reportCategoryRepository.findByIsActiveTrue());
+
+        List<Region> regions = regionRepository.findAll();
+        StringBuilder json = new StringBuilder("[");
+        boolean first = true;
+        for (Region r : regions) {
+            if (!first) json.append(",");
+            json.append("{\"id\":\"").append(r.getRegionId().replace("\"", "\\\""))
+                .append("\",\"name\":\"").append(r.getRegionName().replace("\"", "\\\""))
+                .append("\"}");
+            first = false;
+        }
+        json.append("]");
+        model.addAttribute("regionListJson", json.toString());
         return "warga/create-report";
     }
 
@@ -140,6 +162,12 @@ public class WargaController {
         if (userId == null) return "redirect:/warga/login";
 
         try {
+            // Upload foto ke Supabase jika ada
+            if (dto.getPhotoBase64() != null && !dto.getPhotoBase64().isBlank()
+                    && !dto.getPhotoBase64().startsWith("http")) {
+                String url = supabaseStorageService.uploadBase64(dto.getPhotoBase64(), "laporan");
+                if (url != null) dto.setPhotoBase64(url);
+            }
             Report report = reportService.createReport(dto, userId);
             // ABSTRAKSI: userService.findByRole() gantikan userRepository.findByRole()
             List<User> admins = userService.findByRole(User.Role.ADMIN_PUSAT);
@@ -315,6 +343,7 @@ public class WargaController {
         reportMap.put("photoUrl", report.getPhotoBase64());
         reportMap.put("photoBase64", report.getPhotoBase64());
         reportMap.put("adminNotes", report.getAdminNotes());
+        reportMap.put("regionName", report.getRegion() != null ? report.getRegion().getRegionName() : "-");
         reportMap.put("rejectionReason", report.getRejectionReason());
         reportMap.put("status", toWargaStatusLabel(report.getStatus()));
         reportMap.put("category", report.getCategory() != null ? report.getCategory().getCategoryName() : "Lainnya");
@@ -530,7 +559,11 @@ public class WargaController {
             DisputeDTO dto = new DisputeDTO();
             dto.setReportId(reportId);
             dto.setReason(reason);
-            dto.setEvidencePhotoUrl(evidenceBase64.isBlank() ? null : evidenceBase64);
+            // Upload bukti sengketa ke Supabase
+            String evidenceUrl = evidenceBase64.isBlank() ? null :
+                (evidenceBase64.startsWith("http") ? evidenceBase64 :
+                 supabaseStorageService.uploadBase64(evidenceBase64, "sengketa"));
+            dto.setEvidencePhotoUrl(evidenceUrl);
             disputeService.createDispute(dto, userId);
             redirectAttributes.addFlashAttribute("success", "Sengketa berhasil diajukan. Admin akan meninjau laporan Anda.");
         } catch (Exception e) {
@@ -574,7 +607,11 @@ public class WargaController {
             if (longitude != null && !longitude.isBlank()) {
                 try { report.setLongitude(new java.math.BigDecimal(longitude)); } catch (Exception ignored) {}
             }
-            if (photoData != null && !photoData.isBlank()) report.setPhotoBase64(photoData);
+            if (photoData != null && !photoData.isBlank()) {
+                String photoUrl = photoData.startsWith("http") ? photoData :
+                    supabaseStorageService.uploadBase64(photoData, "laporan");
+                if (photoUrl != null) report.setPhotoBase64(photoUrl);
+            }
             // FR-WRG-19: Ubah status kembali ke menunggu validasi setelah revisi (edit dikunci)
             reportService.updateStatus(reportId, ReportStatus.MENUNGGU_VALIDASI, "Revisi dikirim oleh warga", userId);
             redirectAttributes.addFlashAttribute("success", "Revisi laporan berhasil dikirim. Admin akan meninjau kembali.");

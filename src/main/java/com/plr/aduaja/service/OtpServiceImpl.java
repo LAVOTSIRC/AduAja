@@ -33,6 +33,9 @@ public class OtpServiceImpl implements OtpService {  // ← POLYMORPHISM
     @Autowired
     private OtpVerificationRepository otpRepository;
 
+    @Autowired
+    private EmailService emailService;
+
     private final Random random = new Random();
 
     @Override  // ← POLYMORPHISM: Override dari interface
@@ -49,7 +52,12 @@ public class OtpServiceImpl implements OtpService {  // ← POLYMORPHISM
         otp.setIsVerified(false);
         otp.setIsUsed(false);
 
-        return otpRepository.save(otp);
+        OtpVerification saved = otpRepository.save(otp);
+
+        // Kirim OTP ke email user (async — berjalan di background thread)
+        emailService.sendOtpEmail(user.getEmail(), saved.getOtpCode(), type);
+
+        return saved;
     }
 
     @Override  // ← POLYMORPHISM: Override dari interface (Overload)

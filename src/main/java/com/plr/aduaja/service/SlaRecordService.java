@@ -23,7 +23,7 @@ public interface SlaRecordService {
     List<SlaRecord> getRecords(LocalDateTime start, LocalDateTime end);      // 2 parameter — OVERLOAD
 
     SlaRecord createSlaRecord(String reportId, Integer durationHours);
-    SlaRecord pauseSla(String slaId, String reason);
+    SlaRecord pauseSla(String slaId, String reason, String pausedByUserId);
     SlaRecord resumeSla(String slaId);
     SlaRecord completeSla(String slaId);
     void checkAndUpdateOverdueSla();

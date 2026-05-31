@@ -3,6 +3,8 @@ package com.plr.aduaja.service;
 import com.plr.aduaja.model.*;
 import com.plr.aduaja.model.FieldTask.TaskStatus;
 import com.plr.aduaja.repository.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -34,6 +36,11 @@ public class FieldTaskServiceImpl implements FieldTaskService {
 
     @Autowired
     private ConfirmationRequestRepository confirmationRequestRepository;  // FIX: untuk buat ConfirmationRequest saat task selesai
+
+    @Autowired
+    private UserProfileRepository userProfileRepository;
+
+    private static final Logger log = LoggerFactory.getLogger(FieldTaskServiceImpl.class);
 
     @Override
     public List<FieldTask> getAllTasks() {
@@ -88,7 +95,24 @@ public class FieldTaskServiceImpl implements FieldTaskService {
         SlaRecord sla = slaRecordRepository.findByReportReportId(reportId).orElse(null);
         task.setSlaRecord(sla);
 
-        return fieldTaskRepository.save(task);
+        FieldTask saved = fieldTaskRepository.save(task);
+
+        // FR-PRS-03: Validasi wilayah tugas petugas vs lokasi laporan
+        try {
+            UserProfile profile = userProfileRepository.findByUserUserId(officerId).orElse(null);
+            if (profile != null && profile.getWilayahTugas() != null && report.getLocationHint() != null) {
+                String wilayahPetugas = profile.getWilayahTugas().getRegionName().toLowerCase();
+                String lokasiLaporan = report.getLocationHint().toLowerCase();
+                if (!lokasiLaporan.contains(wilayahPetugas) && !wilayahPetugas.contains(lokasiLaporan)) {
+                    log.warn("FR-PRS-03: Wilayah tugas petugas '{}' tidak sesuai dengan lokasi laporan '{}'",
+                            profile.getWilayahTugas().getRegionName(), report.getLocationHint());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("FR-PRS-03: Gagal validasi wilayah: {}", e.getMessage());
+        }
+
+        return saved;
     }
 
     @Override
