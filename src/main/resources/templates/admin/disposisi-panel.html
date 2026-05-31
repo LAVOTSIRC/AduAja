@@ -45,9 +45,11 @@
               />
             </div>
             <div class="space-y-3 max-h-[600px] overflow-y-auto">
-              <div
+              <a
                 th:each="report : ${reports}"
-                class="p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+                th:href="@{/admin/disposisi(id=${report.id})}"
+                class="block p-4 border rounded-lg hover:bg-blue-50 hover:border-blue-200 transition-colors cursor-pointer"
+                th:classappend="${selectedReport != null and selectedReport.id == report.id} ? 'border-blue-400 bg-blue-50' : 'border-gray-200'"
               >
                 <div class="flex gap-3">
                   <img
@@ -96,7 +98,7 @@
                     </div>
                   </div>
                 </div>
-              </div>
+              </a>
             </div>
           </div>
         </div>
