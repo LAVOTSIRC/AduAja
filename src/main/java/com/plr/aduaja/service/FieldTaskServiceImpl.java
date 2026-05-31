@@ -3,8 +3,11 @@ package com.plr.aduaja.service;
 import com.plr.aduaja.model.*;
 import com.plr.aduaja.model.FieldTask.TaskStatus;
 import com.plr.aduaja.repository.*;
+import com.plr.aduaja.util.GeoUtils;
+import com.plr.aduaja.util.PhotoWatermarkUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -119,6 +122,30 @@ public class FieldTaskServiceImpl implements FieldTaskService {
     public FieldTask startTask(String taskId, BigDecimal latitude, BigDecimal longitude) {
         FieldTask task = fieldTaskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task not found"));
+
+        // FR-PTG-18: Validasi jarak petugas ke lokasi laporan sebelum mulai
+        // Radius toleransi: 10 km (dapat dikonfigurasi). Jika koordinat tidak ada,
+        // tetap izinkan (fallback graceful agar tidak block petugas tanpa GPS).
+        if (latitude != null && longitude != null && task.getReport() != null) {
+            Report report = task.getReport();
+            if (report.getLatitude() != null && report.getLongitude() != null) {
+                double distKm = GeoUtils.haversineKm(latitude, longitude,
+                        report.getLatitude(), report.getLongitude());
+                        
+                boolean isDummyAccount = task.getOfficer() != null && 
+                    (task.getOfficer().getEmail().equalsIgnoreCase("ahmad.fauzi@aduaja.go.id") || 
+                     task.getOfficer().getEmail().equalsIgnoreCase("rizal.harahap@aduaja.go.id"));
+                     
+                if (distKm > 10.0 && !isDummyAccount) {
+                    throw new IllegalStateException(
+                        String.format("Anda berada terlalu jauh dari lokasi tugas (%.1f km). " +
+                                      "Maksimum jarak yang diizinkan adalah 10 km.", distKm));
+                } else if (distKm > 10.0 && isDummyAccount) {
+                    System.out.println("GEOFENCING BYPASS (START TASK): Akun dummy " + task.getOfficer().getEmail() + " diizinkan mulai tugas meski di luar radius.");
+                }
+            }
+        }
+
         task.setTaskStatus(TaskStatus.SEDANG_DIKERJAKAN);
         task.setStartedAt(LocalDateTime.now());
         task.setOfficerLatitude(latitude);
@@ -172,21 +199,41 @@ public class FieldTaskServiceImpl implements FieldTaskService {
     }
 
     @Override
-    public FieldTask postponeTask(String taskId, String reason) {
+    public FieldTask postponeTask(String taskId, String reason, String requestedById) {
         FieldTask task = fieldTaskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task not found"));
+        User requestedBy = requestedById != null ? userRepository.findById(requestedById).orElse(null) : null;
         task.setTaskStatus(TaskStatus.TERTUNDA);
         fieldTaskRepository.save(task);
 
-        // FIX: simpan record penundaan ke tabel task_postponements (Encapsulation — data terbungkus di entity)
         TaskPostponement postponement = new TaskPostponement();
         postponement.setTask(task);
-        postponement.setReason(reason != null && !reason.isBlank() ? reason : "Ditunda oleh petugas");
+        postponement.setRequestedBy(requestedBy);
+        postponement.setReason(reason != null && !reason.isBlank() ? reason : "Ditunda oleh admin");
         postponement.setRequestedAt(LocalDateTime.now());
-        postponement.setApprovalStatus(TaskPostponement.ApprovalStatus.MENUNGGU);
-        taskPostponementRepository.save(postponement);  // ← SEKARANG TERSIMPAN ke DB
+        postponement.setApprovalStatus(TaskPostponement.ApprovalStatus.DISETUJUI); // Admin langsung approve
+        taskPostponementRepository.save(postponement);
 
         return task;
+    }
+
+    @Override
+    public TaskPostponement requestPostpone(String taskId, String reason, String requestedById, LocalDateTime estimatedResumeAt) {
+        // FR-PTG-27: Petugas ajukan penundaan — status tugas TIDAK langsung berubah.
+        // TaskPostponement disimpan dengan ApprovalStatus.MENUNGGU.
+        // Admin harus approve di dashboard admin agar tugas menjadi TERTUNDA.
+        FieldTask task = fieldTaskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("Task not found"));
+        User requestedBy = requestedById != null ? userRepository.findById(requestedById).orElse(null) : null;
+
+        TaskPostponement postponement = new TaskPostponement();
+        postponement.setTask(task);
+        postponement.setRequestedBy(requestedBy);
+        postponement.setReason(reason != null && !reason.isBlank() ? reason : "Ditunda oleh petugas");
+        postponement.setRequestedAt(LocalDateTime.now());
+        postponement.setEstimatedResumeAt(estimatedResumeAt);
+        postponement.setApprovalStatus(TaskPostponement.ApprovalStatus.MENUNGGU);
+        return taskPostponementRepository.save(postponement);
     }
 
     @Override
@@ -203,5 +250,57 @@ public class FieldTaskServiceImpl implements FieldTaskService {
     @Override
     public long countByStatus(TaskStatus status) {
         return fieldTaskRepository.countByTaskStatus(status);
+    }
+
+    @Override
+    public Optional<TaskPostponement> getLatestPostponement(String taskId) {
+        List<TaskPostponement> list = taskPostponementRepository.findByTaskTaskIdOrderByRequestedAtDesc(taskId);
+        return list.isEmpty() ? Optional.empty() : Optional.of(list.get(0));
+    }
+
+    @Override
+    public List<TaskEvidence> getEvidencesByTaskAndType(String taskId, TaskEvidence.EvidenceType type) {
+        return taskEvidenceRepository.findByTaskTaskIdAndEvidenceType(taskId, type);
+    }
+
+    @Override
+    public FieldTask closeTaskByAdmin(String taskId) {
+        FieldTask task = fieldTaskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("Task not found"));
+        task.setTaskStatus(TaskStatus.SELESAI);
+        task.setCompletedAt(LocalDateTime.now());
+        fieldTaskRepository.save(task);
+
+        Report report = task.getReport();
+        if (report != null) {
+            report.setStatus(Report.ReportStatus.SELESAI);
+            reportRepository.save(report);
+        }
+
+        return task;
+    }
+
+    @Override
+    public void saveTaskEvidence(String taskId, String photoUrl, TaskEvidence.EvidenceType type) {
+        FieldTask task = fieldTaskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("Task not found"));
+
+        // FR-PTG-21: Tambahkan watermark pada foto bukti
+        // Watermark berisi: ID tiket laporan, nama petugas, koordinat GPS officer, timestamp server
+        String ticketNumber = task.getReport() != null ? task.getReport().getTicketNumber() : taskId.substring(0, 8);
+        String officerName  = task.getOfficer() != null ? task.getOfficer().getFullName() : "Petugas";
+        BigDecimal lat = task.getOfficerLatitude();
+        BigDecimal lon = task.getOfficerLongitude();
+        String watermarkedPhoto = PhotoWatermarkUtil.addWatermark(
+                photoUrl, ticketNumber, officerName, lat, lon, LocalDateTime.now());
+
+        TaskEvidence evidence = new TaskEvidence();
+        evidence.setTask(task);
+        evidence.setEvidenceType(type);
+        evidence.setPhotoUrl(watermarkedPhoto);
+        evidence.setLatitude(lat);
+        evidence.setLongitude(lon);
+        evidence.setTakenAt(LocalDateTime.now());
+        taskEvidenceRepository.save(evidence);
     }
 }

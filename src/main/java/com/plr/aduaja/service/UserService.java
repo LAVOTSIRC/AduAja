@@ -45,6 +45,8 @@ public interface UserService {
     User updateProfile(String userId, ProfileDTO dto);
     UserProfile getProfileByUserId(String userId);
 
+    void changePassword(String userId, String newPassword);
+
     boolean existsByEmail(String email);
     boolean existsByPhoneNumber(String phoneNumber);
     long countByRole(User.Role role);

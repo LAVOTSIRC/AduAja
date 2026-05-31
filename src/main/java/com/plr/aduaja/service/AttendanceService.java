@@ -17,7 +17,28 @@ public interface AttendanceService {
 
     Optional<OfficerAttendance> getCurrentShift(String officerId);
 
+    /**
+     * Check-in standar (tanpa validasi geofencing).
+     */
     OfficerAttendance checkIn(String officerId, BigDecimal latitude, BigDecimal longitude, String deviceInfo);
+
+    /**
+     * Check-in dengan validasi geofencing (FR-PTG-08).
+     * Melempar IllegalStateException jika koordinat di luar radius kerja.
+     *
+     * @param officerId    ID petugas
+     * @param latitude     Latitude petugas saat check-in
+     * @param longitude    Longitude petugas saat check-in
+     * @param deviceInfo   Info perangkat
+     * @param maxRadiusKm  Radius maksimum wilayah kerja (km)
+     * @param centerLat    Latitude pusat kantor/wilayah kerja
+     * @param centerLon    Longitude pusat kantor/wilayah kerja
+     */
+    OfficerAttendance checkInWithGeofence(String officerId,
+                                          BigDecimal latitude, BigDecimal longitude,
+                                          String deviceInfo,
+                                          double maxRadiusKm,
+                                          double centerLat, double centerLon);
 
     OfficerAttendance checkOut(String attendanceId);
 

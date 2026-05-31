@@ -71,4 +71,22 @@ public class AuditLog extends BaseEntity {
     void setIpAddress(String ipAddress) { this.ipAddress = ipAddress; }
     void setDeviceInfo(String deviceInfo) { this.deviceInfo = deviceInfo; }
     void setLoggedAt(LocalDateTime loggedAt) { this.loggedAt = loggedAt; }
+    // ======================================================
+    // Static factory method (Builder Pattern) — agar class
+    // luar package tetap bisa membuat AuditLog tanpa setter publik.
+    // Setter tetap package-private untuk menjaga immutability.
+    // ======================================================
+    public static AuditLog create(User actor, Report report,
+                                   String targetType, String targetId,
+                                   String actionType, String oldValue, String newValue) {
+        AuditLog log = new AuditLog();
+        log.setActor(actor);
+        log.setReport(report);
+        log.setTargetType(targetType);
+        log.setTargetId(targetId);
+        log.setActionType(actionType);
+        log.setOldValue(oldValue);
+        log.setNewValue(newValue);
+        return log;
+    }
 }

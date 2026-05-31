@@ -128,10 +128,25 @@
         <p class="text-gray-500">Tidak ada riwayat ditemukan</p>
       </div>
 
-      <div
+      <a
         th:each="task : ${tasks}"
         th:with="statusLabel=${task.status == 'approved' ? 'Disetujui' : 'Menunggu Review'}, statusClass=${task.status == 'approved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}"
-        class="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
+        class="block bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow"
+        th:href="@{/petugas/history-detail(id=${task.id})}"
+        th:attr="data-completed-at=${task.completedAt}"
+        x-show="(function() {
+          const completedAt = $el.getAttribute('data-completed-at');
+          if (!completedAt || completedAt === '-') return filterPeriod === 'all';
+          const now = new Date();
+          const d = new Date(completedAt.replace(/\./g, '-').replace(' ', 'T'));
+          if (isNaN(d)) return filterPeriod === 'all';
+          const diffMs = now - d;
+          const diffDays = diffMs / (1000 * 60 * 60 * 24);
+          if (filterPeriod === 'today') return diffDays < 1;
+          if (filterPeriod === 'week') return diffDays < 7;
+          if (filterPeriod === 'month') return diffDays < 30;
+          return true;
+        })()"
       >
         <div class="flex items-start justify-between mb-3">
           <div class="flex-1">
@@ -269,7 +284,7 @@
             </div>
           </div>
         </div>
-      </div>
+      </a>
     </div>
   </div>
 </html>

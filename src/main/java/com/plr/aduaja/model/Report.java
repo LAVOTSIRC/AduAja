@@ -73,6 +73,10 @@ public class Report extends BaseEntity {  // ← INHERITANCE sejati
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt = LocalDateTime.now();
 
+    // FR-PTG-17: Flag untuk mencegah koreksi koordinat lebih dari 1 kali
+    @Column(name = "coordinate_corrected", nullable = false, columnDefinition = "boolean default false")
+    private boolean coordinateCorrected = false;
+
 
     @OneToMany(mappedBy = "report", cascade = CascadeType.ALL)
     private List<ReportRevision> revisions = new ArrayList<>();
@@ -158,6 +162,8 @@ public class Report extends BaseEntity {  // ← INHERITANCE sejati
     public LocalDateTime getSubmittedAt() { return submittedAt; }
     public void setSubmittedAt(LocalDateTime submittedAt) { this.submittedAt = submittedAt; }
 
+    public boolean isCoordinateCorrected() { return coordinateCorrected; }
+    public void setCoordinateCorrected(boolean coordinateCorrected) { this.coordinateCorrected = coordinateCorrected; }
 
     public List<ReportRevision> getRevisions() { return revisions; }
     public void setRevisions(List<ReportRevision> revisions) { this.revisions = revisions; }
