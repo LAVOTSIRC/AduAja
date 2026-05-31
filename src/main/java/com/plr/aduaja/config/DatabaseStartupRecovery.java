@@ -32,6 +32,11 @@ public final class DatabaseStartupRecovery {
     }
 
     public static void prepareDatabase() {
+        String profiles = System.getenv("SPRING_PROFILES_ACTIVE");
+        if (profiles != null && profiles.contains("prod")) {
+            log.info("Profile 'prod' terdeteksi — H2 recovery dilewati.");
+            return;
+        }
         try {
             if (DATA_DIR != null) {
                 Files.createDirectories(DATA_DIR);
