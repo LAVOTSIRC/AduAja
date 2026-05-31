@@ -34,7 +34,18 @@ public interface FieldTaskService {
 
     FieldTask completeTask(String taskId, String evidencePhotoUrl);
 
+    /**
+     * Langsung set tugas menjadi TERTUNDA (digunakan oleh admin).
+     */
     FieldTask postponeTask(String taskId, String reason, String requestedById);
+
+    /**
+     * Ajukan permintaan penundaan oleh petugas (FR-PTG-27).
+     * Status tugas TIDAK langsung berubah — tetap SEDANG_DIKERJAKAN.
+     * TaskPostponement dibuat dengan ApprovalStatus.MENUNGGU.
+     * Admin harus approve agar status tugas berubah ke TERTUNDA.
+     */
+    TaskPostponement requestPostpone(String taskId, String reason, String requestedById, LocalDateTime estimatedResumeAt);
 
     FieldTask reassignTask(String taskId, String newOfficerId);
 

@@ -37,18 +37,6 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    @PostConstruct
-    public void activatePendingUsers() {
-        List<User> pending = userRepository.findByAccountStatus(User.AccountStatus.PENDING);
-        for (User u : pending) {
-            u.setAccountStatus(User.AccountStatus.ACTIVE);
-            userRepository.save(u);
-        }
-        if (!pending.isEmpty()) {
-            System.out.println("=== Aktifkan " + pending.size() + " akun PENDING menjadi ACTIVE ===");
-        }
-    }
-
     // ===========================
     // @Override — Run-time Polymorphism
     // Mengimplementasikan semua method dari UserService interface
@@ -132,7 +120,7 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
         user.setPhoneNumber(dto.getPhoneNumber());
         user.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
         user.setRole(User.Role.PETUGAS);
-        user.setAccountStatus(User.AccountStatus.ACTIVE);
+        user.setAccountStatus(User.AccountStatus.PENDING);
 
         return userRepository.save(user);
     }
@@ -196,6 +184,17 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
         return userRepository.findById(userId)
             .map(User::getUserProfile)
             .orElse(null);
+    }
+
+    @Override
+    public void changePassword(String userId, String newPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        if (user.getAccountStatus() == User.AccountStatus.PENDING) {
+            user.setAccountStatus(User.AccountStatus.ACTIVE);
+        }
+        userRepository.save(user);
     }
 
     @Override  // ← POLYMORPHISM: Override dari interface

@@ -68,7 +68,11 @@ public class AuthServiceImpl implements AuthService {  // ← POLYMORPHISM
 
         // Cek status akun
         if (user.getAccountStatus() == User.AccountStatus.PENDING) {
-            return Optional.empty();  // Belum verifikasi OTP
+            // FR-AKN-13: Petugas baru berstatus PENDING diizinkan lewat agar bisa diarahkan ke halaman ganti password oleh Controller.
+            // Selain Petugas (seperti Warga), PENDING berarti belum verifikasi OTP, sehingga tidak boleh login.
+            if (user.getRole() != User.Role.PETUGAS) {
+                return Optional.empty();
+            }
         }
         if (user.getAccountStatus() == User.AccountStatus.SUSPENDED) {
             return Optional.empty();  // Akun ditangguhkan

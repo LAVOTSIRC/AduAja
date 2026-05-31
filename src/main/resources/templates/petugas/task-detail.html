@@ -78,6 +78,20 @@
       </div>
     </div>
 
+    <!-- Error Flash Attribute untuk Task Error (FR-PTG-18 / Gagal Mulai) -->
+    <div th:if="${taskError}" class="bg-red-50 border-l-4 border-red-500 p-4 mx-4 sm:mx-auto max-w-4xl mt-4 rounded-md">
+      <div class="flex">
+        <div class="flex-shrink-0">
+          <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+          </svg>
+        </div>
+        <div class="ml-3">
+          <p class="text-sm text-red-700" th:text="${taskError}"></p>
+        </div>
+      </div>
+    </div>
+
     <div class="max-w-4xl mx-auto px-4 sm:px-6 py-4 space-y-4" th:with="priorityLabel=${task['priority'] == 'critical' ? 'Kritis' : task['priority'] == 'high' ? 'Tinggi' : task['priority'] == 'medium' ? 'Sedang' : 'Rendah'}, priorityClass=${task['priority'] == 'critical' ? 'bg-red-100 text-red-800 border-red-200' : task['priority'] == 'high' ? 'bg-orange-100 text-orange-800 border-orange-200' : task['priority'] == 'medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 'bg-green-100 text-green-800 border-green-200'}, statusLabel=${task['status'] == 'in_progress' ? 'Sedang Dikerjakan' : task['status'] == 'pending' ? 'Tertunda' : task['status'] == 'completed' ? 'Selesai' : 'Tugas Baru'}, statusClass=${task['status'] == 'in_progress' ? 'bg-green-100 text-green-800' : task['status'] == 'pending' ? 'bg-yellow-100 text-yellow-800' : task['status'] == 'completed' ? 'bg-gray-100 text-gray-800' : 'bg-blue-100 text-blue-800'}">
       <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
         <div class="flex items-center justify-between mb-3">
@@ -122,9 +136,9 @@
             <span class="text-gray-600">Koordinat:</span>
             <span class="font-mono text-gray-900" th:text="|${task['location']['latitude']}, ${task['location']['longitude']}|"></span>
           </div>
-          <div class="flex items-center justify-between text-sm" th:if="${task['distanceToTask'] != null}">
+          <div class="flex items-center justify-between text-sm">
             <span class="text-gray-600">Jarak dari Anda:</span>
-            <span class="font-semibold text-blue-600" th:text="${task['distanceToTask']}">0 km</span>
+            <span class="font-semibold text-blue-600" x-text="distanceToTask !== null && distanceToTask !== undefined ? distanceToTask.toFixed(2) + ' km' : '-'">-</span>
           </div>
           <div class="flex gap-2">
             <a
@@ -300,7 +314,7 @@
         </div>
         <div class="flex gap-3">
           <button type="button" x-on:click="showStartModal = false" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50">Batal</button>
-          <form th:action="@{/petugas/task-action}" method="post" class="flex-1">
+          <form id="startTaskForm" th:action="@{/petugas/task-action}" method="post" class="flex-1">
             <input type="hidden" name="id" th:value="${task['id']}" />
             <input type="hidden" name="action" value="start" />
             <input type="hidden" name="description" x-bind:value="startDesc" />
@@ -485,7 +499,56 @@
             <button type="submit" class="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700">Ajukan Eskalasi</button>
           </div>
         </form>
+        </form>
       </div>
     </div>
   </div>
+
+  <th:block layout:fragment="extraScripts">
+    <script th:inline="javascript">
+      // Ambil koordinat tugas dari Thymeleaf
+      const taskLat = /*[[${task['location'] != null && task['location'] instanceof T(java.util.Map) ? task['location']['latitude'] : 0}]]*/ 0;
+      const taskLng = /*[[${task['location'] != null && task['location'] instanceof T(java.util.Map) ? task['location']['longitude'] : 0}]]*/ 0;
+
+      function calculateDistance(lat1, lon1, lat2, lon2) {
+        if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
+        const R = 6371; // Radius bumi dalam kilometer
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+          Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+      }
+
+      // Ambil lokasi GPS saat ini dan dispatch event
+      if (navigator.geolocation && taskLat && taskLng) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const userLat = pos.coords.latitude;
+            const userLng = pos.coords.longitude;
+            const dist = calculateDistance(userLat, userLng, parseFloat(taskLat), parseFloat(taskLng));
+            
+            // Dispatch event dengan jarak terbaru
+            window.dispatchEvent(new CustomEvent('geolocation-update', { 
+              detail: { distance: dist, userLat: userLat, userLng: userLng } 
+            }));
+
+            // Jika ada form start-task, set hidden input untuk koordinat
+            const startForm = document.getElementById('startTaskForm');
+            if (startForm) {
+              if (!document.getElementById('startLat')) {
+                const inputLat = document.createElement('input'); inputLat.type = 'hidden'; inputLat.id = 'startLat'; inputLat.name = 'latitude'; startForm.appendChild(inputLat);
+                const inputLng = document.createElement('input'); inputLng.type = 'hidden'; inputLng.id = 'startLng'; inputLng.name = 'longitude'; startForm.appendChild(inputLng);
+              }
+              document.getElementById('startLat').value = userLat;
+              document.getElementById('startLng').value = userLng;
+            }
+          },
+          (err) => { console.warn("GPS gagal:", err); }
+        );
+      }
+    </script>
+  </th:block>
 </html>
