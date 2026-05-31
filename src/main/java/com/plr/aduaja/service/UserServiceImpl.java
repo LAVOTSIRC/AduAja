@@ -74,11 +74,16 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
     @Override  // ← POLYMORPHISM: Override dari interface
     public User createUser(RegisterDTO dto) {
         // ABSTRACTION: Semua logika kompleks disembunyikan dari Controller
+        // Email — controller sudah handle PENDING sebelum panggil method ini
         if (userRepository.existsByEmail(dto.getEmail())) {
             throw new RuntimeException("Email sudah terdaftar");
         }
-        if (dto.getPhoneNumber() != null && userRepository.existsByPhoneNumber(dto.getPhoneNumber())) {
-            throw new RuntimeException("Nomor HP sudah terdaftar");
+        // Phone — hanya ACTIVE/SUSPENDED yang dianggap konflik, PENDING dianggap bebas
+        if (dto.getPhoneNumber() != null) {
+            Optional<User> existingPhone = userRepository.findByPhoneNumber(dto.getPhoneNumber());
+            if (existingPhone.isPresent() && existingPhone.get().getAccountStatus() != User.AccountStatus.PENDING) {
+                throw new RuntimeException("Nomor HP sudah terdaftar");
+            }
         }
 
         // Buat User baru
@@ -99,11 +104,65 @@ public class UserServiceImpl implements UserService {  // ← POLYMORPHISM
         UserProfile profile = new UserProfile();
         profile.setUser(savedUser);
         if (dto.getNik() != null && !dto.getNik().isBlank()) {
-            // Cek NIK sudah dipakai
-            if (userProfileRepository.existsByNik(dto.getNik())) {
+            // Cek NIK — hanya ACTIVE/SUSPENDED yang dianggap konflik
+            Optional<UserProfile> existingProfile = userProfileRepository.findByNik(dto.getNik());
+            if (existingProfile.isPresent()) {
+                User profileOwner = existingProfile.get().getUser();
+                if (profileOwner.getAccountStatus() != User.AccountStatus.PENDING) {
+                    throw new RuntimeException("NIK sudah terdaftar");
+                }
+            }
+            profile.setNik(dto.getNik());
+        }
+        userProfileRepository.save(profile);
+
+        return savedUser;
+    }
+
+    @Override
+    public User updatePendingRegistration(RegisterDTO dto, String userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User tidak ditemukan"));
+
+        if (user.getAccountStatus() != User.AccountStatus.PENDING) {
+            throw new RuntimeException("Akun sudah aktif, tidak bisa update data registrasi");
+        }
+
+        // Update data user
+        user.setFullName(dto.getFullName());
+        user.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
+
+        // Phone: cek konflik hanya dengan ACTIVE/SUSPENDED
+        if (dto.getPhoneNumber() != null) {
+            Optional<User> existingPhone = userRepository.findByPhoneNumber(dto.getPhoneNumber());
+            if (existingPhone.isPresent()
+                && !existingPhone.get().getUserId().equals(userId)
+                && existingPhone.get().getAccountStatus() != User.AccountStatus.PENDING) {
+                throw new RuntimeException("Nomor HP sudah terdaftar");
+            }
+            user.setPhoneNumber(dto.getPhoneNumber());
+        } else {
+            user.setPhoneNumber(null);
+        }
+
+        User savedUser = userRepository.save(user);
+
+        // Update profile & NIK
+        UserProfile profile = userProfileRepository.findByUserUserId(userId).orElse(null);
+        if (profile == null) {
+            profile = new UserProfile();
+            profile.setUser(savedUser);
+        }
+        if (dto.getNik() != null && !dto.getNik().isBlank()) {
+            Optional<UserProfile> existingProfile = userProfileRepository.findByNik(dto.getNik());
+            if (existingProfile.isPresent()
+                && !existingProfile.get().getUser().getUserId().equals(userId)
+                && existingProfile.get().getUser().getAccountStatus() != User.AccountStatus.PENDING) {
                 throw new RuntimeException("NIK sudah terdaftar");
             }
             profile.setNik(dto.getNik());
+        } else {
+            profile.setNik(null);
         }
         userProfileRepository.save(profile);
 
