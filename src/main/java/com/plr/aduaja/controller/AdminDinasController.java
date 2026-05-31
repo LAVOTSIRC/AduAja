@@ -292,12 +292,16 @@ public class AdminDinasController {
     public String adminDinasPenugasanPost(
             @RequestParam(value = "id", required = false) String id,
             @RequestParam(value = "petugasId", required = false) String petugasId,
-            @RequestParam(value = "catatan", required = false) String catatan
+            @RequestParam(value = "catatan", required = false) String catatan,
+            HttpSession session
     ) {
         try {
-            String adminDinasId = userService.getUserByEmail("admin.pu@aduaja.go.id")
-                    .map(User::getUserId).orElse(null);
-            fieldTaskService.createTask(id, petugasId, adminDinasId);
+            String adminDinasId = ControllerHelper.requireAgencySession(session);
+            if (adminDinasId == null) return "redirect:/admin/login";
+            // Ambil userId admin dinas dari session (bukan hardcoded)
+            String userId = (String) session.getAttribute("userId");
+            if (userId == null) return "redirect:/admin/login";
+            fieldTaskService.createTask(id, petugasId, userId);
         } catch (Exception e) {
             log.error("Gagal penugasan petugas: {}", e.getMessage(), e);
         }

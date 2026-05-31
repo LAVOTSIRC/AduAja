@@ -28,6 +28,9 @@ public final class ControllerHelper {
     public static final String SESSION_AGENCY_ID = "agencyId";
     public static final String SESSION_AGENCY_NAME = "agencyName";
 
+    public static final String SESSION_REGION_ID = "regionId";
+    public static final String SESSION_REGION_NAME = "regionName";
+
     // Private constructor — tidak bisa diinstansiasi
     private ControllerHelper() {}
 
@@ -99,10 +102,29 @@ public final class ControllerHelper {
         return (String) session.getAttribute(SESSION_AGENCY_NAME);
     }
 
+    public static String getSessionRegionId(HttpSession session) {
+        return (String) session.getAttribute(SESSION_REGION_ID);
+    }
+
+    public static String getSessionRegionName(HttpSession session) {
+        return (String) session.getAttribute(SESSION_REGION_NAME);
+    }
+
     public static String requireAgencySession(HttpSession session) {
         String userId = requireAnyAdminSession(session);
         String agencyId = getSessionAgencyId(session);
         if (userId == null || agencyId == null) return null;
+        return userId;
+    }
+
+    public static String requirePusatSession(HttpSession session) {
+        String userId = getSessionUserId(session);
+        String role   = getSessionUserRole(session);
+        String regionId = getSessionRegionId(session);
+        if (userId == null || role == null || !role.equals("ADMIN_PUSAT")) {
+            if (session != null) session.invalidate();
+            return null;
+        }
         return userId;
     }
 }

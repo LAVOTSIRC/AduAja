@@ -7,7 +7,9 @@ import com.plr.aduaja.model.ConfirmationRequest;
 import com.plr.aduaja.model.Report;
 import com.plr.aduaja.model.Report.ReportStatus;
 import com.plr.aduaja.model.SlaRecord;
+import com.plr.aduaja.model.Region;
 import com.plr.aduaja.model.User;
+import com.plr.aduaja.repository.RegionRepository;
 import com.plr.aduaja.repository.ReportCategoryRepository;
 import com.plr.aduaja.service.ConfirmationService;
 import com.plr.aduaja.service.DisputeService;
@@ -59,6 +61,9 @@ public class WargaController {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private RegionRepository regionRepository;
 
     // ABSTRAKSI: Controller tidak inject Repository langsung
 
@@ -131,6 +136,19 @@ public class WargaController {
         if (userId == null) return "redirect:/warga/login";
         model.addAttribute("createReportDTO", new CreateReportDTO());
         model.addAttribute("categories", reportCategoryRepository.findByIsActiveTrue());
+
+        List<Region> regions = regionRepository.findAll();
+        StringBuilder json = new StringBuilder("[");
+        boolean first = true;
+        for (Region r : regions) {
+            if (!first) json.append(",");
+            json.append("{\"id\":\"").append(r.getRegionId().replace("\"", "\\\""))
+                .append("\",\"name\":\"").append(r.getRegionName().replace("\"", "\\\""))
+                .append("\"}");
+            first = false;
+        }
+        json.append("]");
+        model.addAttribute("regionListJson", json.toString());
         return "warga/create-report";
     }
 
@@ -325,6 +343,7 @@ public class WargaController {
         reportMap.put("photoUrl", report.getPhotoBase64());
         reportMap.put("photoBase64", report.getPhotoBase64());
         reportMap.put("adminNotes", report.getAdminNotes());
+        reportMap.put("regionName", report.getRegion() != null ? report.getRegion().getRegionName() : "-");
         reportMap.put("rejectionReason", report.getRejectionReason());
         reportMap.put("status", toWargaStatusLabel(report.getStatus()));
         reportMap.put("category", report.getCategory() != null ? report.getCategory().getCategoryName() : "Lainnya");

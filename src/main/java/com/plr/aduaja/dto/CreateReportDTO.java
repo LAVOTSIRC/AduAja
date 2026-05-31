@@ -15,6 +15,7 @@ public class CreateReportDTO {
     private BigDecimal longitude;
     private String photoBase64;
     private String categoryId;
+    private String regionId;
 
     // ENKAPSULASI: Hanya getter & setter
     public String getDescription() { return description; }
@@ -34,4 +35,7 @@ public class CreateReportDTO {
 
     public String getCategoryId() { return categoryId; }
     public void setCategoryId(String categoryId) { this.categoryId = categoryId; }
+
+    public String getRegionId() { return regionId; }
+    public void setRegionId(String regionId) { this.regionId = regionId; }
 }

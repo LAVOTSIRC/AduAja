@@ -48,6 +48,14 @@ public class User extends BaseEntity {  // ← INHERITANCE sejati
     @JoinColumn(name = "agency_id")
     private Agency agency;
 
+    // ============================================================
+    // HAS-A (Association) dengan Region — untuk ADMIN_PUSAT
+    // Admin Pusat terikat dengan satu wilayah kerja tertentu
+    // ============================================================
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "region_id")
+    private Region region;
+
     // HAS-A (Composition) ≠ Inheritance
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     private UserProfile userProfile;
@@ -98,6 +106,9 @@ public class User extends BaseEntity {  // ← INHERITANCE sejati
 
     public Agency getAgency() { return agency; }
     public void setAgency(Agency agency) { this.agency = agency; }
+
+    public Region getRegion() { return region; }
+    public void setRegion(Region region) { this.region = region; }
 
     public UserProfile getUserProfile() { return userProfile; }
     public void setUserProfile(UserProfile userProfile) { this.userProfile = userProfile; }

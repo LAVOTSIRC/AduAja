@@ -61,19 +61,19 @@ public class DataSeeder implements CommandLineRunner {
         catKebersihan = makeCategory("Penanganan Kebersihan/Sampah", 72, "Laporan sampah berserakan, TPS penuh");
 
         // ==============================
-        // 3. AGENCIES (3 per lokasi: PU, LH, ESDM)
+        // 3. AGENCIES (3 per lokasi: PU, LH, Perhubungan)
         // ==============================
-        Agency puMedan = makeAgency("Dinas PU Kota Medan", kecMedanBaru, "pu@medankota.go.id");
-        Agency lhMedan = makeAgency("Dinas LH Kota Medan", kecMedanBaru, "lh@medankota.go.id");
-        Agency esdmMedan = makeAgency("Dinas ESDM Kota Medan", kecMedanBaru, "esdm@medankota.go.id");
+        Agency puMedan = makeAgency("Dinas PU Kota Medan", kotaMedan, "pu@medankota.go.id");
+        Agency lhMedan = makeAgency("Dinas LH Kota Medan", kotaMedan, "lh@medankota.go.id");
+        Agency perhubunganMedan = makeAgency("Dinas Perhubungan Kota Medan", kotaMedan, "perhubungan@medankota.go.id");
 
-        Agency puPekanbaru = makeAgency("Dinas PU Kota Pekanbaru", kecTampan, "pu@pekanbaru.go.id");
-        Agency lhPekanbaru = makeAgency("Dinas LH Kota Pekanbaru", kecTampan, "lh@pekanbaru.go.id");
-        Agency esdmPekanbaru = makeAgency("Dinas ESDM Kota Pekanbaru", kecTampan, "esdm@pekanbaru.go.id");
+        Agency puPekanbaru = makeAgency("Dinas PU Kota Pekanbaru", kotaPekanbaru, "pu@pekanbaru.go.id");
+        Agency lhPekanbaru = makeAgency("Dinas LH Kota Pekanbaru", kotaPekanbaru, "lh@pekanbaru.go.id");
+        Agency perhubunganPekanbaru = makeAgency("Dinas Perhubungan Kota Pekanbaru", kotaPekanbaru, "perhubungan@pekanbaru.go.id");
 
-        Agency puTanjungpinang = makeAgency("Dinas PU Kota Tanjungpinang", kecBukitBestari, "pu@tanjungpinang.go.id");
-        Agency lhTanjungpinang = makeAgency("Dinas LH Kota Tanjungpinang", kecBukitBestari, "lh@tanjungpinang.go.id");
-        Agency esdmTanjungpinang = makeAgency("Dinas ESDM Kota Tanjungpinang", kecBukitBestari, "esdm@tanjungpinang.go.id");
+        Agency puTanjungpinang = makeAgency("Dinas PU Kota Tanjungpinang", kotaTanjungpinang, "pu@tanjungpinang.go.id");
+        Agency lhTanjungpinang = makeAgency("Dinas LH Kota Tanjungpinang", kotaTanjungpinang, "lh@tanjungpinang.go.id");
+        Agency perhubunganTanjungpinang = makeAgency("Dinas Perhubungan Kota Tanjungpinang", kotaTanjungpinang, "perhubungan@tanjungpinang.go.id");
 
         // ==============================
         // 4. WARGA (5 pelapor)
@@ -89,18 +89,20 @@ public class DataSeeder implements CommandLineRunner {
         // ==============================
         makeUser("Admin PU Medan", "admin.pu.medan@aduaja.go.id", null, "admin123", User.Role.ADMIN_DINAS, puMedan);
         makeUser("Admin LH Medan", "admin.lh.medan@aduaja.go.id", null, "admin123", User.Role.ADMIN_DINAS, lhMedan);
-        makeUser("Admin ESDM Medan", "admin.esdm.medan@aduaja.go.id", null, "admin123", User.Role.ADMIN_DINAS, esdmMedan);
+        makeUser("Admin Perhubungan Medan", "admin.perhubungan.medan@aduaja.go.id", null, "admin123", User.Role.ADMIN_DINAS, perhubunganMedan);
         makeUser("Admin PU Pekanbaru", "admin.pu.pekanbaru@aduaja.go.id", null, "admin123", User.Role.ADMIN_DINAS, puPekanbaru);
         makeUser("Admin LH Pekanbaru", "admin.lh.pekanbaru@aduaja.go.id", null, "admin123", User.Role.ADMIN_DINAS, lhPekanbaru);
-        makeUser("Admin ESDM Pekanbaru", "admin.esdm.pekanbaru@aduaja.go.id", null, "admin123", User.Role.ADMIN_DINAS, esdmPekanbaru);
+        makeUser("Admin Perhubungan Pekanbaru", "admin.perhubungan.pekanbaru@aduaja.go.id", null, "admin123", User.Role.ADMIN_DINAS, perhubunganPekanbaru);
         makeUser("Admin PU Tanjungpinang", "admin.pu.tanjungpinang@aduaja.go.id", null, "admin123", User.Role.ADMIN_DINAS, puTanjungpinang);
         makeUser("Admin LH Tanjungpinang", "admin.lh.tanjungpinang@aduaja.go.id", null, "admin123", User.Role.ADMIN_DINAS, lhTanjungpinang);
-        makeUser("Admin ESDM Tanjungpinang", "admin.esdm.tanjungpinang@aduaja.go.id", null, "admin123", User.Role.ADMIN_DINAS, esdmTanjungpinang);
+        makeUser("Admin Perhubungan Tanjungpinang", "admin.perhubungan.tanjungpinang@aduaja.go.id", null, "admin123", User.Role.ADMIN_DINAS, perhubunganTanjungpinang);
 
         // ==============================
-        // 6. ADMIN PUSAT
+        // 6. ADMIN PUSAT (1 per region)
         // ==============================
-        User adminPusat = makeUser("Admin Pusat", "admin@aduaja.go.id", null, "admin123", User.Role.ADMIN_PUSAT, null);
+        makeUser("Admin Pusat Medan", "admin.pusat.medan@aduaja.go.id", null, "admin123", User.Role.ADMIN_PUSAT, null, kotaMedan);
+        makeUser("Admin Pusat Pekanbaru", "admin.pusat.pekanbaru@aduaja.go.id", null, "admin123", User.Role.ADMIN_PUSAT, null, kotaPekanbaru);
+        makeUser("Admin Pusat Tanjungpinang", "admin.pusat.tanjungpinang@aduaja.go.id", null, "admin123", User.Role.ADMIN_PUSAT, null, kotaTanjungpinang);
 
         // ==============================
         // 7. PETUGAS (3 per lokasi = 9, 1 per agency)
@@ -108,15 +110,15 @@ public class DataSeeder implements CommandLineRunner {
         // Medan
         User petMedan1 = makeUser("Ahmad Fauzi", "ahmad.fauzi@aduaja.go.id", "081234567890", "petugas123", User.Role.PETUGAS, puMedan);
         User petMedan2 = makeUser("Rizal Harahap", "rizal.harahap@aduaja.go.id", "082345678901", "petugas123", User.Role.PETUGAS, lhMedan);
-        User petMedan3 = makeUser("Dewi Sartika", "dewi.sartika@aduaja.go.id", "083456789012", "petugas123", User.Role.PETUGAS, esdmMedan);
+        User petMedan3 = makeUser("Dewi Sartika", "dewi.sartika@aduaja.go.id", "083456789012", "petugas123", User.Role.PETUGAS, perhubunganMedan);
         // Pekanbaru
         User petPekanbaru1 = makeUser("Budi Hartono", "budi.hartono@aduaja.go.id", "084567890123", "petugas123", User.Role.PETUGAS, puPekanbaru);
         User petPekanbaru2 = makeUser("Siti Aminah", "siti.aminah@aduaja.go.id", "085678901234", "petugas123", User.Role.PETUGAS, lhPekanbaru);
-        User petPekanbaru3 = makeUser("Joko Susilo", "joko.susilo@aduaja.go.id", "086789012345", "petugas123", User.Role.PETUGAS, esdmPekanbaru);
+        User petPekanbaru3 = makeUser("Joko Susilo", "joko.susilo@aduaja.go.id", "086789012345", "petugas123", User.Role.PETUGAS, perhubunganPekanbaru);
         // Tanjungpinang
         User petTanjungpinang1 = makeUser("Maria Simanjuntak", "maria.simanjuntak@aduaja.go.id", "087890123456", "petugas123", User.Role.PETUGAS, puTanjungpinang);
         User petTanjungpinang2 = makeUser("Andi Pratama", "andi.pratama@aduaja.go.id", "088901234567", "petugas123", User.Role.PETUGAS, lhTanjungpinang);
-        User petTanjungpinang3 = makeUser("Lisa Kusuma", "lisa.kusuma@aduaja.go.id", "089012345678", "petugas123", User.Role.PETUGAS, esdmTanjungpinang);
+        User petTanjungpinang3 = makeUser("Lisa Kusuma", "lisa.kusuma@aduaja.go.id", "089012345678", "petugas123", User.Role.PETUGAS, perhubunganTanjungpinang);
 
         // ==============================
         // 8. REPORTS (2 per lokasi, DIVALIDASI)
@@ -171,6 +173,11 @@ public class DataSeeder implements CommandLineRunner {
 
     private User makeUser(String fullName, String email, String phone, String rawPassword,
                           User.Role role, Agency agency) {
+        return makeUser(fullName, email, phone, rawPassword, role, agency, null);
+    }
+
+    private User makeUser(String fullName, String email, String phone, String rawPassword,
+                          User.Role role, Agency agency, Region region) {
         User u = new User();
         u.setFullName(fullName);
         u.setEmail(email);
@@ -179,6 +186,7 @@ public class DataSeeder implements CommandLineRunner {
         u.setRole(role);
         u.setAccountStatus(User.AccountStatus.ACTIVE);
         if (agency != null) u.setAgency(agency);
+        if (region != null) u.setRegion(region);
         return userRepository.save(u);
     }
 
