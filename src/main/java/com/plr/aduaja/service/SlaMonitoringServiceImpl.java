@@ -27,6 +27,9 @@ public class SlaMonitoringServiceImpl implements SlaMonitoringService {
     @Autowired
     private TaskPostponementRepository taskPostponementRepository;
 
+    @Autowired
+    private NotificationService notificationService;
+
     // Scheduled job — cek SLA violations tiap jam
     @Scheduled(fixedRate = 3600000)
     public void checkSlaViolations() {
@@ -61,6 +64,45 @@ public class SlaMonitoringServiceImpl implements SlaMonitoringService {
                     postponement.getTask() != null ? postponement.getTask().getTaskId() : "N/A",
                     hoursOverdue
                 );
+            }
+        }
+    }
+
+    // FR-PTG-14: Notifikasi Prediktif In-App Petugas (SLA Kritis & Terlewat)
+    @Scheduled(fixedRate = 1800000) // 30 menit
+    public void predictiveSlaNotificationAlert() {
+        LocalDateTime now = LocalDateTime.now();
+        List<SlaRecord> activeSlas = slaRecordRepository.findAll().stream()
+            .filter(sla -> sla.getCurrentStatus() == SlaStatus.BERJALAN || sla.getCurrentStatus() == SlaStatus.TERLAMBAT)
+            .toList();
+
+        for (SlaRecord sla : activeSlas) {
+            if (sla.getReport() == null || sla.getReport().getFieldTasks() == null) continue;
+
+            for (com.plr.aduaja.model.FieldTask task : sla.getReport().getFieldTasks()) {
+                if (task.getOfficer() == null || (task.getTaskStatus() != com.plr.aduaja.model.FieldTask.TaskStatus.BARU && task.getTaskStatus() != com.plr.aduaja.model.FieldTask.TaskStatus.SEDANG_DIKERJAKAN)) {
+                    continue;
+                }
+
+                String officerId = task.getOfficer().getUserId();
+                String taskId = task.getTaskId();
+
+                if (sla.getCurrentStatus() == SlaStatus.TERLAMBAT || (sla.getSlaDeadlineAt() != null && sla.getSlaDeadlineAt().isBefore(now))) {
+                    List<com.plr.aduaja.model.Notification> exist = notificationService.getNotificationsByType(officerId, "SLA_LATE_" + taskId);
+                    if (exist.isEmpty()) {
+                        notificationService.createNotification(officerId, "🚨 SLA Terlewat", 
+                            "Tugas " + taskId + " telah melewati batas waktu SLA!", "SLA_LATE_" + taskId, taskId);
+                    }
+                } else if (sla.getSlaDeadlineAt() != null) {
+                    long hoursLeft = Duration.between(now, sla.getSlaDeadlineAt()).toHours();
+                    if (hoursLeft < 2 && hoursLeft >= 0) {
+                        List<com.plr.aduaja.model.Notification> exist = notificationService.getNotificationsByType(officerId, "SLA_WARNING_" + taskId);
+                        if (exist.isEmpty()) {
+                            notificationService.createNotification(officerId, "⏳ Peringatan SLA", 
+                                "Batas waktu tugas " + taskId + " tersisa kurang dari 2 jam!", "SLA_WARNING_" + taskId, taskId);
+                        }
+                    }
+                }
             }
         }
     }

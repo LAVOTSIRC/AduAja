@@ -117,9 +117,20 @@ public class PetugasController {
             if (checkIn != null && checkIn) {
                 // FIX-4: FR-PTG-08 — Validasi geofencing di backend sebelum check-in
                 try {
+                    double centerLat = DINAS_CENTER_LAT;
+                    double centerLon = DINAS_CENTER_LON;
+                    User officer = userService.findById(userId).orElse(null);
+                    if (officer != null && officer.getUserProfile() != null) {
+                        UserProfile profile = officer.getUserProfile();
+                        if (profile.getDomisiliLatitude() != null && profile.getDomisiliLongitude() != null) {
+                            centerLat = profile.getDomisiliLatitude().doubleValue();
+                            centerLon = profile.getDomisiliLongitude().doubleValue();
+                        }
+                    }
+
                     attendanceService.checkInWithGeofence(
                             userId, latitude, longitude, deviceInfo,
-                            CHECKIN_RADIUS_KM, DINAS_CENTER_LAT, DINAS_CENTER_LON);
+                            CHECKIN_RADIUS_KM, centerLat, centerLon);
                 } catch (IllegalStateException geoEx) {
                     log.warn("Geofencing check-in gagal untuk petugas {}: {}", userId, geoEx.getMessage());
                     redirectAttributes.addFlashAttribute("geoError", geoEx.getMessage());
@@ -151,6 +162,8 @@ public class PetugasController {
             @RequestParam(value = "latitude", required = false) java.math.BigDecimal latitude,
             @RequestParam(value = "longitude", required = false) java.math.BigDecimal longitude,
             @RequestParam(value = "estimatedTime", required = false) String estimatedTime,
+            @RequestParam(value = "photos", required = false) org.springframework.web.multipart.MultipartFile[] photos,
+            @RequestParam(value = "documents", required = false) org.springframework.web.multipart.MultipartFile[] documents,
             HttpSession session,
             RedirectAttributes redirectAttributes
     ) {
@@ -190,6 +203,8 @@ public class PetugasController {
                     }
                     case "reportback" -> {
                         log.warn("Lapor balik (invalid) untuk tugas {} oleh {}: {}", id, userId, description);
+                        if (photos != null) log.info("Menerima {} foto pendukung lapor balik", photos.length);
+                        if (documents != null) log.info("Menerima {} dokumen pendukung lapor balik", documents.length);
                         fieldTaskService.requestPostpone(id,
                             "Laporan invalid: " + (description != null ? description : "Tidak ada alasan"),
                             userId, null);
@@ -327,14 +342,14 @@ public class PetugasController {
         
         // FIX-8: FR-PTG-10 — Algoritma Sorting Cerdas (SLA + GPS Proximity)
         java.util.Comparator<Map<String, Object>> scoreComparator = (m1, m2) -> {
-            long sla1 = (Long) m1.getOrDefault("rawSlaRemaining", 999L);
-            double dist1 = (Double) m1.getOrDefault("rawDistance", 999.0);
-            int prio1 = (Integer) m1.getOrDefault("rawPriorityScore", 2);
+            long sla1 = ((Number) m1.getOrDefault("rawSlaRemaining", 999L)).longValue();
+            double dist1 = ((Number) m1.getOrDefault("rawDistance", 999.0)).doubleValue();
+            int prio1 = ((Number) m1.getOrDefault("rawPriorityScore", 2)).intValue();
             double score1 = (sla1 * 10) + (dist1 * 2) + (prio1 * 50);
 
-            long sla2 = (Long) m2.getOrDefault("rawSlaRemaining", 999L);
-            double dist2 = (Double) m2.getOrDefault("rawDistance", 999.0);
-            int prio2 = (Integer) m2.getOrDefault("rawPriorityScore", 2);
+            long sla2 = ((Number) m2.getOrDefault("rawSlaRemaining", 999L)).longValue();
+            double dist2 = ((Number) m2.getOrDefault("rawDistance", 999.0)).doubleValue();
+            int prio2 = ((Number) m2.getOrDefault("rawPriorityScore", 2)).intValue();
             double score2 = (sla2 * 10) + (dist2 * 2) + (prio2 * 50);
 
             return Double.compare(score1, score2);
@@ -511,7 +526,8 @@ public class PetugasController {
                         fieldTaskService.saveTaskEvidence(id, photoAfterData, TaskEvidence.EvidenceType.SESUDAH);
                     }
                 } catch (Exception ev) {
-                    log.error("Gagal simpan evidence {}, lanjut complete: {}", id, ev.getMessage());
+                    log.error("Gagal simpan evidence {}, membatalkan completeTask: {}", id, ev.getMessage());
+                    return "redirect:/petugas/task-execution?id=" + id + "&step=after&error=Gagal+menyimpan+foto";
                 }
                 fieldTaskService.completeTask(id);
                 return "redirect:/petugas/dashboard";
@@ -748,8 +764,17 @@ public class PetugasController {
                 long lateCount = 0;
                 List<Map<String, Object>> recordList = realRecords.stream().map(r -> {
                     Map<String, Object> di = new HashMap<>();
-                    di.put("browser", r.getDeviceInfo() != null ? r.getDeviceInfo() : "Unknown");
-                    di.put("os", "Android");
+                    String userAgent = r.getDeviceInfo() != null ? r.getDeviceInfo() : "Unknown";
+                    di.put("browser", userAgent);
+                    
+                    String os = "Unknown";
+                    if (userAgent.contains("Windows")) os = "Windows";
+                    else if (userAgent.contains("Mac")) os = "MacOS";
+                    else if (userAgent.contains("Linux")) os = "Linux";
+                    else if (userAgent.contains("Android")) os = "Android";
+                    else if (userAgent.contains("iPhone") || userAgent.contains("iPad")) os = "iOS";
+                    
+                    di.put("os", os);
                     di.put("ip", "-");
                     String dateFmt = r.getCheckInAt() != null ? r.getCheckInAt().format(ControllerHelper.DATE_FMT) : "-";
                     String ciTime = r.getCheckInAt() != null ? r.getCheckInAt().format(ControllerHelper.TIME_FMT) : "-";

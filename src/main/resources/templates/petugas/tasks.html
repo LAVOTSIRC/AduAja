@@ -72,10 +72,69 @@
             <h2 class="text-xl font-semibold">Daftar Tugas</h2>
           </div>
           <!-- FR-PTG-31: Indikator status koneksi -->
-          <div class="flex items-center gap-2 text-xs" :class="isOnline ? 'text-blue-100' : 'text-red-200'">
-            <div class="w-2 h-2 rounded-full" :class="isOnline ? 'bg-green-400' : 'bg-red-400 animate-pulse'"></div>
-            <span x-text="isOnline ? 'Online' : 'Offline'"></span>
-            <span x-show="offlineQueue > 0" class="ml-1 px-1.5 py-0.5 bg-yellow-500 text-yellow-900 rounded font-bold" x-text="offlineQueue + ' antrian'"></span>
+          <div class="flex items-center gap-4">
+            
+            <!-- NOTIFIKASI COMPONENT -->
+            <div th:data-uid="${session.userId}" x-data="{
+              open: false,
+              notifications: [],
+              unreadCount: 0,
+              userId: $el.dataset.uid,
+              init() {
+                this.fetchNotif();
+                setInterval(() => this.fetchNotif(), 60000);
+              },
+              fetchNotif() {
+                fetch('/api/notifications/user/' + this.userId)
+                  .then(r => r.json())
+                  .then(d => {
+                    if (Array.isArray(d)) {
+                      this.notifications = d;
+                      this.unreadCount = d.filter(n => !n.isRead).length;
+                    }
+                  }).catch(e => console.error(e));
+              },
+              markAsRead(id) {
+                fetch('/api/notifications/' + id + '/read', {method: 'POST'})
+                  .then(() => this.fetchNotif());
+              },
+              markAllAsRead() {
+                fetch('/api/notifications/user/' + this.userId + '/read-all', {method: 'POST'})
+                  .then(() => this.fetchNotif());
+              }
+            }" class="relative">
+              <button @click="open = !open" class="relative p-1 text-blue-200 hover:text-white transition-colors">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                <span x-show="unreadCount > 0" class="absolute top-0 right-0 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-red-500 ring-2 ring-blue-600"></span>
+              </button>
+              
+              <div x-show="open" @click.away="open = false" x-cloak class="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg py-1 z-50 ring-1 ring-black ring-opacity-5 text-left">
+                <div class="px-4 py-3 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-lg">
+                  <h3 class="text-sm font-semibold text-gray-900">Notifikasi</h3>
+                  <button x-show="notifications.length > 0" @click="markAllAsRead" class="text-xs text-blue-600 hover:text-blue-800 font-medium">Tandai dibaca</button>
+                </div>
+                <div class="max-h-80 overflow-y-auto">
+                  <template x-for="notif in notifications" :key="notif.notificationId">
+                    <div @click="markAsRead(notif.notificationId)" :class="{'bg-blue-50/50': !notif.isRead, 'bg-white': notif.isRead}" class="px-4 py-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors text-gray-900">
+                      <p class="text-sm font-semibold text-gray-900" x-text="notif.title"></p>
+                      <p class="text-xs text-gray-600 mt-1 leading-relaxed" x-text="notif.messageText"></p>
+                      <p class="text-[10px] text-gray-400 mt-2" x-text="new Date(notif.sentAt).toLocaleString('id-ID')"></p>
+                    </div>
+                  </template>
+                  <div x-show="notifications.length === 0" class="px-4 py-8 text-center">
+                    <p class="text-sm text-gray-500">Belum ada notifikasi</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 text-xs" :class="isOnline ? 'text-blue-100' : 'text-red-200'">
+              <div class="w-2 h-2 rounded-full" :class="isOnline ? 'bg-green-400' : 'bg-red-400 animate-pulse'"></div>
+              <span x-text="isOnline ? 'Online' : 'Offline'"></span>
+              <span x-show="offlineQueue > 0" class="ml-1 px-1.5 py-0.5 bg-yellow-500 text-yellow-900 rounded font-bold" x-text="offlineQueue + ' antrian'"></span>
+            </div>
           </div>
         </div>
         

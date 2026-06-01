@@ -188,6 +188,12 @@
             <input type="hidden" name="taskId" th:value="${task['id']}" />
             <p class="text-xs text-gray-500">Gunakan fitur ini jika lokasi tugas tidak akurat. Koordinat baru akan langsung diperbarui pada laporan. <strong>Hanya boleh dilakukan 1 kali.</strong></p>
             <div>
+              <button type="button" x-on:click="if(navigator.geolocation) { navigator.geolocation.getCurrentPosition(pos => { correctedLat = pos.coords.latitude; correctedLng = pos.coords.longitude; }, err => alert('Gagal mendapatkan lokasi: ' + err.message)); } else { alert('Geolocation tidak didukung browser ini'); }" class="w-full flex items-center justify-center gap-2 bg-blue-50 text-blue-600 border border-blue-200 py-2 rounded-lg font-medium hover:bg-blue-100 transition-colors text-sm mb-3">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                Gunakan Lokasi Saat Ini
+              </button>
+            </div>
+            <div>
               <label class="block text-sm font-medium text-gray-900 mb-2">Latitude <span class="text-red-500">*</span></label>
               <input type="number" step="any" name="correctedLat" x-model="correctedLat" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="-6.200000" required />
             </div>
@@ -416,7 +422,7 @@
             </svg>
           </button>
         </div>
-        <form th:action="@{/petugas/task-action}" method="post" class="p-4 space-y-4">
+        <form th:action="@{/petugas/task-action}" method="post" enctype="multipart/form-data" class="p-4 space-y-4">
           <input type="hidden" name="id" th:value="${task['id']}" />
           <input type="hidden" name="action" value="reportback" />
           <div>
