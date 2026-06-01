@@ -1,9 +1,11 @@
 package com.plr.aduaja.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
+@JsonIgnoreProperties({"parentReport", "childReport"})
 @Table(name = "merge_records")
 public class MergeRecord extends BaseEntity {
 

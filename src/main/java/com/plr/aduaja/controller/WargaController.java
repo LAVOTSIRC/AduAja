@@ -11,6 +11,7 @@ import com.plr.aduaja.model.Region;
 import com.plr.aduaja.model.User;
 import com.plr.aduaja.repository.RegionRepository;
 import com.plr.aduaja.repository.ReportCategoryRepository;
+import com.plr.aduaja.repository.ReportRepository;
 import com.plr.aduaja.service.ConfirmationService;
 import com.plr.aduaja.service.DisputeService;
 import com.plr.aduaja.service.NotificationService;
@@ -64,6 +65,9 @@ public class WargaController {
 
     @Autowired
     private RegionRepository regionRepository;
+
+    @Autowired
+    private ReportRepository reportRepository;
 
     // ABSTRAKSI: Controller tidak inject Repository langsung
 
@@ -598,19 +602,34 @@ public class WargaController {
                 redirectAttributes.addFlashAttribute("error", "Revisi hanya dapat dilakukan saat laporan berstatus 'Perlu Revisi'.");
                 return "redirect:/warga/report-detail?id=" + reportId;
             }
+            // FIX SCN-04: Validasi minimal ada deskripsi revisi
+            if (description == null || description.trim().isEmpty()) {
+                redirectAttributes.addFlashAttribute("error", "Deskripsi laporan tidak boleh kosong.");
+                return "redirect:/warga/report-detail?id=" + reportId;
+            }
+            boolean anyUpdate = false;
             // Update field yang dikirim
-            if (description != null && !description.isBlank()) report.setDescription(description);
-            if (landmark != null && !landmark.isBlank()) report.setLocationHint(landmark);
+            if (description != null && !description.isBlank()) { report.setDescription(description); anyUpdate = true; }
+            if (landmark != null && !landmark.isBlank()) { report.setLocationHint(landmark); anyUpdate = true; }
             if (latitude != null && !latitude.isBlank()) {
-                try { report.setLatitude(new java.math.BigDecimal(latitude)); } catch (Exception ignored) {}
+                try { report.setLatitude(new java.math.BigDecimal(latitude)); anyUpdate = true; } catch (Exception ignored) {}
             }
             if (longitude != null && !longitude.isBlank()) {
-                try { report.setLongitude(new java.math.BigDecimal(longitude)); } catch (Exception ignored) {}
+                try { report.setLongitude(new java.math.BigDecimal(longitude)); anyUpdate = true; } catch (Exception ignored) {}
             }
             if (photoData != null && !photoData.isBlank()) {
                 String photoUrl = photoData.startsWith("http") ? photoData :
                     supabaseStorageService.uploadBase64(photoData, "laporan");
-                if (photoUrl != null) report.setPhotoBase64(photoUrl);
+                if (photoUrl != null) { report.setPhotoBase64(photoUrl); anyUpdate = true; }
+            }
+            // Update kategori jika diisi
+            if (category != null && !category.isBlank()) {
+                reportCategoryRepository.findByCategoryName(category).ifPresent(report::setCategory);
+            }
+            // FIX KRITIS SCN-03: Simpan perubahan field ke DB dulu sebelum update status
+            // Sebelumnya data tidak tersimpan karena tidak ada save() di sini
+            if (anyUpdate) {
+                reportRepository.save(report);
             }
             // FR-WRG-19: Ubah status kembali ke menunggu validasi setelah revisi (edit dikunci)
             reportService.updateStatus(reportId, ReportStatus.MENUNGGU_VALIDASI, "Revisi dikirim oleh warga", userId);

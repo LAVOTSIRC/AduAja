@@ -27,6 +27,10 @@ public class SlaMonitoringServiceImpl implements SlaMonitoringService {
     @Autowired
     private TaskPostponementRepository taskPostponementRepository;
 
+    // FIX SCN-08: Inject ConfirmationService untuk processTimeouts scheduler
+    @Autowired
+    private ConfirmationService confirmationService;
+
     // Scheduled job — cek SLA violations tiap jam
     @Scheduled(fixedRate = 3600000)
     public void checkSlaViolations() {
@@ -38,6 +42,14 @@ public class SlaMonitoringServiceImpl implements SlaMonitoringService {
                 sla.setCurrentStatus(SlaStatus.TERLAMBAT);
                 slaRecordRepository.save(sla);
             }
+        }
+
+        // FIX SCN-08: Jalankan processTimeouts untuk konfirmasi yang expired
+        try {
+            confirmationService.processTimeouts();
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(SlaMonitoringServiceImpl.class)
+                .error("[SCN-08] Gagal proses confirmation timeouts: {}", e.getMessage(), e);
         }
     }
 

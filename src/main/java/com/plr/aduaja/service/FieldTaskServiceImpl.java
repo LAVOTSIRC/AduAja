@@ -100,6 +100,14 @@ public class FieldTaskServiceImpl implements FieldTaskService {
 
         FieldTask saved = fieldTaskRepository.save(task);
 
+        // FIX SCN-01 (4.8): Update status laporan ke DITUGASKAN setelah petugas ditugaskan
+        try {
+            report.setStatus(Report.ReportStatus.DITUGASKAN);
+            reportRepository.save(report);
+        } catch (Exception e) {
+            log.warn("Gagal update status laporan ke DITUGASKAN: {}", e.getMessage());
+        }
+
         // FR-PRS-03: Validasi wilayah tugas petugas vs lokasi laporan
         try {
             UserProfile profile = userProfileRepository.findByUserUserId(officerId).orElse(null);
