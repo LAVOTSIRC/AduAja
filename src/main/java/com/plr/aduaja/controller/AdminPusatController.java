@@ -92,7 +92,7 @@ public class AdminPusatController {
 
         if ("admin_dinas".equalsIgnoreCase(role)) {
             model.addAttribute("dinasName", "Dinas Pekerjaan Umum");
-            long diterima = reportService.countByStatus(Report.ReportStatus.DIDISPOSISI);
+            long diterima = reportService.countByStatus(Report.ReportStatus.DALAM_PENINJAUAN);
             long diproses = fieldTaskService.countByStatus(FieldTask.TaskStatus.SEDANG_DIKERJAKAN);
             long baru = fieldTaskService.countByStatus(FieldTask.TaskStatus.BARU);
             long selesai = fieldTaskService.countByStatus(FieldTask.TaskStatus.SELESAI);
@@ -137,14 +137,14 @@ public class AdminPusatController {
             }).collect(Collectors.toList());
             model.addAttribute("availablePetugas", petugasList.isEmpty() ? new ArrayList<>() : petugasList);
         } else {
-            long laporanMasuk = regionId != null ? reportService.countByStatusAndRegion(Report.ReportStatus.MENUNGGU_VALIDASI, regionId) : reportService.countByStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
+            long laporanMasuk = regionId != null ? reportService.countByStatusAndRegion(Report.ReportStatus.MENUNGGU_VERIFIKASI, regionId) : reportService.countByStatus(Report.ReportStatus.MENUNGGU_VERIFIKASI);
             long menungguValidasi = laporanMasuk;
-            long dalamAntreanDinas = regionId != null ? reportService.countByStatusAndRegion(Report.ReportStatus.DIVALIDASI, regionId) : reportService.countByStatus(Report.ReportStatus.DIVALIDASI);
+            long dalamAntreanDinas = regionId != null ? reportService.countByStatusAndRegion(Report.ReportStatus.DITERIMA, regionId) : reportService.countByStatus(Report.ReportStatus.DITERIMA);
             long selesaiHariIni = regionId != null ? reportService.countByStatusAndRegion(Report.ReportStatus.SELESAI, regionId) : reportService.countByStatus(Report.ReportStatus.SELESAI);
             List<Map<String, Object>> stats = new ArrayList<>();
             stats.add(Map.of("title", "Laporan Masuk", "value", laporanMasuk,
                     "icon", "file", "bgColor", "bg-blue-100", "color", "text-blue-600"));
-            stats.add(Map.of("title", "Menunggu Validasi", "value", menungguValidasi,
+            stats.add(Map.of("title", "Menunggu Konfirmasi Warga", "value", menungguValidasi,
                     "icon", "clock", "bgColor", "bg-yellow-100", "color", "text-yellow-600"));
             stats.add(Map.of("title", "Dalam Antrean Dinas", "value", dalamAntreanDinas,
                     "icon", "alert-triangle", "bgColor", "bg-red-100", "color", "text-red-600"));
@@ -194,7 +194,7 @@ public class AdminPusatController {
 
         List<MergeRecord> activeMerges = getActiveMerges();
         Set<String> mergedChildIds = getMergedChildIds(activeMerges);
-        List<Report> mergeCandidates = regionId != null ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.MENUNGGU_VALIDASI, regionId) : reportService.getReportsByStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
+        List<Report> mergeCandidates = regionId != null ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.MENUNGGU_VERIFIKASI, regionId) : reportService.getReportsByStatus(Report.ReportStatus.MENUNGGU_VERIFIKASI);
         List<Map<String, Object>> mergeTickets = mergeCandidates.stream()
             .filter(r -> !mergedChildIds.contains(r.getReportId()))
             .map(this::toMergeTicketMap)
@@ -205,7 +205,7 @@ public class AdminPusatController {
         model.addAttribute("hiddenChildCount", mergedChildIds.size());
 
         List<Map<String, Object>> disposisiReports = new ArrayList<>();
-        List<Report> validated = regionId != null ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.DIVALIDASI, regionId) : reportService.getReportsByStatus(Report.ReportStatus.DIVALIDASI);
+        List<Report> validated = regionId != null ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.DITERIMA, regionId) : reportService.getReportsByStatus(Report.ReportStatus.DITERIMA);
         for (Report r : validated) {
             Map<String, Object> m = new HashMap<>();
             m.put("id", r.getReportId());
@@ -295,7 +295,7 @@ public class AdminPusatController {
             }
             if (selectedReport == null) {
                 Report r = reportService.findById(id.trim()).orElse(null);
-                if (r != null && r.getStatus() == ReportStatus.DIVALIDASI) {
+                if (r != null && r.getStatus() == ReportStatus.DITERIMA) {
                     selectedReport = toAdminValidationMap(r);
                     selectedReport.put("status", "Tervalidasi");
                     isInDisposisi = true;
@@ -500,13 +500,13 @@ public class AdminPusatController {
             String notifMsg;
 
             if ("approved".equals(normalizedAction) || "approve".equals(normalizedAction)) {
-                newStatus = ReportStatus.DIVALIDASI;
+                newStatus = ReportStatus.DITERIMA;
                 notifTitle = "Laporan Divalidasi";
                 notifMsg = "Laporan Anda telah divalidasi dan akan segera diteruskan ke dinas terkait.";
                 // FIX SCN-01 (2.7): Redirect ke panel disposisi setelah approve
                 redirectUrl = "redirect:/admin/disposisi?id=" + ticketId;
             } else if ("revision".equals(normalizedAction)) {
-                newStatus = ReportStatus.PERLU_REVISI;
+                newStatus = ReportStatus.MENUNGGU_REVISI;
                 notifTitle = "Laporan Perlu Revisi";
                 notifMsg = "Laporan Anda perlu direvisi." + (note != null ? " Catatan: " + note : "");
                 // FIX SCN-03 (2.6): Redirect ke validation panel (bukan URL kosong)
@@ -522,7 +522,7 @@ public class AdminPusatController {
 
             // FIX SCN-03 (3.3): Simpan note/alasan sebagai rejectionReason agar warga bisa lihat catatan admin
             Report r;
-            if (newStatus == ReportStatus.DITOLAK || newStatus == ReportStatus.PERLU_REVISI) {
+            if (newStatus == ReportStatus.DITOLAK || newStatus == ReportStatus.MENUNGGU_REVISI) {
                 // Simpan note sebagai KEDUA field: rejectionReason (tampil di halaman warga) DAN adminNotes
                 r = reportService.updateStatus(ticketId, newStatus, note, note, adminId);
             } else {
@@ -566,7 +566,7 @@ public class AdminPusatController {
         String regionId = ControllerHelper.getSessionRegionId(session);
         List<MergeRecord> activeMerges = getActiveMerges();
         Set<String> mergedChildIds = getMergedChildIds(activeMerges);
-        List<Report> mergeCandidates = regionId != null ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.MENUNGGU_VALIDASI, regionId) : reportService.getReportsByStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
+        List<Report> mergeCandidates = regionId != null ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.MENUNGGU_VERIFIKASI, regionId) : reportService.getReportsByStatus(Report.ReportStatus.MENUNGGU_VERIFIKASI);
         List<Map<String, Object>> mergeTickets = mergeCandidates.stream()
                 .filter(r -> !mergedChildIds.contains(r.getReportId()))
                 .map(this::toMergeTicketMap)
@@ -675,7 +675,7 @@ public class AdminPusatController {
 
         String regionId = ControllerHelper.getSessionRegionId(session);
         List<Map<String, Object>> reports = new ArrayList<>();
-        List<Report> validated = regionId != null ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.DIVALIDASI, regionId) : reportService.getReportsByStatus(Report.ReportStatus.DIVALIDASI);
+        List<Report> validated = regionId != null ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.DITERIMA, regionId) : reportService.getReportsByStatus(Report.ReportStatus.DITERIMA);
         if (!validated.isEmpty()) {
             for (Report r : validated) {
                 Map<String, Object> m = new HashMap<>();
@@ -785,7 +785,7 @@ public class AdminPusatController {
 
                 // Create disposition with available metadata (notes, priority, deadline, instructions)
                 dispositionService.createDisposition(ticketId, adminId, dinasId, notes, finalPriority, deadlineDt, instructions);
-                Report rptUpdated = reportService.updateStatus(ticketId, Report.ReportStatus.DIDISPOSISI, notes, adminId);
+                Report rptUpdated = reportService.updateStatus(ticketId, Report.ReportStatus.DALAM_PENINJAUAN, notes, adminId);
                 // FIX SCN-01 (3.7): Kirim notifikasi ke warga bahwa laporan sudah didisposisi
                 if (rptUpdated != null && rptUpdated.getReporter() != null) {
                     notificationService.createNotification(
@@ -945,18 +945,21 @@ public class AdminPusatController {
     private String toStatusLabel(Report.ReportStatus status) {
         if (status == null) return "Menunggu";
         return switch (status) {
-            case MENUNGGU_VALIDASI -> "Diterima";
-            case PERLU_REVISI -> "Revisi";
+            case MENUNGGU_VERIFIKASI -> "Menunggu Verifikasi";
+            case MENUNGGU_REVISI -> "Menunggu Revisi";
             case DITOLAK -> "Ditolak";
-            case DIVALIDASI -> "Tervalidasi";
-            case DIDISPOSISI -> "Dikirim ke Dinas";
+            case DITERIMA -> "Diterima";
+            case TERGABUNG -> "Tergabung";
+            case DALAM_PENINJAUAN -> "Dalam Peninjauan";
             case DITUGASKAN -> "Ditugaskan";
-            case SEDANG_DIKERJAKAN -> "Dalam Penanganan";
+            case SEDANG_BERJALAN -> "Sedang Berjalan";
             case TERTUNDA -> "Tertunda";
-            case MENUNGGU_KONFIRMASI -> "Menunggu Konfirmasi";
+            case TERLAMBAT -> "Terlambat";
+            case MENUNGGU_VALIDASI -> "Menunggu Konfirmasi Warga";
+            case SENGKETA -> "Disengketakan";
+            case DALAM_EVALUASI_SENGKETA -> "Dalam Evaluasi Sengketa";
+            case SELESAI_OTOMATIS -> "Selesai Otomatis";
             case SELESAI -> "Selesai";
-            case SENGKETA -> "Sengketa";
-            case DITUTUP -> "Ditutup";
         };
     }
 
@@ -999,33 +1002,34 @@ public class AdminPusatController {
 
     private List<Map<String, Object>> getAdminValidationList(String regionId) {
         List<Report> real = regionId != null
-            ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.MENUNGGU_VALIDASI, regionId)
-            : reportService.getReportsByStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
-        // Tambahkan juga PERLU_REVISI ke antrian validasi
-        List<Report> revisi = regionId != null
-            ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.PERLU_REVISI, regionId)
-            : reportService.getReportsByStatus(Report.ReportStatus.PERLU_REVISI);
+            ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.MENUNGGU_VERIFIKASI, regionId)
+            : reportService.getReportsByStatus(Report.ReportStatus.MENUNGGU_VERIFIKASI);
+        // Tambahkan juga MENUNGGU_REVISI ke antrian validasi
+        List<Report> perluRevisi = regionId != null
+            ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.MENUNGGU_REVISI, regionId)
+            : reportService.getReportsByStatus(Report.ReportStatus.MENUNGGU_REVISI);
         real = new java.util.ArrayList<>(real);
-        real.addAll(revisi);
+        real.addAll(perluRevisi);
         real.sort(Comparator.nullsLast(Comparator.comparing(Report::getSubmittedAt, Comparator.nullsLast(Comparator.naturalOrder()))));
         return real.stream().map(this::toAdminValidationMap).collect(java.util.stream.Collectors.toList());
     }
 
     /**
-     * Queue tracking list: semua status aktif (MENUNGGU_VALIDASI, PERLU_REVISI, DIVALIDASI, DIDISPOSISI, DITUGASKAN, SEDANG_DIKERJAKAN, MENUNGGU_KONFIRMASI, SELESAI, DITOLAK).
+     * Queue tracking list: semua status aktif.
      * Child tiket dari merge disembunyikan; parent diperkaya dengan info merge count.
      */
     private List<Map<String, Object>> getQueueList(String regionId) {
         // FIX SCN-01 (6.9): Kumpulkan laporan dari SEMUA status termasuk SELESAI dan DITOLAK agar ada riwayat
         List<Report.ReportStatus> statuses = List.of(
-            Report.ReportStatus.MENUNGGU_VALIDASI,
-            Report.ReportStatus.PERLU_REVISI,
-            Report.ReportStatus.DIVALIDASI,
-            Report.ReportStatus.DIDISPOSISI,
+            Report.ReportStatus.MENUNGGU_VERIFIKASI,
+            Report.ReportStatus.MENUNGGU_REVISI,
+            Report.ReportStatus.DITERIMA,
+            Report.ReportStatus.DALAM_PENINJAUAN,
             Report.ReportStatus.DITUGASKAN,
-            Report.ReportStatus.SEDANG_DIKERJAKAN,
-            Report.ReportStatus.MENUNGGU_KONFIRMASI,
+            Report.ReportStatus.SEDANG_BERJALAN,
+            Report.ReportStatus.MENUNGGU_VALIDASI,
             Report.ReportStatus.SELESAI,
+            Report.ReportStatus.SELESAI_OTOMATIS,
             Report.ReportStatus.DITOLAK
         );
         List<Report> all = new ArrayList<>();
@@ -1072,9 +1076,9 @@ public class AdminPusatController {
                 .filter(m -> {
                     if (m.getParentReport() == null) return false;
                     Report.ReportStatus s = m.getParentReport().getStatus();
-                    return s == Report.ReportStatus.MENUNGGU_VALIDASI
-                        || s == Report.ReportStatus.DIVALIDASI
-                        || s == Report.ReportStatus.PERLU_REVISI;
+                    return s == Report.ReportStatus.MENUNGGU_VERIFIKASI
+                        || s == Report.ReportStatus.DITERIMA
+                        || s == Report.ReportStatus.MENUNGGU_REVISI;
                 })
                 .collect(Collectors.toList());
     }
@@ -1149,19 +1153,19 @@ public class AdminPusatController {
     private String toMergeTicketStatus(ReportStatus status) {
         if (status == null) return "menunggu";
         return switch (status) {
-            case DIDISPOSISI -> "disposisi";
-            case DITUGASKAN, SEDANG_DIKERJAKAN -> "in-progress";
+            case DALAM_PENINJAUAN -> "peninjauan";
+            case DITUGASKAN, SEDANG_BERJALAN -> "in-progress";
             default -> "menunggu";
         };
     }
 
     private boolean isMergeBlocked(ReportStatus status) {
         if (status == null) return false;
-        return status == ReportStatus.DIDISPOSISI
+        return status == ReportStatus.DALAM_PENINJAUAN
                 || status == ReportStatus.DITUGASKAN
-                || status == ReportStatus.SEDANG_DIKERJAKAN
+                || status == ReportStatus.SEDANG_BERJALAN
                 || status == ReportStatus.SELESAI
-                || status == ReportStatus.DITUTUP;
+                || status == ReportStatus.SELESAI_OTOMATIS;
     }
 
     // DRY: method ini sekarang didelegasikan ke ControllerHelper

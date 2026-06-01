@@ -106,7 +106,7 @@ public class ReportServiceImpl implements ReportService {  // ← POLYMORPHISM
         report.setLongitude(dto.getLongitude());
         report.setPhotoBase64(dto.getPhotoBase64());
         report.setSubmittedAt(LocalDateTime.now());
-        report.setStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
+        report.setStatus(Report.ReportStatus.MENUNGGU_VERIFIKASI);
 
         if (dto.getCategoryId() != null && !dto.getCategoryId().isBlank()) {
             categoryRepository.findById(dto.getCategoryId())
@@ -182,6 +182,13 @@ public class ReportServiceImpl implements ReportService {  // ← POLYMORPHISM
     @Override
     public List<Report> getReportsByStatusAndRegion(Report.ReportStatus status, String regionId) {
         return reportRepository.findByStatusAndRegionRegionIdOrderBySubmittedAtDesc(status, regionId);
+    }
+
+    @Override
+    public void addReportRevision(Report report, Report.ReportStatus oldStatus,
+                                   Report.ReportStatus newStatus, String notes, String changedBy) {
+        if (oldStatus == newStatus) return;
+        createRevision(report, oldStatus, newStatus, notes, changedBy);
     }
 
     @Override  // ← POLYMORPHISM

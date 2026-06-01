@@ -34,6 +34,9 @@ public class ConfirmationServiceImpl implements ConfirmationService {
     @Autowired
     private NotificationService notificationService;
 
+    @Autowired
+    private ReportService reportService;
+
     @Override  // ← POLYMORPHISM: Override dari interface
     @Transactional
     public ConfirmationRequest createConfirmation(String reportId, String wargaId, int deadlineHours) {
@@ -62,12 +65,18 @@ public class ConfirmationServiceImpl implements ConfirmationService {
         confirmation.setIsLocked(true);
 
         // FR-RSL-06: TERIMA → SELESAI, TOLAK → SENGKETA
+        Report report = confirmation.getReport();
+        Report.ReportStatus oldStatus = report.getStatus();
         if (response == ResponseType.TERIMA) {
-            confirmation.getReport().setStatus(Report.ReportStatus.SELESAI);
-            reportRepository.save(confirmation.getReport());
+            report.setStatus(Report.ReportStatus.SELESAI);
+            reportRepository.save(report);
+            reportService.addReportRevision(report, oldStatus, Report.ReportStatus.SELESAI,
+                "Warga menerima hasil tugas", "WARGA");
         } else if (response == ResponseType.TOLAK) {
-            confirmation.getReport().setStatus(Report.ReportStatus.SENGKETA);
-            reportRepository.save(confirmation.getReport());
+            report.setStatus(Report.ReportStatus.SENGKETA);
+            reportRepository.save(report);
+            reportService.addReportRevision(report, oldStatus, Report.ReportStatus.SENGKETA,
+                "Warga menolak hasil tugas", "WARGA");
         }
 
         return confirmationRequestRepository.save(confirmation);
@@ -103,10 +112,13 @@ public class ConfirmationServiceImpl implements ConfirmationService {
             confirmation.setResponse(ResponseType.TIMEOUT);
             confirmation.setRespondedAt(LocalDateTime.now());
             confirmation.setIsLocked(true);
-            // FR-RSL-05: Selesai Otomatis (DITUTUP) saat timeout tanpa respons warga
+            // FR-RSL-05: Selesai Otomatis saat timeout tanpa respons warga
             Report report = confirmation.getReport();
-            report.setStatus(Report.ReportStatus.DITUTUP);
+            Report.ReportStatus oldStatus = report.getStatus();
+            report.setStatus(Report.ReportStatus.SELESAI_OTOMATIS);
             reportRepository.save(report);
+            reportService.addReportRevision(report, oldStatus, Report.ReportStatus.SELESAI_OTOMATIS,
+                "Batas waktu konfirmasi 3x24 jam habis, laporan ditutup otomatis", "SYSTEM");
 
             // FR-RSL-18: Kirim notifikasi ke warga saat Selesai Otomatis
             try {

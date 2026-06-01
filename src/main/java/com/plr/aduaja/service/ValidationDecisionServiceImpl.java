@@ -29,6 +29,9 @@ public class ValidationDecisionServiceImpl implements ValidationDecisionService 
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private ReportService reportService;
+
     @Override  // ← POLYMORPHISM: Override dari interface
     @Transactional
     public ValidationDecision createDecision(String reportId, String adminId, Decision decision, String reason) {
@@ -44,14 +47,25 @@ public class ValidationDecisionServiceImpl implements ValidationDecisionService 
         vd.setRejectionReason(reason);
         vd.setDecidedAt(LocalDateTime.now());
 
+        Report.ReportStatus oldStatus = report.getStatus();
         if (decision == Decision.DITERIMA) {
-            report.setStatus(Report.ReportStatus.DIVALIDASI);
+            report.setStatus(Report.ReportStatus.DITERIMA);
+            reportRepository.save(report);
+            reportService.addReportRevision(report, oldStatus, Report.ReportStatus.DITERIMA,
+                "Laporan diterima oleh admin", adminId);
         } else if (decision == Decision.DITOLAK) {
             report.setStatus(Report.ReportStatus.DITOLAK);
+            reportRepository.save(report);
+            String notes = reason != null ? "Laporan ditolak: " + reason : "Laporan ditolak oleh admin";
+            reportService.addReportRevision(report, oldStatus, Report.ReportStatus.DITOLAK,
+                notes, adminId);
         } else if (decision == Decision.DIREVISI) {
-            report.setStatus(Report.ReportStatus.PERLU_REVISI);
+            report.setStatus(Report.ReportStatus.MENUNGGU_REVISI);
+            reportRepository.save(report);
+            String notes = reason != null ? "Laporan perlu direvisi: " + reason : "Laporan perlu direvisi";
+            reportService.addReportRevision(report, oldStatus, Report.ReportStatus.MENUNGGU_REVISI,
+                notes, adminId);
         }
-        reportRepository.save(report);
 
         return validationDecisionRepository.save(vd);
     }

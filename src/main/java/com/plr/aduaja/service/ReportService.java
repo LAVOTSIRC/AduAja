@@ -49,6 +49,9 @@ public interface ReportService {
     List<Report> getReportsByStatusAndRegion(Report.ReportStatus status, String regionId);
     String generateTicketNumber();
 
+    void addReportRevision(Report report, Report.ReportStatus oldStatus,
+                           Report.ReportStatus newStatus, String notes, String changedBy);
+
     // ===========================
     // BACKWARD COMPATIBILITY (untuk WebController lama)
     // ===========================
@@ -64,7 +67,7 @@ public interface ReportService {
     }
 
     default List<Report> getReportsForDisposisi() {
-        return getReportsByStatus(Report.ReportStatus.DIVALIDASI);
+        return getReportsByStatus(Report.ReportStatus.DITERIMA);
     }
 
     default Optional<Report> getReportById(String id) {

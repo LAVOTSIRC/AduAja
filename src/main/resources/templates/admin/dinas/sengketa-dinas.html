@@ -245,21 +245,17 @@
                   </div>
                 </div>
 
-                <!-- Tombol Keputusan (PALING BAWAH) -->
+                <!-- Tombol Keputusan (PALING BAWAH) — FR-RSL-12 -->
                 <div>
                   <p class="font-semibold mb-3 text-gray-900">Pilih Keputusan</p>
-                  <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <button type="button" x-on:click="showReassignModal = true" class="aduaja-btn-primary bg-green-600 hover:bg-green-700 flex items-center justify-center gap-2 py-3">
                       <i data-lucide="check" class="w-4 h-4"></i>
-                      <span>Sengketa Diterima - Perbaiki Ulang</span>
+                      <span>Tugaskan Kembali - Perbaiki Ulang</span>
                     </button>
                     <button name="keputusan" value="ditolak" type="submit" class="aduaja-btn-primary bg-red-600 hover:bg-red-700 flex items-center justify-center gap-2 py-3">
                       <i data-lucide="x" class="w-4 h-4"></i>
-                      <span>Sengketa Ditolak - Tiket Selesai</span>
-                    </button>
-                    <button name="keputusan" value="review" type="submit" class="aduaja-btn-primary bg-yellow-600 hover:bg-yellow-700 flex items-center justify-center gap-2 py-3">
-                      <i data-lucide="eye" class="w-4 h-4"></i>
-                      <span>Perlu Tinjauan Lanjutan</span>
+                      <span>Tutup Laporan - Tolak Komplain</span>
                     </button>
                   </div>
                 </div>
@@ -277,7 +273,7 @@
               <i data-lucide="user-plus" class="w-5 h-5"></i>
               Tugaskan Petugas Baru
             </h3>
-            <p class="text-green-100 text-sm mt-1">Sengketa diterima. Pilih petugas berbeda untuk perbaikan ulang.</p>
+            <p class="text-green-100 text-sm mt-1">Sengketa diterima. Pilih petugas untuk perbaikan ulang. Petugas sebelumnya (<span th:text="${originalPetugasNama}" class="font-semibold"></span>) disarankan diganti, tetapi tetap bisa dipilih sebagai pilihan terakhir.</p>
           </div>
 
           <div class="p-6 space-y-4">
@@ -309,12 +305,13 @@
                   <option
                     th:each="p : ${availablePetugasForReassignment}"
                     th:value="${p['id']}"
-                    th:text="${p['nama']} + ' (' + ${p['statusKetersediaan']} + ')'"
+                    th:text="${p['isOriginalPetugas'] ? p['nama'] + ' (Pilihan Terakhir)' : p['nama'] + ' (' + p['statusKetersediaan'] + ')'}"
+                    th:style="${p['isOriginalPetugas']} ? 'background-color: #fef3c7; font-weight: 600;' : ''"
                   ></option>
                 </select>
                 <p class="mt-2 text-xs text-amber-600 flex items-center gap-1">
                   <i data-lucide="alert-triangle" class="w-3 h-3"></i>
-                  Petugas sebelumnya (<span th:text="${originalPetugasNama}"></span>) tidak ditampilkan agar penugasan berbeda.
+                  Petugas sebelumnya (<span th:text="${originalPetugasNama}"></span>) tetap bisa dipilih sebagai pilihan terakhir jika tidak ada petugas lain yang tersedia.
                 </p>
               </div>
 

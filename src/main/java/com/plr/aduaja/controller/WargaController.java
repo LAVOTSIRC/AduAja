@@ -6,6 +6,7 @@ import com.plr.aduaja.dto.DisputeDTO;
 import com.plr.aduaja.model.ConfirmationRequest;
 import com.plr.aduaja.model.Report;
 import com.plr.aduaja.model.Report.ReportStatus;
+import com.plr.aduaja.model.ReportRevision;
 import com.plr.aduaja.model.SlaRecord;
 import com.plr.aduaja.model.Region;
 import com.plr.aduaja.model.User;
@@ -30,6 +31,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Slf4j
@@ -97,10 +99,10 @@ public class WargaController {
 
         List<Report> dbReports = reportService.getReportsByWarga(userId);
         long total = dbReports.size();
-        long diproses = dbReports.stream().filter(r -> r.getStatus() == ReportStatus.DITUGASKAN || r.getStatus() == ReportStatus.SEDANG_DIKERJAKAN).count();
+        long diproses = dbReports.stream().filter(r -> r.getStatus() == ReportStatus.DITUGASKAN || r.getStatus() == ReportStatus.SEDANG_BERJALAN).count();
         long selesai = dbReports.stream().filter(r -> r.getStatus() == ReportStatus.SELESAI).count();
         long ditolak = dbReports.stream().filter(r -> r.getStatus() == ReportStatus.DITOLAK).count();
-        long menunggu = dbReports.stream().filter(r -> r.getStatus() == ReportStatus.MENUNGGU_VALIDASI).count();
+        long menunggu = dbReports.stream().filter(r -> r.getStatus() == ReportStatus.MENUNGGU_VERIFIKASI).count();
 
         List<Map<String, Object>> stats = new ArrayList<>();
         stats.add(Map.of(    "icon","file-spreadsheet",   "color","bg-blue-100 text-blue-600",   "count",total,"label","Total Laporan"));
@@ -118,9 +120,9 @@ public class WargaController {
             map.put("category", r.getCategory() != null ? r.getCategory().getCategoryName() : "Lainnya");
             map.put("status", toWargaStatusLabel(r.getStatus()));
             String colorClass = switch (r.getStatus()) {
-                case MENUNGGU_VALIDASI -> "bg-gray-100 text-gray-700";
-                case DIVALIDASI, DITUGASKAN, SEDANG_DIKERJAKAN -> "bg-yellow-100 text-yellow-700";
-                case SELESAI -> "bg-green-100 text-green-700";
+                case MENUNGGU_VERIFIKASI -> "bg-gray-100 text-gray-700";
+                case DITERIMA, DITUGASKAN, SEDANG_BERJALAN -> "bg-yellow-100 text-yellow-700";
+                case SELESAI, SELESAI_OTOMATIS -> "bg-green-100 text-green-700";
                 case DITOLAK -> "bg-red-100 text-red-700";
                 default -> "bg-gray-100 text-gray-700";
             };
@@ -234,10 +236,11 @@ public class WargaController {
             map.put("iconColor", iconColor);
 
             String colorClass = switch (r.getStatus()) {
-                case MENUNGGU_VALIDASI -> "bg-gray-100 text-gray-700";
-                case DIVALIDASI -> "bg-blue-100 text-blue-700";
-                case DITUGASKAN, SEDANG_DIKERJAKAN -> "bg-yellow-100 text-yellow-700";
-                case SELESAI -> "bg-green-100 text-green-700";
+                case MENUNGGU_VERIFIKASI -> "bg-gray-100 text-gray-700";
+                case MENUNGGU_REVISI -> "bg-amber-100 text-amber-700";
+                case DITERIMA -> "bg-blue-100 text-blue-700";
+                case DITUGASKAN, SEDANG_BERJALAN -> "bg-yellow-100 text-yellow-700";
+                case SELESAI, SELESAI_OTOMATIS -> "bg-green-100 text-green-700";
                 case DITOLAK -> "bg-red-100 text-red-700";
                 case SENGKETA -> "bg-orange-100 text-orange-700";
                 default -> "bg-gray-100 text-gray-700";
@@ -263,9 +266,9 @@ public class WargaController {
         statusOptions.add(allOpt);
 
         String[] allLabels = {
-            "Menunggu","Perlu Revisi","Ditolak","Divalidasi",
-            "Didisposisi","Ditugaskan","Diproses","Tertunda",
-            "Menunggu Konfirmasi","Selesai","Sengketa","Ditutup"
+            "Menunggu Verifikasi","Menunggu Revisi","Ditolak","Diterima","Tergabung",
+            "Dalam Peninjauan","Ditugaskan","Sedang Berjalan","Tertunda","Terlambat",
+            "Menunggu Konfirmasi Warga","Disengketakan","Dalam Evaluasi Sengketa","Selesai Otomatis","Selesai"
         };
         for (String label : allLabels) {
             int cnt = 0;
@@ -372,7 +375,20 @@ public class WargaController {
         reportMap.put("slaDeadline", slaDeadlineStr != null ? slaDeadlineStr : "-");
         reportMap.put("slaDeadlineIso", slaDeadlineIso); // null jika belum ada SLA
 
-        List<?> allRevisions = report.getRevisions() != null ? new ArrayList<>(report.getRevisions()) : new ArrayList<>();
+        List<Map<String, Object>> revisionMaps = new ArrayList<>();
+        if (report.getRevisions() != null) {
+            for (ReportRevision rev : report.getRevisions()) {
+                Map<String, Object> revMap = new HashMap<>();
+                revMap.put("oldStatus", toWargaStatusLabel(rev.getOldStatus()));
+                revMap.put("newStatus", toWargaStatusLabel(rev.getNewStatus()));
+                revMap.put("notes", rev.getNotes());
+                revMap.put("changedAt", rev.getChangedAt());
+                revisionMaps.add(revMap);
+            }
+        }
+        // Urutkan dari terlama ke terbaru
+        revisionMaps.sort(Comparator.comparing(m -> (LocalDateTime) m.get("changedAt")));
+        List<?> allRevisions = new ArrayList<>(revisionMaps);
         int revisionTotalCount = allRevisions.size();
         int revisionTotalPages = (int) Math.ceil((double) revisionTotalCount / revSize);
         if (revisionTotalPages < 1) revisionTotalPages = 1;
@@ -397,13 +413,12 @@ public class WargaController {
 
         reportMap.put("revisions", pagedRevisions);
         String cc = switch (report.getStatus()) {
-            case MENUNGGU_VALIDASI -> "bg-gray-100 text-gray-700";
-            case PERLU_REVISI -> "bg-amber-100 text-amber-700";
-            case DIVALIDASI, DITUGASKAN, SEDANG_DIKERJAKAN -> "bg-yellow-100 text-yellow-700";
-            case SELESAI -> "bg-green-100 text-green-700";
+            case MENUNGGU_VERIFIKASI -> "bg-gray-100 text-gray-700";
+            case MENUNGGU_REVISI -> "bg-amber-100 text-amber-700";
+            case DITERIMA, DITUGASKAN, SEDANG_BERJALAN -> "bg-yellow-100 text-yellow-700";
+            case SELESAI, SELESAI_OTOMATIS -> "bg-green-100 text-green-700";
             case DITOLAK -> "bg-red-100 text-red-700";
             case SENGKETA -> "bg-orange-100 text-orange-700";
-            case DITUTUP -> "bg-gray-100 text-gray-600";
             default -> "bg-gray-100 text-gray-700";
         };
         reportMap.put("statusColor", cc);
@@ -425,9 +440,19 @@ public class WargaController {
         model.addAttribute("confirmationIsLocked", confirmationIsLocked);
         model.addAttribute("confirmationDeadlineIso", confirmationDeadlineIso);
 
+        // FR-RSL-11: Cek apakah sengketa sudah pernah diajukan (maks 1x)
+        boolean existingDispute = false;
+        try {
+            existingDispute = disputeService.getDisputes(report.getReportId()).stream()
+                .findAny().isPresent();
+        } catch (Exception ex) {
+            log.warn("Gagal cek sengketa untuk report {}: {}", id, ex.getMessage());
+        }
+        model.addAttribute("existingDispute", existingDispute);
+
         // FR-RSL-08: Status final = read-only
         boolean isFinalStatus = report.getStatus() == ReportStatus.SELESAI
-                || report.getStatus() == ReportStatus.DITUTUP
+                || report.getStatus() == ReportStatus.SELESAI_OTOMATIS
                 || report.getStatus() == ReportStatus.DITOLAK;
         model.addAttribute("isFinalStatus", isFinalStatus);
 
@@ -526,8 +551,10 @@ public class WargaController {
                 return "redirect:/warga/report-detail?id=" + reportId;
             }
             // FR-RSL-07: Cek apakah konfirmasi sudah dikunci (sudah pernah merespons)
+            // FR-RSL-11: Jika sudah pernah sengketa, bypass locked check — konfirmasi tetap boleh
+            boolean hasExistingDispute = disputeService.getDisputes(reportId).stream().findAny().isPresent();
             java.util.Optional<ConfirmationRequest> confOpt = confirmationService.getByReportId(reportId);
-            if (confOpt.isPresent() && Boolean.TRUE.equals(confOpt.get().getIsLocked())) {
+            if (!hasExistingDispute && confOpt.isPresent() && Boolean.TRUE.equals(confOpt.get().getIsLocked())) {
                 redirectAttributes.addFlashAttribute("error", "Konfirmasi laporan ini sudah pernah dilakukan sebelumnya.");
                 return "redirect:/warga/report-detail?id=" + reportId;
             }
@@ -559,6 +586,15 @@ public class WargaController {
     ) {
         String userId = ControllerHelper.requireRole(session, "WARGA");
         if (userId == null) return "redirect:/warga/login";
+        // Server-side validation
+        if (reason == null || reason.trim().length() < 20) {
+            redirectAttributes.addFlashAttribute("error", "Alasan sengketa minimal 20 karakter.");
+            return "redirect:/warga/report-detail?id=" + reportId;
+        }
+        if (evidenceBase64 == null || evidenceBase64.isBlank()) {
+            redirectAttributes.addFlashAttribute("error", "Foto bukti sengketa wajib dilampirkan.");
+            return "redirect:/warga/report-detail?id=" + reportId;
+        }
         try {
             DisputeDTO dto = new DisputeDTO();
             dto.setReportId(reportId);
@@ -570,6 +606,9 @@ public class WargaController {
             dto.setEvidencePhotoUrl(evidenceUrl);
             disputeService.createDispute(dto, userId);
             redirectAttributes.addFlashAttribute("success", "Sengketa berhasil diajukan. Admin akan meninjau laporan Anda.");
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            // Validation errors — tampilkan langsung pesan dari service
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
         } catch (Exception e) {
             log.error("Gagal ajukan sengketa {}: {}", reportId, e.getMessage(), e);
             redirectAttributes.addFlashAttribute("error", "Gagal mengajukan sengketa: " + e.getMessage());
@@ -597,8 +636,8 @@ public class WargaController {
         try {
             Report report = reportService.findById(reportId)
                 .orElseThrow(() -> new RuntimeException("Laporan tidak ditemukan"));
-            // Validasi: hanya bisa revisi jika status PERLU_REVISI (FR-WRG-18)
-            if (report.getStatus() != ReportStatus.PERLU_REVISI) {
+            // Validasi: hanya bisa revisi jika status MENUNGGU_REVISI (FR-WRG-18)
+            if (report.getStatus() != ReportStatus.MENUNGGU_REVISI) {
                 redirectAttributes.addFlashAttribute("error", "Revisi hanya dapat dilakukan saat laporan berstatus 'Perlu Revisi'.");
                 return "redirect:/warga/report-detail?id=" + reportId;
             }
@@ -632,7 +671,7 @@ public class WargaController {
                 reportRepository.save(report);
             }
             // FR-WRG-19: Ubah status kembali ke menunggu validasi setelah revisi (edit dikunci)
-            reportService.updateStatus(reportId, ReportStatus.MENUNGGU_VALIDASI, "Revisi dikirim oleh warga", userId);
+            reportService.updateStatus(reportId, ReportStatus.MENUNGGU_VERIFIKASI, "Revisi dikirim oleh warga", userId);
             redirectAttributes.addFlashAttribute("success", "Revisi laporan berhasil dikirim. Admin akan meninjau kembali.");
         } catch (Exception e) {
             log.error("Gagal revisi laporan {}: {}", reportId, e.getMessage(), e);
@@ -655,9 +694,9 @@ public class WargaController {
         try {
             Report report = reportService.findById(reportId)
                 .orElseThrow(() -> new RuntimeException("Laporan tidak ditemukan"));
-            // FR-WRG-23: Pembatalan hanya boleh saat MENUNGGU_VALIDASI
-            if (report.getStatus() != ReportStatus.MENUNGGU_VALIDASI) {
-                redirectAttributes.addFlashAttribute("error", "Laporan hanya dapat dibatalkan saat masih dalam antrian verifikasi (Menunggu Validasi).");
+            // FR-WRG-23: Pembatalan hanya boleh saat MENUNGGU_VERIFIKASI
+            if (report.getStatus() != ReportStatus.MENUNGGU_VERIFIKASI) {
+                redirectAttributes.addFlashAttribute("error", "Laporan hanya dapat dibatalkan saat masih dalam antrian verifikasi.");
                 return "redirect:/warga/report-detail?id=" + reportId;
             }
             // FR-RSL-03 style: Pastikan hanya pembuat yang bisa membatalkan
@@ -726,21 +765,33 @@ public class WargaController {
     // PRIVATE HELPERS
     // ==========================================
 
+    private String toWargaStatusLabel(String statusName) {
+        if (statusName == null || statusName.isBlank()) return "Menunggu";
+        try {
+            return toWargaStatusLabel(Report.ReportStatus.valueOf(statusName));
+        } catch (IllegalArgumentException e) {
+            return statusName;
+        }
+    }
+
     private String toWargaStatusLabel(Report.ReportStatus status) {
         if (status == null) return "Menunggu";
         return switch (status) {
-            case MENUNGGU_VALIDASI -> "Menunggu";
-            case PERLU_REVISI -> "Perlu Revisi";
+            case MENUNGGU_VERIFIKASI -> "Menunggu Verifikasi";
+            case MENUNGGU_REVISI -> "Menunggu Revisi";
             case DITOLAK -> "Ditolak";
-            case DIVALIDASI -> "Divalidasi";
-            case DIDISPOSISI -> "Didisposisi";
+            case DITERIMA -> "Diterima";
+            case TERGABUNG -> "Tergabung";
+            case DALAM_PENINJAUAN -> "Dalam Peninjauan";
             case DITUGASKAN -> "Ditugaskan";
-            case SEDANG_DIKERJAKAN -> "Diproses";
+            case SEDANG_BERJALAN -> "Sedang Berjalan";
             case TERTUNDA -> "Tertunda";
-            case MENUNGGU_KONFIRMASI -> "Menunggu Konfirmasi";
+            case TERLAMBAT -> "Terlambat";
+            case MENUNGGU_VALIDASI -> "Menunggu Konfirmasi Warga";
+            case SENGKETA -> "Disengketakan";
+            case DALAM_EVALUASI_SENGKETA -> "Dalam Evaluasi Sengketa";
+            case SELESAI_OTOMATIS -> "Selesai Otomatis";
             case SELESAI -> "Selesai";
-            case SENGKETA -> "Sengketa";
-            case DITUTUP -> "Ditutup";
         };
     }
 }

@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import com.plr.aduaja.dto.CreatePetugasDTO;
 import com.plr.aduaja.model.*;
 import com.plr.aduaja.repository.RegionRepository;
+import com.plr.aduaja.repository.TaskEvidenceRepository;
 import com.plr.aduaja.repository.UserProfileRepository;
 import com.plr.aduaja.repository.UserRepository;
 import com.plr.aduaja.service.*;
@@ -58,6 +59,9 @@ public class AdminDinasController {
 
     @Autowired
     private UserProfileRepository userProfileRepository;
+
+    @Autowired
+    private TaskEvidenceRepository taskEvidenceRepository;
 
     @Autowired
     private RegionRepository regionRepository;
@@ -196,8 +200,9 @@ public class AdminDinasController {
                 m.put("wilayah", d.getReport() != null && d.getReport().getLocationHint() != null ? d.getReport().getLocationHint() : "-");
                 m.put("tanggalDisposisi", d.getDispatchedAt() != null ? d.getDispatchedAt().format(ControllerHelper.DATE_FMT) : "-");
                 m.put("status", "Belum Ditindaklanjuti");
-                m.put("prioritas", "Sedang");
-                m.put("sisaWaktu", "-");
+                m.put("prioritas", d.getPriority() != null ? d.getPriority() : "Sedang");
+                m.put("deadline", d.getDeadline() != null ? d.getDeadline().format(ControllerHelper.DATETIME_FMT) : "-");
+                m.put("sisaWaktu", d.getDeadline() != null ? hitungSisaWaktu(d.getDeadline()) : "-");
                 laporanDinas.add(m);
             }
         }
@@ -360,6 +365,8 @@ public class AdminDinasController {
                 m.put("slaStatus", slaStatus);
                 m.put("slaId", slaId != null ? slaId : "");
                 m.put("foto", dummyReportImage());
+                m.put("statusTask", t.getTaskStatus() != null ? t.getTaskStatus().name() : "BARU");
+                m.put("statusLabel", t.getTaskStatus() == FieldTask.TaskStatus.TERTUNDA ? "Tertunda" : "Dalam Penanganan");
                 List<Map<String, Object>> ph = new ArrayList<>();
                 if (t.getStartedAt() != null) {
                     ph.add(Map.of("tanggal", t.getStartedAt().format(ControllerHelper.DATE_FMT), "petugas",
@@ -435,7 +442,12 @@ public class AdminDinasController {
                 m.put("id", t.getTaskId());
                 m.put("judul", t.getReport() != null ? (t.getReport().getTicketNumber() != null ? t.getReport().getTicketNumber() : "Laporan") : "Tugas");
                 m.put("kategori", t.getReport() != null && t.getReport().getCategory() != null ? t.getReport().getCategory().getCategoryName() : "Lainnya");
-                m.put("prioritas", "Sedang");
+                String prio = "Sedang";
+                try {
+                    Optional<Disposition> disp = dispositionService.getDispositionByReportId(t.getReport().getReportId());
+                    if (disp.isPresent() && disp.get().getPriority() != null) prio = disp.get().getPriority();
+                } catch (Exception e) { /* ignore */ }
+                m.put("prioritas", prio);
                 m.put("pelapor", t.getReport() != null && t.getReport().getReporter() != null ? t.getReport().getReporter().getFullName() : "-");
                 m.put("wilayah", t.getReport() != null && t.getReport().getLocationHint() != null ? t.getReport().getLocationHint() : "-");
                 m.put("foto", dummyReportImage());
@@ -490,30 +502,62 @@ public class AdminDinasController {
             HttpSession session,
             @RequestParam(value = "id", required = false) String id
     ) {
-        // SESSION CHECK
         if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
+        String regionId = ControllerHelper.getSessionRegionId(session);
 
         List<DisputeRecord> realDisputes = disputeService.getPendingDisputes();
-        // DRY: gunakan konstanta DATE_FMT dari ControllerHelper
+        if (regionId != null) {
+            realDisputes = realDisputes.stream()
+                .filter(d -> d.getReport() != null && d.getReport().getRegion() != null
+                    && regionId.equals(d.getReport().getRegion().getRegionId()))
+                .collect(Collectors.toList());
+        }
+
         List<Map<String, Object>> disputes = realDisputes.stream().map(d -> {
             Map<String, Object> m = new HashMap<>();
+            Report r = d.getReport();
             m.put("id", d.getDisputeId());
-            m.put("ticketId", d.getReport() != null ? d.getReport().getReportId() : "-");
+            m.put("ticketId", r != null ? r.getReportId() : "-");
             m.put("judul", d.getReasonText() != null ? d.getReasonText() : "Sengketa #" + d.getDisputeId().substring(0, 8));
             m.put("statusSengketa", d.getResolution() == null ? "Menunggu Tinjauan" : "Selesai");
             m.put("prioritas", "Sedang");
             m.put("tanggalSengketa", d.getFiledAt() != null ? d.getFiledAt().format(ControllerHelper.DATE_FMT) : "-");
-            m.put("pelapor", d.getReport() != null && d.getReport().getReporter() != null ? d.getReport().getReporter().getFullName() : "-");
-            m.put("tanggalLaporan", "-");
+            m.put("pelapor", r != null && r.getReporter() != null ? r.getReporter().getFullName() : "-");
+            m.put("tanggalLaporan", r != null && r.getSubmittedAt() != null ? r.getSubmittedAt().format(ControllerHelper.DATE_FMT) : "-");
             m.put("tanggalSelesai", d.getResolvedAt() != null ? d.getResolvedAt().format(ControllerHelper.DATE_FMT) : "-");
-            m.put("statusSebelum", "Selesai");
+            m.put("statusSebelum", r != null && r.getStatus() != null ? r.getStatus().name() : "-");
             m.put("alasanSengketa", d.getReasonText() != null ? d.getReasonText() : "-");
-            m.put("fotoBuktiSengketa", dummyReportImage());
-            m.put("fotoBuktiPerbaikan", dummyReportImage());
+            // Foto bukti sengketa dari warga
+            String evidence = d.getEvidencePhotoUrl();
+            m.put("fotoBuktiSengketa", (evidence != null && !evidence.isBlank()) ? evidence : dummyReportImage());
+            // Foto bukti perbaikan dari petugas (ambil dari TaskEvidence SESUDAH)
+            String petugasPhoto = dummyReportImage();
+            String petugasId = "-";
+            String petugasNama = "-";
+            if (r != null) {
+                List<TaskEvidence> evs = taskEvidenceRepository.findByTaskReportReportId(r.getReportId());
+                for (TaskEvidence te : evs) {
+                    if (te.getEvidenceType() == TaskEvidence.EvidenceType.SESUDAH && te.getPhotoUrl() != null) {
+                        petugasPhoto = te.getPhotoUrl();
+                    }
+                }
+                // Cari petugas terakhir dari field tasks
+                if (r.getFieldTasks() != null && !r.getFieldTasks().isEmpty()) {
+                    List<FieldTask> tasks = r.getFieldTasks().stream()
+                        .sorted(Comparator.comparing(FieldTask::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
+                        .collect(Collectors.toList());
+                    FieldTask lastTask = tasks.get(0);
+                    if (lastTask.getOfficer() != null) {
+                        petugasId = lastTask.getOfficer().getUserId();
+                        petugasNama = lastTask.getOfficer().getFullName();
+                    }
+                }
+            }
+            m.put("fotoBuktiPerbaikan", petugasPhoto);
             m.put("keteranganDinas", d.getResolutionNotes() != null ? d.getResolutionNotes() : "-");
             m.put("dinas", "Dinas Terkait");
-            m.put("petugasId", "-");
-            m.put("petugasNama", "-");
+            m.put("petugasId", petugasId);
+            m.put("petugasNama", petugasNama);
             return m;
         }).collect(Collectors.toList());
         model.addAttribute("disputes", disputes);
@@ -534,16 +578,71 @@ public class AdminDinasController {
             selected = disputes.get(0);
         }
 
+        // FR-RSL-12: Report region untuk validasi wilayah petugas
+        String reportRegionId = null;
+        String reportWilayahName = null;
         if (selected != null) {
             String originalPetugasId = (String) selected.get("petugasId");
-            List<User> realPetugas = userService.findByRole(User.Role.PETUGAS);
-            for (User p : realPetugas) {
-                if (!p.getUserId().equals(originalPetugasId)) {
-                    Map<String, Object> pm = new HashMap<>();
-                    pm.put("id", p.getUserId());
-                    pm.put("nama", p.getFullName());
-                    availablePetugas.add(pm);
+            String agencyId = ControllerHelper.getSessionAgencyId(session);
+            List<User> agencyPetugas;
+            if (agencyId != null) {
+                agencyPetugas = userRepository.findByRoleAndAgencyAgencyId(User.Role.PETUGAS, agencyId);
+            } else {
+                agencyPetugas = userService.findByRole(User.Role.PETUGAS);
+            }
+
+            // Dapatkan region laporan untuk validasi wilayah
+            String selDisputeId = (String) selected.get("id");
+            if (selDisputeId != null) {
+                Optional<DisputeRecord> optDisp = disputeService.getDisputeById(selDisputeId);
+                if (optDisp.isPresent() && optDisp.get().getReport() != null) {
+                    Region rr = optDisp.get().getReport().getRegion();
+                    if (rr != null) {
+                        reportRegionId = rr.getRegionId();
+                        reportWilayahName = rr.getRegionName();
+                    }
                 }
+            }
+            model.addAttribute("reportRegionId", reportRegionId);
+            model.addAttribute("reportWilayahName", reportWilayahName);
+
+            for (User p : agencyPetugas) {
+                Map<String, Object> pm = new HashMap<>();
+                pm.put("id", p.getUserId());
+                pm.put("nama", p.getFullName());
+
+                // Status ketersediaan dari shift terkini
+                String statusKetersediaan = "Siap Bertugas";
+                Optional<OfficerAttendance> curShift = attendanceService.getCurrentShift(p.getUserId());
+                if (curShift.isPresent()) {
+                    OfficerAttendance.ShiftStatus ss = curShift.get().getShiftStatus();
+                    if (ss == OfficerAttendance.ShiftStatus.AKTIF) {
+                        List<FieldTask> activeTasks = fieldTaskService.getTasksByOfficerAndStatus(
+                                p.getUserId(), FieldTask.TaskStatus.SEDANG_DIKERJAKAN);
+                        statusKetersediaan = activeTasks.isEmpty() ? "Siap Bertugas" : "Sedang Bertugas";
+                    } else if (ss == OfficerAttendance.ShiftStatus.ISTIRAHAT) {
+                        statusKetersediaan = "Istirahat";
+                    } else if (ss == OfficerAttendance.ShiftStatus.SELESAI_SHIFT) {
+                        statusKetersediaan = "Selesai Shift";
+                    }
+                }
+                pm.put("statusKetersediaan", statusKetersediaan);
+
+                // Wilayah tugas petugas
+                String petugasWilayahId = p.getRegion() != null ? p.getRegion().getRegionId() : null;
+                String petugasWilayahName = p.getRegion() != null ? p.getRegion().getRegionName() : "Tidak ditentukan";
+                pm.put("wilayahId", petugasWilayahId != null ? petugasWilayahId : "");
+                pm.put("wilayahNama", petugasWilayahName);
+                pm.put("wilayahSesuai", reportRegionId != null && reportRegionId.equals(petugasWilayahId));
+
+                // Tandai apakah ini petugas asli yang sebelumnya mengerjakan
+                boolean isOriginal = p.getUserId().equals(originalPetugasId);
+                pm.put("isOriginalPetugas", isOriginal);
+                if (isOriginal) {
+                    pm.put("statusKetersediaan", "Pilihan Terakhir");
+                }
+
+                availablePetugas.add(pm);
             }
             model.addAttribute("availablePetugasForReassignment", availablePetugas);
             model.addAttribute("originalPetugasId", originalPetugasId);
@@ -554,6 +653,7 @@ public class AdminDinasController {
             return "redirect:/admin/dinas/dashboard";
         }
         model.addAttribute("selectedDispute", selected);
+        model.addAttribute("dinasName", ControllerHelper.getSessionAgencyName(session));
         return "admin/dinas/sengketa-dinas";
     }
 
@@ -563,7 +663,8 @@ public class AdminDinasController {
             @RequestParam(value = "keputusan", required = false) String keputusan,
             @RequestParam(value = "catatan", required = false) String catatan,
             @RequestParam(value = "petugasId", required = false) String petugasId,
-            HttpSession session
+            HttpSession session,
+            RedirectAttributes redirectAttributes
     ) {
         String adminId = ControllerHelper.requireAnyAdminSession(session);
         if (adminId == null) {
@@ -571,33 +672,71 @@ public class AdminDinasController {
                     .map(User::getUserId).orElse(null);
         }
 
+        log.info("[SENGKETA POST] id={}, keputusan={}, petugasId={}, catatan panjang={}",
+            id, keputusan, petugasId, catatan != null ? catatan.length() : 0);
+
+        // FR-RSL-12: Catatan wajib diisi sebelum keputusan
+        if (catatan == null || catatan.isBlank()) {
+            redirectAttributes.addFlashAttribute("error", "Catatan resolusi wajib diisi.");
+            return "redirect:/admin/dinas/sengketa" + (id != null ? "?id=" + id : "");
+        }
+
         try {
-            if ("diterima".equals(keputusan) && petugasId != null && !petugasId.isEmpty()) {
+            if ("diterima".equals(keputusan)) {
+                if (petugasId == null || petugasId.isEmpty()) {
+                    redirectAttributes.addFlashAttribute("error", "Pilih petugas pengganti untuk perbaikan ulang.");
+                    return "redirect:/admin/dinas/sengketa" + (id != null ? "?id=" + id : "");
+                }
                 if (adminId != null) {
                     disputeService.resolveDispute(id, DisputeRecord.ResolutionType.TUGASKAN_KEMBALI, adminId, catatan);
                 }
                 try {
+                    log.info("[DEBUG SENGKETA] Mulai reassign — disputeId={}, petugasId={}", id, petugasId);
                     DisputeRecord dispute = disputeService.getDisputeById(id).orElse(null);
                     if (dispute != null && dispute.getReport() != null) {
                         String reportId = dispute.getReport().getReportId();
+                        log.info("[DEBUG SENGKETA] reportId={}", reportId);
                         List<FieldTask> relatedTasks = fieldTaskService.getTasksByReport(reportId);
+                        log.info("[DEBUG SENGKETA] relatedTasks count={}", relatedTasks.size());
                         for (FieldTask task : relatedTasks) {
-                            if (task.getTaskStatus() != FieldTask.TaskStatus.SELESAI) {
-                                fieldTaskService.reassignTask(task.getTaskId(), petugasId);
+                            log.info("[DEBUG SENGKETA] Akan reassign taskId={}, current officerId={}, status={}",
+                                task.getTaskId(),
+                                task.getOfficer() != null ? task.getOfficer().getUserId() : "null",
+                                task.getTaskStatus());
+                            FieldTask updated = fieldTaskService.reassignTask(task.getTaskId(), petugasId);
+                            log.info("[DEBUG SENGKETA] Selesai reassign — taskId={}, new officerId={}, new status={}",
+                                updated.getTaskId(),
+                                updated.getOfficer() != null ? updated.getOfficer().getUserId() : "null",
+                                updated.getTaskStatus());
+                            // Kirim notifikasi ke petugas yang ditugaskan ulang
+                            User officer = updated.getOfficer();
+                            if (officer != null) {
+                                notificationService.createNotification(
+                                    officer.getUserId(),
+                                    "Tugas Ditugaskan Kembali",
+                                    "Laporan " + (updated.getReport() != null ? updated.getReport().getTicketNumber() : "") + " telah ditugaskan kembali kepada Anda untuk perbaikan ulang.",
+                                    "TASK", updated.getTaskId()
+                                );
                             }
                         }
+                    } else {
+                        log.warn("[DEBUG SENGKETA] dispute or report is null — dispute={}", dispute);
                     }
                 } catch (Exception e) {
-                    log.error("Gagal reassign petugas saat sengketa: {}", e.getMessage(), e);
+                    log.error("[DEBUG SENGKETA] Gagal reassign petugas saat sengketa: {}", e.getMessage(), e);
                 }
+                redirectAttributes.addFlashAttribute("success", "Sengketa diterima. Laporan ditugaskan kembali ke petugas baru.");
                 return "redirect:/admin/dinas/sengketa?reassigned=true";
             } else {
+                // ditolak — Tutup Laporan (FR-RSL-12)
                 if (adminId != null) {
                     disputeService.resolveDispute(id, DisputeRecord.ResolutionType.TUTUP_LAPORAN, adminId, catatan);
                 }
+                redirectAttributes.addFlashAttribute("success", "Sengketa ditolak. Laporan ditutup.");
             }
         } catch (Exception e) {
             log.error("Gagal proses sengketa {}: {}", id, e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("error", "Gagal memproses sengketa: " + e.getMessage());
         }
 
         return "redirect:/admin/dinas/sengketa" + (id != null ? "?id=" + id : "");
@@ -758,6 +897,16 @@ public class AdminDinasController {
             redirectAttributes.addFlashAttribute("error", "Gagal resume SLA: " + e.getMessage());
         }
         return "redirect:/admin/dinas/progress" + (taskId != null ? "?id=" + taskId : "");
+    }
+
+    private String hitungSisaWaktu(java.time.LocalDateTime deadline) {
+        if (deadline == null) return "-";
+        java.time.Duration dur = java.time.Duration.between(java.time.LocalDateTime.now(), deadline);
+        if (dur.isNegative()) return "Terlambat";
+        long days = dur.toDays();
+        long hours = dur.toHours() % 24;
+        if (days > 0) return days + " hari " + hours + " jam";
+        return hours + " jam";
     }
 
     // DRY: didelegasikan ke ControllerHelper — tidak ada duplikasi dengan AdminPusatController

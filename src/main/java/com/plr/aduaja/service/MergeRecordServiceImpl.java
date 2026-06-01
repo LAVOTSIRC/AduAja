@@ -30,6 +30,9 @@ public class MergeRecordServiceImpl implements MergeRecordService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private ReportService reportService;
+
     @Override  // ← POLYMORPHISM: Override dari interface
     @Transactional
     public MergeRecord createMerge(MergeDTO dto, String userId) {
@@ -48,8 +51,12 @@ public class MergeRecordServiceImpl implements MergeRecordService {
         merge.setIsActive(true);
         merge.setMergedAt(LocalDateTime.now());
 
+        Report.ReportStatus oldStatus = child.getStatus();
         child.setParentReport(parent);
+        child.setStatus(Report.ReportStatus.TERGABUNG);
         reportRepository.save(child);
+        reportService.addReportRevision(child, oldStatus, Report.ReportStatus.TERGABUNG,
+            "Laporan digabungkan ke laporan utama", userId);
 
         return mergeRecordRepository.save(merge);
     }

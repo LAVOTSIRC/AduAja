@@ -252,10 +252,18 @@ public class PetugasController {
         if (!model.containsAttribute("user")) return "redirect:/petugas/login";
 
         List<FieldTask> realTasks = fieldTaskService.getTasksByOfficer(userId);
+        log.info("[DASHBOARD] userId={}, realTasks count={}", userId, realTasks.size());
+        for (FieldTask t : realTasks) {
+            log.info("[DASHBOARD] taskId={}, status={}, officerId={}",
+                t.getTaskId(), t.getTaskStatus(),
+                t.getOfficer() != null ? t.getOfficer().getUserId() : "null");
+        }
         long s  = realTasks.stream().filter(t -> t.getTaskStatus() == TaskStatus.SELESAI).count();
         long ip = realTasks.stream().filter(t -> t.getTaskStatus() == TaskStatus.SEDANG_DIKERJAKAN).count();
-        long n  = realTasks.stream().filter(t -> t.getTaskStatus() == TaskStatus.BARU).count();
+        long n  = realTasks.stream().filter(t -> t.getTaskStatus() == TaskStatus.BARU
+                || t.getTaskStatus() == TaskStatus.DITUGASKAN_ULANG).count();
         long p  = realTasks.stream().filter(t -> t.getTaskStatus() == TaskStatus.TERTUNDA).count();
+        log.info("[DASHBOARD] stats: tugasBaru={}, sedangDikerjakan={}, tertunda={}, selesai={}", n, ip, p, s);
         model.addAttribute("stats", Map.of(
             "selesaiHariIni", s, "sedangDikerjakan", ip, "tugasBaru", n, "tertunda", p));
 
@@ -330,6 +338,7 @@ public class PetugasController {
         for (FieldTask t : realTasks) {
             switch (t.getTaskStatus()) {
                 case BARU -> tasksNew.add(toPetugasTaskMap(t, userLat, userLng));
+                case DITUGASKAN_ULANG -> tasksNew.add(toPetugasTaskMap(t, userLat, userLng));
                 case SEDANG_DIKERJAKAN -> tasksInProgress.add(toPetugasTaskMap(t, userLat, userLng));
                 case TERTUNDA -> tasksPending.add(toPetugasTaskMap(t, userLat, userLng));
                 default -> {}

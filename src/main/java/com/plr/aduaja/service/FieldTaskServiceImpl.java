@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -43,6 +44,9 @@ public class FieldTaskServiceImpl implements FieldTaskService {
     @Autowired
     private UserProfileRepository userProfileRepository;
 
+    @Autowired
+    private ReportService reportService;
+
     private static final Logger log = LoggerFactory.getLogger(FieldTaskServiceImpl.class);
 
     @Override
@@ -57,7 +61,16 @@ public class FieldTaskServiceImpl implements FieldTaskService {
 
     @Override
     public List<FieldTask> getTasksByOfficer(String officerId) {
-        return fieldTaskRepository.findByOfficerUserId(officerId);
+        log.info("[QUERY] getTasksByOfficer — officerId={}", officerId);
+        List<FieldTask> result = fieldTaskRepository.findByOfficerUserId(officerId);
+        log.info("[QUERY] getTasksByOfficer — count={}", result.size());
+        for (FieldTask t : result) {
+            log.info("[QUERY] taskId={}, status={}, officerId={}, reportId={}",
+                t.getTaskId(), t.getTaskStatus(),
+                t.getOfficer() != null ? t.getOfficer().getUserId() : "null",
+                t.getReport() != null ? t.getReport().getReportId() : "null");
+        }
+        return result;
     }
 
     @Override
@@ -72,7 +85,15 @@ public class FieldTaskServiceImpl implements FieldTaskService {
 
     @Override
     public List<FieldTask> getTasksByReport(String reportId) {
-        return fieldTaskRepository.findByReportReportId(reportId);
+        log.info("[QUERY] getTasksByReport — reportId={}", reportId);
+        List<FieldTask> result = fieldTaskRepository.findByReportReportId(reportId);
+        log.info("[QUERY] getTasksByReport — count={}", result.size());
+        for (FieldTask t : result) {
+            log.info("[QUERY] taskId={}, status={}, officerId={}",
+                t.getTaskId(), t.getTaskStatus(),
+                t.getOfficer() != null ? t.getOfficer().getUserId() : "null");
+        }
+        return result;
     }
 
     @Override
@@ -102,8 +123,11 @@ public class FieldTaskServiceImpl implements FieldTaskService {
 
         // FIX SCN-01 (4.8): Update status laporan ke DITUGASKAN setelah petugas ditugaskan
         try {
+            Report.ReportStatus oldStatus = report.getStatus();
             report.setStatus(Report.ReportStatus.DITUGASKAN);
             reportRepository.save(report);
+            reportService.addReportRevision(report, oldStatus, Report.ReportStatus.DITUGASKAN,
+                "Laporan ditugaskan ke petugas", assignedById);
         } catch (Exception e) {
             log.warn("Gagal update status laporan ke DITUGASKAN: {}", e.getMessage());
         }
@@ -167,6 +191,7 @@ public class FieldTaskServiceImpl implements FieldTaskService {
     }
 
     @Override
+    @Transactional
     public FieldTask completeTask(String taskId, String evidencePhotoUrl) {
         FieldTask task = fieldTaskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task not found"));
@@ -183,23 +208,36 @@ public class FieldTaskServiceImpl implements FieldTaskService {
             taskEvidenceRepository.save(evidence);
         }
 
-        // CRITICAL FIX: Update status laporan ke MENUNGGU_KONFIRMASI (SRS Flow 5.5)
+        // CRITICAL FIX: Update status laporan ke MENUNGGU_VALIDASI (SRS Flow 5.5)
         // dan buat ConfirmationRequest dengan deadline 72 jam
         Report report = task.getReport();
         if (report != null) {
-            report.setStatus(Report.ReportStatus.MENUNGGU_KONFIRMASI);
+            Report.ReportStatus oldStatus = report.getStatus();
+            report.setStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
             reportRepository.save(report);
 
-            // Buat ConfirmationRequest jika belum ada
-            boolean alreadyExists = confirmationRequestRepository
-                    .findByReportReportId(report.getReportId()).isPresent();
-            if (!alreadyExists && report.getReporter() != null) {
+            // PRIORITAS #1: Buat ConfirmationRequest dulu (paling critical untuk flow)
+            Optional<ConfirmationRequest> existing = confirmationRequestRepository
+                    .findByReportReportId(report.getReportId());
+            boolean needsNew = existing.isEmpty() ||
+                    Boolean.TRUE.equals(existing.get().getIsLocked());
+            if (needsNew && report.getReporter() != null) {
+                existing.ifPresent(confirmationRequestRepository::delete);
                 ConfirmationRequest confirmation = new ConfirmationRequest();
                 confirmation.setReport(report);
                 confirmation.setWarga(report.getReporter());
-                confirmation.setDeadlineAt(LocalDateTime.now().plusHours(72)); // 3x24 jam
+                confirmation.setDeadlineAt(LocalDateTime.now().plusHours(72));
                 confirmation.setIsLocked(false);
                 confirmationRequestRepository.save(confirmation);
+            }
+
+            // PRIORITAS #2: Catat audit trail (tidak boleh blokir flow utama)
+            try {
+                String changedBy = task.getOfficer() != null ? task.getOfficer().getUserId() : "SYSTEM";
+                reportService.addReportRevision(report, oldStatus, Report.ReportStatus.MENUNGGU_VALIDASI,
+                    "Tugas selesai dikerjakan, menunggu konfirmasi warga", changedBy);
+            } catch (Exception e) {
+                log.warn("Gagal catat audit trail completeTask {}: {}", taskId, e.getMessage());
             }
         }
 
@@ -246,13 +284,61 @@ public class FieldTaskServiceImpl implements FieldTaskService {
 
     @Override
     public FieldTask reassignTask(String taskId, String newOfficerId) {
+        log.info("[REASSIGN] Mencari taskId={}, newOfficerId={}", taskId, newOfficerId);
         FieldTask task = fieldTaskRepository.findById(taskId)
-                .orElseThrow(() -> new RuntimeException("Task not found"));
+                .orElseThrow(() -> new RuntimeException("Task not found: " + taskId));
         User newOfficer = userRepository.findById(newOfficerId)
-                .orElseThrow(() -> new RuntimeException("New officer not found"));
+                .orElseThrow(() -> new RuntimeException("New officer not found: " + newOfficerId));
+        log.info("[REASSIGN] Ditemukan task status={}, officer={}", task.getTaskStatus(),
+                task.getOfficer() != null ? task.getOfficer().getUserId() : "null");
         task.setOfficer(newOfficer);
         task.setTaskStatus(TaskStatus.DITUGASKAN_ULANG);
-        return fieldTaskRepository.save(task);
+        task.setStartedAt(null);
+        task.setCompletedAt(null);
+        log.info("[REASSIGN] Sebelum save — task status=DITUGASKAN_ULANG, officer={}", newOfficer.getUserId());
+        FieldTask saved = fieldTaskRepository.save(task);
+        log.info("[REASSIGN] Setelah save — taskId={}, status={}, officer={}",
+                saved.getTaskId(), saved.getTaskStatus(),
+                saved.getOfficer() != null ? saved.getOfficer().getUserId() : "null");
+
+        // VERIFIKASI: Baca ulang task dari DB untuk memastikan perubahan tersimpan
+        try {
+            FieldTask verify = fieldTaskRepository.findById(taskId).orElse(null);
+            if (verify != null) {
+                log.info("[REASSIGN] VERIFIKASI — taskId={}, status={}, officer={}",
+                    verify.getTaskId(), verify.getTaskStatus(),
+                    verify.getOfficer() != null ? verify.getOfficer().getUserId() : "null");
+                if (verify.getTaskStatus() != TaskStatus.DITUGASKAN_ULANG) {
+                    log.error("[REASSIGN] VERIFIKASI GAGAL — status bukan DITUGASKAN_ULANG, masih={}", verify.getTaskStatus());
+                }
+                if (verify.getOfficer() == null || !newOfficerId.equals(verify.getOfficer().getUserId())) {
+                    log.error("[REASSIGN] VERIFIKASI GAGAL — officer tidak sesuai, expected={}, actual={}",
+                        newOfficerId, verify.getOfficer() != null ? verify.getOfficer().getUserId() : "null");
+                }
+            } else {
+                log.error("[REASSIGN] VERIFIKASI GAGAL — task tidak ditemukan di DB setelah save!");
+            }
+        } catch (Exception e) {
+            log.error("[REASSIGN] VERIFIKASI exception: {}", e.getMessage(), e);
+        }
+
+        // Kembalikan status laporan ke DITUGASKAN agar petugas bisa memulai ulang
+        log.info("[REASSIGN] Akan update report status ke DITUGASKAN");
+        Report report = saved.getReport();
+        if (report != null) {
+            log.info("[REASSIGN] Report ditemukan, set status DITUGASKAN, reportId={}", report.getReportId());
+            Report.ReportStatus oldStatus = report.getStatus();
+            report.setStatus(Report.ReportStatus.DITUGASKAN);
+            reportRepository.save(report);
+            String changedBy = task.getAssignedBy() != null ? task.getAssignedBy().getUserId() : "SYSTEM";
+            reportService.addReportRevision(report, oldStatus, Report.ReportStatus.DITUGASKAN,
+                "Tugas ditugaskan ulang ke petugas baru", changedBy);
+            log.info("[REASSIGN] Report status berhasil diupdate");
+        } else {
+            log.warn("[REASSIGN] Report NULL pada saved task!");
+        }
+
+        return saved;
     }
 
     @Override
@@ -281,8 +367,11 @@ public class FieldTaskServiceImpl implements FieldTaskService {
 
         Report report = task.getReport();
         if (report != null) {
+            Report.ReportStatus oldStatus = report.getStatus();
             report.setStatus(Report.ReportStatus.SELESAI);
             reportRepository.save(report);
+            reportService.addReportRevision(report, oldStatus, Report.ReportStatus.SELESAI,
+                "Tugas ditutup oleh admin", "SYSTEM");
         }
 
         return task;
