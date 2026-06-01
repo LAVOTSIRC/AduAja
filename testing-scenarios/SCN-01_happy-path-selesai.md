@@ -33,32 +33,32 @@ Warga buat laporan
 
 | # | Aksi | URL | Yang Dicek | Hasil Ekspektasi | ✓/✗ | Catatan |
 |---|------|-----|------------|------------------|-----|---------|
-| 1.1 | Buka halaman login warga | `/warga/login` | Form login tampil | Form login dan register tampil | `[ ]` | |
-| 1.2 | Login dengan kredensial warga | POST `/warga/login` | Redirect setelah login | Masuk ke dashboard warga | `[ ]` | |
-| 1.3 | Cek dashboard | `/warga/dashboard` | 📋 Statistik laporan | Angka total/menunggu/diproses/selesai/ditolak tampil | `[ ]` | |
+| 1.1 | Buka halaman login warga | `/warga/login` | Form login tampil | Form login dan register tampil | `[✓]` | |
+| 1.2 | Login dengan kredensial warga | POST `/warga/login` | Redirect setelah login | Masuk ke dashboard warga | `[✓]` | |
+| 1.3 | Cek dashboard | `/warga/dashboard` | 📋 Statistik laporan | Angka total/menunggu/diproses/selesai/ditolak tampil | `[✓]` | |
 
 **Buat Laporan Baru**
 
-| # | Aksi | URL | Yang Dicek | Hasil Ekspektasi | ✓/✗ | Catatan |
-|---|------|-----|------------|------------------|-----|---------|
-| 1.4 | Klik "Buat Laporan" | `/warga/create-report` | Form laporan tampil | Kategori, deskripsi, peta, kamera tersedia | `[ ]` | |
-| 1.5 | Pilih kategori | - | Dropdown kategori | Daftar kategori aktif tampil | `[ ]` | |
-| 1.6 | Isi deskripsi | - | Field deskripsi | Bisa diketik | `[ ]` | |
-| 1.7 | Klik "Gunakan Lokasi Saya" | - | Koordinat lat/lng | Koordinat terisi otomatis dari GPS browser | `[ ]` | |
-| 1.8 | Isi location hint / patokan | - | Field patokan | Bisa diketik | `[ ]` | |
-| 1.9 | Ambil foto via kamera atau upload | - | Preview foto | Foto tampil di preview sebelum submit | `[ ]` | |
-| 1.10 | Pilih wilayah (region) | - | Dropdown region | Daftar wilayah tampil | `[ ]` | |
-| 1.11 | Submit laporan | POST `/warga/create-report` | Flash message + redirect | "Laporan berhasil dikirim!", redirect ke detail laporan | `[ ]` | |
+| # | Aksi | URL | Yang Dicek | Hasil Ekspektasi | ✓/✗  | Catatan                                          |
+|---|------|-----|------------|------------------|------|--------------------------------------------------|
+| 1.4 | Klik "Buat Laporan" | `/warga/create-report` | Form laporan tampil | Kategori, deskripsi, peta, kamera tersedia | `[✓]` |                                                  |
+| 1.5 | Pilih kategori | - | Dropdown kategori | Daftar kategori aktif tampil | `[✓]` |                                                  |
+| 1.6 | Isi deskripsi | - | Field deskripsi | Bisa diketik | `[✓]` |                                                  |
+| 1.7 | Klik "Gunakan Lokasi Saya" | - | Koordinat lat/lng | Koordinat terisi otomatis dari GPS browser | `[✓]` |                                                  |
+| 1.8 | Isi location hint / patokan | - | Field patokan | Bisa diketik | `[✓]` |                                                  |
+| 1.9 | Ambil foto via kamera atau upload | - | Preview foto | Foto tampil di preview sebelum submit | `[✓]` |                                                  |
+| 1.10 | Pilih wilayah (region) | - | Dropdown region | Daftar wilayah tampil | `[x]` | Tidak perlu karena sudah otomatis deteksi lokasi |
+| 1.11 | Submit laporan | POST `/warga/create-report` | Flash message + redirect | "Laporan berhasil dikirim!", redirect ke detail laporan | `[✓]` |                                                  |
 
 **Verifikasi Setelah Submit**
 
 | # | Aksi | URL | Yang Dicek | Hasil Ekspektasi | ✓/✗ | Catatan |
 |---|------|-----|------------|------------------|-----|---------|
-| 1.12 | Cek halaman detail laporan | `/warga/report-detail?id=...` | 📋 Status laporan | Status = **"Menunggu"** (MENUNGGU_VALIDASI) | `[ ]` | |
-| 1.13 | Cek ticket number | - | Nomor tiket | Ticket number ter-generate (format unik) | `[ ]` | |
+| 1.12 | Cek halaman detail laporan | `/warga/report-detail?id=...` | 📋 Status laporan | Status = **"Menunggu"** (MENUNGGU_VALIDASI) | `[✓]` | |
+| 1.13 | Cek ticket number | - | Nomor tiket | Ticket number ter-generate (format unik) | `[✓]` | |
 | 1.14 | Cek foto tersimpan | - | Foto di detail | Foto laporan tampil (URL Supabase, bukan base64) | `[ ]` | |
-| 1.15 | Cek riwayat laporan | `/warga/report-history` | 📋 Daftar laporan | Laporan baru muncul dengan status "Menunggu" | `[ ]` | |
-| 1.16 | Cek dashboard stats berubah | `/warga/dashboard` | Angka "Menunggu" | Bertambah 1 | `[ ]` | |
+| 1.15 | Cek riwayat laporan | `/warga/report-history` | 📋 Daftar laporan | Laporan baru muncul dengan status "Menunggu" | `[✓]` | |
+| 1.16 | Cek dashboard stats berubah | `/warga/dashboard` | Angka "Menunggu" | Bertambah 1 | `[✓]` | |
 
 ---
 
@@ -66,23 +66,23 @@ Warga buat laporan
 
 🔄 **Ganti ke akun Admin Pusat** (buka tab baru atau logout warga)
 
-| # | Aksi | URL | Yang Dicek | Hasil Ekspektasi | ✓/✗ | Catatan |
-|---|------|-----|------------|------------------|-----|---------|
-| 2.1 | Login admin pusat | `/admin/login` | Login berhasil | Masuk ke dashboard | `[ ]` | |
-| 2.2 | Cek notifikasi laporan baru | Dashboard | 📋 Statistik "Laporan Masuk" | Bertambah | `[ ]` | |
-| 2.3 | Buka panel validasi | `/admin/validation` | Daftar laporan | Laporan dari warga tampil di antrian | `[ ]` | |
-| 2.4 | Klik laporan yang baru dibuat | `/admin/validation?id=...` | 📋 Detail laporan | Foto, koordinat, deskripsi, kategori tampil | `[ ]` | |
-| 2.5 | Lihat foto laporan | - | Foto tampil | Foto dari Supabase ter-render | `[ ]` | |
-| 2.6 | Lihat koordinat di peta | - | Peta / koordinat | Koordinat benar sesuai yang disubmit warga | `[ ]` | |
-| 2.7 | **Approve laporan** | POST `/admin/validation` action=approve | Flash message | "Laporan Divalidasi", redirect ke tab disposisi | `[ ]` | |
-| 2.8 | Cek laporan hilang dari antrian validasi | `/admin/validation` | Daftar laporan | Laporan tidak ada lagi di antrian | `[ ]` | |
+| # | Aksi | URL | Yang Dicek | Hasil Ekspektasi | ✓/✗  | Catatan                                                                                  |
+|---|------|-----|------------|------------------|------|------------------------------------------------------------------------------------------|
+| 2.1 | Login admin pusat | `/admin/login` | Login berhasil | Masuk ke dashboard | `[✓]` |                                                                                          |
+| 2.2 | Cek notifikasi laporan baru | Dashboard | 📋 Statistik "Laporan Masuk" | Bertambah | `[✓]` |                                                                                          |
+| 2.3 | Buka panel validasi | `/admin/validation` | Daftar laporan | Laporan dari warga tampil di antrian | `[✓]` |                                                                                          |
+| 2.4 | Klik laporan yang baru dibuat | `/admin/validation?id=...` | 📋 Detail laporan | Foto, koordinat, deskripsi, kategori tampil | `[✓]` |                                                                                          |
+| 2.5 | Lihat foto laporan | - | Foto tampil | Foto dari Supabase ter-render | `[ ]` |                                                                                          |
+| 2.6 | Lihat koordinat di peta | - | Peta / koordinat | Koordinat benar sesuai yang disubmit warga | `[✓]` |                                                                                          |
+| 2.7 | **Approve laporan** | POST `/admin/validation` action=approve | Flash message | "Laporan Divalidasi", redirect ke tab disposisi | `[x]` | Sudah redirect ke tab disposisi, cuma tidak ada flash message langsung ke tab disposisi  |
+| 2.8 | Cek laporan hilang dari antrian validasi | `/admin/validation` | Daftar laporan | Laporan tidak ada lagi di antrian | `[✓]` |                                                                                          |
 
 🔄 **Kembali ke halaman Warga** (buka tab warga atau login ulang)
 
 | # | Aksi | URL | Yang Dicek | Hasil Ekspektasi | ✓/✗ | Catatan |
 |---|------|-----|------------|------------------|-----|---------|
-| 2.9 | Cek notifikasi warga | `/warga/notifications` | 📋 Notifikasi baru | "Laporan Divalidasi" muncul | `[ ]` | |
-| 2.10 | Cek detail laporan | `/warga/report-detail?id=...` | Status laporan | Status berubah jadi **"Divalidasi"** | `[ ]` | |
+| 2.9 | Cek notifikasi warga | `/warga/notifications` | 📋 Notifikasi baru | "Laporan Divalidasi" muncul | `[✓]` | |
+| 2.10 | Cek detail laporan | `/warga/report-detail?id=...` | Status laporan | Status berubah jadi **"Divalidasi"** | `[✓]` | |
 
 ---
 
@@ -90,23 +90,23 @@ Warga buat laporan
 
 🔄 **Kembali ke Admin Pusat**
 
-| # | Aksi | URL | Yang Dicek | Hasil Ekspektasi | ✓/✗ | Catatan |
-|---|------|-----|------------|------------------|-----|---------|
-| 3.1 | Buka panel disposisi | `/admin/disposisi` | Daftar laporan tervalidasi | Laporan tadi tampil | `[ ]` | |
-| 3.2 | Pilih laporan | - | Detail laporan | Info laporan tampil di panel kanan | `[ ]` | |
-| 3.3 | Pilih dinas tujuan | - | Dropdown dinas | Daftar dinas di wilayah laporan tampil | `[ ]` | |
-| 3.4 | Set prioritas = **"Tinggi"** | - | Pilih prioritas | Tersedia: Kritis/Tinggi/Sedang/Rendah | `[ ]` | |
-| 3.5 | Set deadline | - | Input datetime | Bisa dipilih tanggal + jam | `[ ]` | |
-| 3.6 | Isi instruksi/catatan | - | Textarea instruksi | Bisa diisi | `[ ]` | |
-| 3.7 | **Submit disposisi** | POST `/admin/disposisi` | Flash message | "Laporan berhasil didisposisikan ke dinas" | `[ ]` | |
-| 3.8 | ⚠️ Cek SLA record dibuat | DB / `/admin/sla` | SLA monitoring | SLA muncul dengan deadline sesuai prioritas Tinggi = 48 jam | `[ ]` | |
+| # | Aksi | URL | Yang Dicek | Hasil Ekspektasi | ✓/✗   | Catatan                                                |
+|---|------|-----|------------|------------------|-------|--------------------------------------------------------|
+| 3.1 | Buka panel disposisi | `/admin/disposisi` | Daftar laporan tervalidasi | Laporan tadi tampil | `[✓]` |                                                        |
+| 3.2 | Pilih laporan | - | Detail laporan | Info laporan tampil di panel kanan | `[✓]` |                                                        |
+| 3.3 | Pilih dinas tujuan | - | Dropdown dinas | Daftar dinas di wilayah laporan tampil | `[✓]` |                                                        |
+| 3.4 | Set prioritas = **"Tinggi"** | - | Pilih prioritas | Tersedia: Kritis/Tinggi/Sedang/Rendah | `[✓]` |                                                        |
+| 3.5 | Set deadline | - | Input datetime | Bisa dipilih tanggal + jam | `[✓]` |                                                        |
+| 3.6 | Isi instruksi/catatan | - | Textarea instruksi | Bisa diisi | `[✓]` |                                                        |
+| 3.7 | **Submit disposisi** | POST `/admin/disposisi` | Flash message | "Laporan berhasil didisposisikan ke dinas" | `[x]` | Tidak ada flash message tapi laporan terkirim ke dinas |
+| 3.8 | ⚠️ Cek SLA record dibuat | DB / `/admin/sla` | SLA monitoring | SLA muncul dengan deadline sesuai prioritas Tinggi = 48 jam | `[x]` | Tidak ada SLA muncul ( SLA belum ada )                 |
 
 🔄 **Cek halaman Warga**
 
-| # | Aksi | URL | Yang Dicek | Hasil Ekspektasi | ✓/✗ | Catatan |
-|---|------|-----|------------|------------------|-----|---------|
-| 3.9 | Cek detail laporan warga | `/warga/report-detail?id=...` | Status laporan | Status berubah ke **"Didisposisi"** | `[ ]` | |
-| 3.10 | Cek SLA deadline tampil | - | 📋 Countdown SLA | Batas waktu SLA tampil di halaman detail | `[ ]` | |
+| # | Aksi | URL | Yang Dicek | Hasil Ekspektasi | ✓/✗ | Catatan                                                                              |
+|---|------|-----|------------|------------------|-----|--------------------------------------------------------------------------------------|
+| 3.9 | Cek detail laporan warga | `/warga/report-detail?id=...` | Status laporan | Status berubah ke **"Didisposisi"** | `[✓]` |                                                                                      |
+| 3.10 | Cek SLA deadline tampil | - | 📋 Countdown SLA | Batas waktu SLA tampil di halaman detail | `[✓]` | Sudah tampil di detail halaman warga, tetapi di detail halaman admin pusat belum ada |
 
 ---
 
