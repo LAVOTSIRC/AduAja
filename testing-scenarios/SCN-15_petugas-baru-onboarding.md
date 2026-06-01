@@ -26,15 +26,15 @@ Admin Dinas buka halaman kelola petugas
 
 | # | Aksi | URL | Yang Dicek | Hasil Ekspektasi | ✓/✗ | Catatan |
 |---|------|-----|------------|------------------|-----|---------|
-| 1.1 | Login admin dinas | `/admin/login` | - | Masuk dashboard dinas | `[ ]` | |
-| 1.2 | Buka halaman kelola petugas | `/admin/dinas/petugas` | Daftar petugas | Petugas dinas ini tampil | `[ ]` | |
-| 1.3 | ⚠️ Submit form buat petugas dengan password 5 karakter | POST `/admin/dinas/petugas/create` | Error flash | "Password minimal 6 karakter" | `[ ]` | |
-| 1.4 | ⚠️ Submit form tanpa email | POST create | Error | Validasi email required | `[ ]` | |
-| 1.5 | ⚠️ Submit form dengan email yang sudah dipakai akun lain | POST create | Error | "Email sudah terdaftar" | `[ ]` | |
-| 1.6 | Isi form valid: nama, email baru, password ≥6 char | - | Form valid | - | `[ ]` | Email: petugas.baru@test.com |
-| 1.7 | **Submit buat petugas** | POST `/admin/dinas/petugas/create` | Flash | "Petugas [nama] berhasil dibuat" | `[ ]` | |
-| 1.8 | Cek daftar petugas | `/admin/dinas/petugas` | Daftar | Petugas baru muncul di tabel | `[ ]` | |
-| 1.9 | Cek status petugas | - | Kolom status | "Selesai Shift" (belum check-in) | `[ ]` | |
+| 1.1 | Login admin dinas | `/admin/login` | - | Masuk dashboard dinas | `[✓]` | |
+| 1.2 | Buka halaman kelola petugas | `/admin/dinas/petugas` | Daftar petugas | Petugas dinas ini tampil | `[✓]` | |
+| 1.3 | ⚠️ Submit form buat petugas dengan password 5 karakter | POST `/admin/dinas/petugas/create` | Error flash | "Password minimal 6 karakter" | `[✓]` | |
+| 1.4 | ⚠️ Submit form tanpa email | POST create | Error | Validasi email required | `[✓]` | |
+| 1.5 | ⚠️ Submit form dengan email yang sudah dipakai akun lain | POST create | Error | "Email sudah terdaftar" | `[✓]` | |
+| 1.6 | Isi form valid: nama, email baru, password ≥6 char | - | Form valid | - | `[✓]` | Email: petugas.baru@test.com |
+| 1.7 | **Submit buat petugas** | POST `/admin/dinas/petugas/create` | Flash | "Petugas [nama] berhasil dibuat" | `[✓]` | |
+| 1.8 | Cek daftar petugas | `/admin/dinas/petugas` | Daftar | Petugas baru muncul di tabel | `[✓]` | |
+| 1.9 | Cek status petugas | - | Kolom status | "Selesai Shift" (belum check-in) | `[✓]` | |
 
 ---
 
@@ -42,11 +42,11 @@ Admin Dinas buka halaman kelola petugas
 
 | # | Aksi | URL | Yang Dicek | Hasil Ekspektasi | ✓/✗ | Catatan |
 |---|------|-----|------------|------------------|-----|---------|
-| 2.1 | Klik edit profil petugas baru | `/admin/dinas/petugas` | Form edit profil | Field NIP + wilayah tugas tampil | `[ ]` | |
-| 2.2 | Isi NIP petugas | - | Field NIP | Bisa diisi | `[ ]` | |
-| 2.3 | Pilih wilayah tugas dari dropdown | - | Dropdown region | Daftar region tampil | `[ ]` | |
-| 2.4 | **Submit update profil** | POST `/admin/dinas/petugas/update-profile` | Flash | "Profil petugas berhasil diperbarui" | `[ ]` | |
-| 2.5 | Cek NIP + wilayah tampil di tabel | `/admin/dinas/petugas` | 📋 Data petugas | NIP dan wilayah tugas tampil | `[ ]` | |
+| 2.1 | Klik edit profil petugas baru | `/admin/dinas/petugas` | Form edit profil | Field NIP + wilayah tugas tampil | `[✓]` | |
+| 2.2 | Isi NIP petugas | - | Field NIP | Bisa diisi | `[✓]` | |
+| 2.3 | Pilih wilayah tugas dari dropdown | - | Dropdown region | Daftar region tampil | `[✓]` | |
+| 2.4 | **Submit update profil** | POST `/admin/dinas/petugas/update-profile` | Flash | "Profil petugas berhasil diperbarui" | `[✓]` | |
+| 2.5 | Cek NIP + wilayah tampil di tabel | `/admin/dinas/petugas` | 📋 Data petugas | NIP dan wilayah tugas tampil | `[✓]` | |
 
 ---
 
@@ -56,12 +56,12 @@ Admin Dinas buka halaman kelola petugas
 
 | # | Aksi | URL | Yang Dicek | Hasil Ekspektasi | ✓/✗ | Catatan |
 |---|------|-----|------------|------------------|-----|---------|
-| 3.1 | Login dengan email + password sementara yang dibuat admin | `/petugas/login` | Redirect | **Diarahkan ke `/petugas/change-password`** (BUKAN dashboard) | `[ ]` | Ini force change! |
-| 3.2 | ⚠️ Coba akses dashboard langsung | `/petugas/dashboard` | Redirect | Diarahkan kembali ke `/petugas/change-password` | `[ ]` | |
-| 3.3 | ⚠️ Coba akses halaman tugas langsung | `/petugas/tasks` | Redirect | Diarahkan ke login atau change-password | `[ ]` | |
-| 3.4 | ⚠️ Isi password baru ≠ konfirmasi | POST `/petugas/change-password` | Error flash | "Konfirmasi password tidak cocok." | `[ ]` | |
-| 3.5 | Isi password baru yang valid + konfirmasi sama | - | Form valid | - | `[ ]` | Password: `passwordBaru123` |
-| 3.6 | **Submit ganti password** | POST `/petugas/change-password` | Flash + redirect | "Password berhasil diubah. Silakan login dengan password baru." → redirect ke `/petugas/login` | `[ ]` | |
+| 3.1 | Login dengan email + password sementara yang dibuat admin | `/petugas/login` | Redirect | **Diarahkan ke `/petugas/change-password`** (BUKAN dashboard) | `[✗]` | Ini force change! |
+| 3.2 | ⚠️ Coba akses dashboard langsung | `/petugas/dashboard` | Redirect | Diarahkan kembali ke `/petugas/change-password` | `[✗]` | |
+| 3.3 | ⚠️ Coba akses halaman tugas langsung | `/petugas/tasks` | Redirect | Diarahkan ke login atau change-password | `[✗]` | |
+| 3.4 | ⚠️ Isi password baru ≠ konfirmasi | POST `/petugas/change-password` | Error flash | "Konfirmasi password tidak cocok." | `[✗]` | |
+| 3.5 | Isi password baru yang valid + konfirmasi sama | - | Form valid | - | `[✗]` | Password: `passwordBaru123` |
+| 3.6 | **Submit ganti password** | POST `/petugas/change-password` | Flash + redirect | "Password berhasil diubah. Silakan login dengan password baru." → redirect ke `/petugas/login` | `[✗]` | |
 
 ---
 
@@ -69,11 +69,11 @@ Admin Dinas buka halaman kelola petugas
 
 | # | Aksi | URL | Yang Dicek | Hasil Ekspektasi | ✓/✗ | Catatan |
 |---|------|-----|------------|------------------|-----|---------|
-| 4.1 | ⚠️ Login dengan password LAMA (sementara) | POST `/petugas/login` | Error | Login gagal | `[ ]` | |
-| 4.2 | Login dengan password BARU | POST `/petugas/login` | Redirect | Masuk ke `/petugas/dashboard` | `[ ]` | |
-| 4.3 | Cek nama dinas di dashboard | `/petugas/dashboard` | 📋 Nama dinas | Nama dinas sesuai profil (bukan hardcoded "Dinas Pekerjaan Umum") | `[ ]` | FIX-10 |
-| 4.4 | Cek statistik dashboard | - | Angka tugas | Semua = 0 (petugas baru, belum ada tugas) | `[ ]` | |
-| 4.5 | ⚠️ Coba akses daftar tugas sebelum check-in | `/petugas/tasks` | Redirect | Diarahkan ke dashboard (belum check-in) | `[ ]` | FR-PTG-09 |
+| 4.1 | ⚠️ Login dengan password LAMA (sementara) | POST `/petugas/login` | Error | Login gagal | `[✗]` | |
+| 4.2 | Login dengan password BARU | POST `/petugas/login` | Redirect | Masuk ke `/petugas/dashboard` | `[✗]` | |
+| 4.3 | Cek nama dinas di dashboard | `/petugas/dashboard` | 📋 Nama dinas | Nama dinas sesuai profil (bukan hardcoded "Dinas Pekerjaan Umum") | `[✗]` | FIX-10 |
+| 4.4 | Cek statistik dashboard | - | Angka tugas | Semua = 0 (petugas baru, belum ada tugas) | `[✗]` | |
+| 4.5 | ⚠️ Coba akses daftar tugas sebelum check-in | `/petugas/tasks` | Redirect | Diarahkan ke dashboard (belum check-in) | `[✗]` | FR-PTG-09 |
 
 ---
 
@@ -100,13 +100,15 @@ Admin Dinas buka halaman kelola petugas
 
 ## ✅ Kriteria LULUS
 
-- [ ] Admin dinas bisa buat akun petugas
-- [ ] Password minimal 6 karakter divalidasi
-- [ ] Petugas baru dipaksa ganti password saat login pertama
-- [ ] Tidak bisa akses halaman lain sebelum ganti password
-- [ ] Setelah ganti password, login normal berjalan
-- [ ] Petugas tidak bisa akses daftar tugas sebelum check-in
-- [ ] Petugas baru muncul di dropdown penugasan admin dinas
+- [✓] Admin dinas bisa buat akun petugas
+- [✓] Password minimal 6 karakter divalidasi
+- [✗] Petugas baru dipaksa ganti password saat login pertama
+- [✗] Tidak bisa akses halaman lain sebelum ganti password
+- [✗] Setelah ganti password, login normal berjalan
+- [✗] Petugas tidak bisa akses daftar tugas sebelum check-in
+- ✗ Petugas baru muncul di dropdown penugasan admin dinas
 
-**Hasil Akhir:** `[ ] LULUS` / `[ ] GAGAL`  
-**Catatan Bug:** _________________________________
+**Hasil Akhir:** `[ ] LULUS` / `[✓] GAGAL`  
+**Catatan Bug:**1.  Masih ada bug dropdown pilihan daerah petugas, kaena harusnya admin dinas yang sesuai dengan daerahnya gak usah lagi memilih daerah asal petgaus, conothnya admin dinas medan yah perugasnya tetap aja orang medan
+                2. Masih ada masalah saat coba daftar karena nomor telpon warga dan petugas dipaksa harus beda, misalkan aku mau buat nomor telpon petugas sama dengan nomor telpon warga, maka akan muncul pesan peringatan, karena skenarionya bagaimana jika petugas bisa punya aakun warga juga ya kan
+                3. Masih belum bisa masuk dengan kun petugas yang baru. initnya testing tidak bisa dijalankan dengan benar
