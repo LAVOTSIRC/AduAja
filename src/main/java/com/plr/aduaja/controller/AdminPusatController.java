@@ -488,10 +488,11 @@ public class AdminPusatController {
                 : (rejectionReason != null && !rejectionReason.trim().isEmpty() ? rejectionReason.trim() : null);
 
         if (ticketId == null || ticketId.isEmpty() || normalizedAction == null) {
-            return "redirect:/admin/dashboard?tab=queue";
+            return "redirect:/admin/validation";
         }
 
-        String redirectUrl = "redirect:/admin/validation" + (ticketId != null ? "?id=" + ticketId : "");
+        // Default redirect ke halaman validation
+        String redirectUrl = "redirect:/admin/validation";
 
         try {
             ReportStatus newStatus;
@@ -501,19 +502,33 @@ public class AdminPusatController {
             if ("approved".equals(normalizedAction) || "approve".equals(normalizedAction)) {
                 newStatus = ReportStatus.DIVALIDASI;
                 notifTitle = "Laporan Divalidasi";
-                notifMsg = "Laporan Anda nomor " + ticketId + " telah divalidasi.";
-                redirectUrl = "redirect:/admin/dashboard?tab=disposisi&id=" + ticketId;
+                notifMsg = "Laporan Anda telah divalidasi dan akan segera diteruskan ke dinas terkait.";
+                // FIX SCN-01 (2.7): Redirect ke panel disposisi setelah approve
+                redirectUrl = "redirect:/admin/disposisi?id=" + ticketId;
             } else if ("revision".equals(normalizedAction)) {
                 newStatus = ReportStatus.PERLU_REVISI;
                 notifTitle = "Laporan Perlu Revisi";
-                notifMsg = "Laporan Anda nomor " + ticketId + " perlu direvisi." + (note != null ? " Catatan: " + note : "");
+                notifMsg = "Laporan Anda perlu direvisi." + (note != null ? " Catatan: " + note : "");
+                // FIX SCN-03 (2.6): Redirect ke validation panel (bukan URL kosong)
+                redirectUrl = "redirect:/admin/validation";
             } else {
+                // rejected
                 newStatus = ReportStatus.DITOLAK;
                 notifTitle = "Laporan Ditolak";
-                notifMsg = "Laporan Anda nomor " + ticketId + " ditolak." + (note != null ? " Alasan: " + note : "");
+                notifMsg = "Laporan Anda ditolak." + (note != null ? " Alasan: " + note : "");
+                // FIX SCN-02 (2.7): Redirect ke halaman validation setelah tolak
+                redirectUrl = "redirect:/admin/validation";
             }
 
-            Report r = reportService.updateStatus(ticketId, newStatus, note, adminId);
+            // FIX SCN-03 (3.3): Simpan note/alasan sebagai rejectionReason agar warga bisa lihat catatan admin
+            Report r;
+            if (newStatus == ReportStatus.DITOLAK || newStatus == ReportStatus.PERLU_REVISI) {
+                // Simpan note sebagai KEDUA field: rejectionReason (tampil di halaman warga) DAN adminNotes
+                r = reportService.updateStatus(ticketId, newStatus, note, note, adminId);
+            } else {
+                r = reportService.updateStatus(ticketId, newStatus, note, adminId);
+            }
+
             if (r != null && r.getReporter() != null) {
                 notificationService.createNotification(
                         r.getReporter().getUserId(), notifTitle, notifMsg, "REPORT", r.getReportId()
@@ -770,7 +785,16 @@ public class AdminPusatController {
 
                 // Create disposition with available metadata (notes, priority, deadline, instructions)
                 dispositionService.createDisposition(ticketId, adminId, dinasId, notes, finalPriority, deadlineDt, instructions);
-                reportService.updateStatus(ticketId, Report.ReportStatus.DIDISPOSISI, notes, adminId);
+                Report rptUpdated = reportService.updateStatus(ticketId, Report.ReportStatus.DIDISPOSISI, notes, adminId);
+                // FIX SCN-01 (3.7): Kirim notifikasi ke warga bahwa laporan sudah didisposisi
+                if (rptUpdated != null && rptUpdated.getReporter() != null) {
+                    notificationService.createNotification(
+                        rptUpdated.getReporter().getUserId(),
+                        "Laporan Didisposisi",
+                        "Laporan Anda nomor " + ticketId + " telah diteruskan ke dinas terkait untuk ditangani.",
+                        "REPORT", rptUpdated.getReportId()
+                    );
+                }
                 redirectAttributes.addFlashAttribute("success", "Laporan berhasil didisposisikan ke dinas.");
             }
         } catch (Exception e) {
@@ -778,7 +802,8 @@ public class AdminPusatController {
             redirectAttributes.addFlashAttribute("error", "Gagal disposisi: " + e.getMessage());
         }
 
-        return "redirect:/admin/dashboard?tab=queue";
+        // FIX SCN-01 (3.7): Redirect ke tab disposisi setelah berhasil disposisi
+        return "redirect:/admin/disposisi";
     }
 
     @GetMapping("/admin/disposisi-panel")
@@ -976,21 +1001,32 @@ public class AdminPusatController {
         List<Report> real = regionId != null
             ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.MENUNGGU_VALIDASI, regionId)
             : reportService.getReportsByStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
+        // Tambahkan juga PERLU_REVISI ke antrian validasi
+        List<Report> revisi = regionId != null
+            ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.PERLU_REVISI, regionId)
+            : reportService.getReportsByStatus(Report.ReportStatus.PERLU_REVISI);
+        real = new java.util.ArrayList<>(real);
+        real.addAll(revisi);
         real.sort(Comparator.nullsLast(Comparator.comparing(Report::getSubmittedAt, Comparator.nullsLast(Comparator.naturalOrder()))));
         return real.stream().map(this::toAdminValidationMap).collect(java.util.stream.Collectors.toList());
     }
 
     /**
-     * Queue tracking list: semua status aktif (MENUNGGU_VALIDASI, PERLU_REVISI, DIVALIDASI, DIDISPOSISI).
+     * Queue tracking list: semua status aktif (MENUNGGU_VALIDASI, PERLU_REVISI, DIVALIDASI, DIDISPOSISI, DITUGASKAN, SEDANG_DIKERJAKAN, MENUNGGU_KONFIRMASI, SELESAI, DITOLAK).
      * Child tiket dari merge disembunyikan; parent diperkaya dengan info merge count.
      */
     private List<Map<String, Object>> getQueueList(String regionId) {
-        // Kumpulkan laporan dari semua status yang relevan
+        // FIX SCN-01 (6.9): Kumpulkan laporan dari SEMUA status termasuk SELESAI dan DITOLAK agar ada riwayat
         List<Report.ReportStatus> statuses = List.of(
             Report.ReportStatus.MENUNGGU_VALIDASI,
             Report.ReportStatus.PERLU_REVISI,
             Report.ReportStatus.DIVALIDASI,
-            Report.ReportStatus.DIDISPOSISI
+            Report.ReportStatus.DIDISPOSISI,
+            Report.ReportStatus.DITUGASKAN,
+            Report.ReportStatus.SEDANG_DIKERJAKAN,
+            Report.ReportStatus.MENUNGGU_KONFIRMASI,
+            Report.ReportStatus.SELESAI,
+            Report.ReportStatus.DITOLAK
         );
         List<Report> all = new ArrayList<>();
         for (Report.ReportStatus s : statuses) {

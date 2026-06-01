@@ -1,5 +1,6 @@
 package com.plr.aduaja.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -12,6 +13,7 @@ import java.util.List;
 // ============================================================
 @Entity
 @Table(name = "reports")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "parentReport"})
 public class Report extends BaseEntity {  // ← INHERITANCE sejati
 
     @Id

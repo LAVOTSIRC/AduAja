@@ -72,7 +72,7 @@ public class AdminDinasController {
         String agencyName = ControllerHelper.getSessionAgencyName(session);
 
         model.addAttribute("dinasName", agencyName != null ? agencyName : "Dinas Pekerjaan Umum");
-        
+
         List<Disposition> allDisp;
         if (agencyId != null) {
             allDisp = dispositionService.getDispositionsByAgency(agencyId);
@@ -96,7 +96,7 @@ public class AdminDinasController {
                 .flatMap(d -> fieldTaskService.getTasksByReport(d.getReport().getReportId()).stream())
                 .filter(t -> t.getTaskStatus() == FieldTask.TaskStatus.BARU)
                 .count();
-                
+
         List<Map<String, Object>> stats = new ArrayList<>();
         stats.add(Map.of("title", "Laporan Diterima", "value", diterima, "icon", "inbox", "bgColor", "bg-blue-100", "color", "text-blue-600"));
         stats.add(Map.of("title", "Tugas Baru", "value", baru, "icon", "inbox", "bgColor", "bg-indigo-100", "color", "text-indigo-600"));
@@ -233,7 +233,7 @@ public class AdminDinasController {
     ) {
         // SESSION CHECK
         if (ControllerHelper.requireAgencySession(session) == null) return "redirect:/admin/login";
-        
+
         String agencyId = ControllerHelper.getSessionAgencyId(session);
         String agencyName = ControllerHelper.getSessionAgencyName(session);
         model.addAttribute("dinasName", agencyName != null ? agencyName : "Dinas Pekerjaan Umum");
@@ -620,6 +620,15 @@ public class AdminDinasController {
         model.addAttribute("createPetugasDTO", new CreatePetugasDTO());
         List<Region> regions = regionRepository.findAll();
         model.addAttribute("regions", regions);
+        // Kirim region milik agency admin ke template (untuk form create — tidak perlu pilih manual)
+        if (agencyId != null) {
+            agencyService.getAgencyById(agencyId).ifPresent(agency -> {
+                if (agency.getRegion() != null) {
+                    model.addAttribute("adminAgencyRegionId", agency.getRegion().getRegionId());
+                    model.addAttribute("adminAgencyRegionName", agency.getRegion().getRegionName());
+                }
+            });
+        }
         return "admin/dinas/petugas";
     }
 
@@ -639,6 +648,14 @@ public class AdminDinasController {
         String agencyId = ControllerHelper.getSessionAgencyId(session);
         if (agencyId != null) {
             dto.setAgencyId(agencyId);
+            // Auto-set wilayah tugas dari region agency admin — tidak perlu dipilih manual
+            if (dto.getWilayahTugasRegionId() == null || dto.getWilayahTugasRegionId().isBlank()) {
+                agencyService.getAgencyById(agencyId).ifPresent(agency -> {
+                    if (agency.getRegion() != null) {
+                        dto.setWilayahTugasRegionId(agency.getRegion().getRegionId());
+                    }
+                });
+            }
         }
 
         try {
@@ -707,7 +724,9 @@ public class AdminDinasController {
                 slaRecordService.pauseSla(task.getSlaRecord().getSlaId(), reason, adminId);
             }
             task.setTaskStatus(FieldTask.TaskStatus.TERTUNDA);
-            fieldTaskService.getTaskById(taskId); // trigger save via startTask
+            // FIX SCN-09 (4.2): Gunakan postponeTask() untuk benar-benar menyimpan status TERTUNDA ke DB
+            // Sebelumnya getTaskById() tidak melakukan save, sehingga status tidak berubah
+            fieldTaskService.postponeTask(taskId, reason != null ? reason : "Dijeda oleh admin", adminId);
             redirectAttributes.addFlashAttribute("success", "SLA berhasil dijeda");
         } catch (Exception e) {
             log.error("Gagal pause SLA: {}", e.getMessage(), e);
