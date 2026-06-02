@@ -51,6 +51,10 @@ public class ReportServiceImpl implements ReportService {  // ← POLYMORPHISM
     @Lazy
     private MergeRecordService mergeRecordService;
 
+    @Autowired
+    @Lazy
+    private NotificationService notificationService;
+
     // ===========================
     // @Override — Run-time Polymorphism
     // ===========================
@@ -285,6 +289,21 @@ public class ReportServiceImpl implements ReportService {  // ← POLYMORPHISM
                 reportRepository.save(child);
                 createRevision(child, childOldStatus, newStatus,
                     "Status diselaraskan dengan parent: " + (notes != null ? notes : ""), changedBy);
+
+                // FR-ADM-17: Kirim notifikasi ke child reporter
+                if (child.getReporter() != null && child.getReporter().getUserId() != null) {
+                    try {
+                        notificationService.createNotification(
+                            child.getReporter().getUserId(),
+                            "Perubahan Status Laporan",
+                            "Status laporan Anda (" + (child.getTicketNumber() != null ? child.getTicketNumber() : child.getReportId()) + ") berubah menjadi " + newStatus.name() + ".",
+                            "REPORT",
+                            child.getReportId()
+                        );
+                    } catch (Exception ex) {
+                        // notifikasi gagal tidak menghentikan cascade
+                    }
+                }
             }
         } catch (Exception e) {
             // Cascade failure should not break the primary status update

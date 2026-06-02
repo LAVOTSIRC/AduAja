@@ -45,6 +45,9 @@ public class DisputeServiceImpl implements DisputeService {
     @Autowired
     private MergeRecordService mergeRecordService;
 
+    @Autowired
+    private NotificationService notificationService;
+
     private static final Logger log = LoggerFactory.getLogger(DisputeServiceImpl.class);
 
     @Override  // ← POLYMORPHISM: Override dari interface
@@ -118,7 +121,33 @@ public class DisputeServiceImpl implements DisputeService {
                 "Sengketa diajukan oleh warga", disputantId);
         }
 
-        return disputeRecordRepository.save(dispute);
+        DisputeRecord saved = disputeRecordRepository.save(dispute);
+
+        // FR-RSL-20: Kirim notifikasi ke Admin Dinas terkait
+        try {
+            Report disputeReport = dispute.getReport();
+            String regionId = disputeReport.getRegion() != null ? disputeReport.getRegion().getRegionId() : null;
+            List<User> admins;
+            if (regionId != null) {
+                admins = userRepository.findByRoleAndRegionRegionId(User.Role.ADMIN_DINAS, regionId);
+            } else {
+                admins = userRepository.findByRole(User.Role.ADMIN_DINAS);
+            }
+            String ticket = disputeReport.getTicketNumber() != null ? disputeReport.getTicketNumber() : disputeReport.getReportId();
+            for (User admin : admins) {
+                notificationService.createNotification(
+                    admin.getUserId(),
+                    "Sengketa Baru",
+                    "Laporan " + ticket + " masuk sengketa oleh " + filedBy.getFullName() + ".",
+                    "REPORT",
+                    disputeReport.getReportId()
+                );
+            }
+        } catch (Exception e) {
+            log.warn("Gagal mengirim notifikasi sengketa ke admin: {}", e.getMessage());
+        }
+
+        return saved;
     }
 
     @Override  // ← POLYMORPHISM: Override dari interface
@@ -156,7 +185,26 @@ public class DisputeServiceImpl implements DisputeService {
         // Cascade status ke child tickets dalam merge group
         reportService.cascadeStatusToChildren(report.getReportId(), targetStatus, resolutionNotes, adminId);
 
-        return disputeRecordRepository.save(dispute);
+        DisputeRecord saved = disputeRecordRepository.save(dispute);
+
+        // FR-RSL-19: Kirim notifikasi ke pengaju sengketa
+        try {
+            User disputant = dispute.getFiledBy();
+            if (disputant != null && disputant.getUserId() != null) {
+                String ticket = report.getTicketNumber() != null ? report.getTicketNumber() : report.getReportId();
+                notificationService.createNotification(
+                    disputant.getUserId(),
+                    "Sengketa Diputuskan",
+                    "Sengketa laporan " + ticket + " diputuskan: " + resolution.name() + ".",
+                    "REPORT",
+                    report.getReportId()
+                );
+            }
+        } catch (Exception e) {
+            log.warn("Gagal mengirim notifikasi putusan sengketa: {}", e.getMessage());
+        }
+
+        return saved;
     }
 
     @Override  // ← POLYMORPHISM: Override dari interface

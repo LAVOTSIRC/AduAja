@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -16,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@Transactional
 class DisputeReassignmentTest {
 
     @Autowired private FieldTaskService fieldTaskService;
@@ -50,6 +52,7 @@ class DisputeReassignmentTest {
         petugasLama.setEmail("petugas.lama@aduaja.go.id");
         petugasLama.setFullName("Petugas Lama");
         petugasLama.setRole(User.Role.PETUGAS);
+        petugasLama.setAccountStatus(User.AccountStatus.ACTIVE);
         petugasLama.setPasswordHash("pass");
         userRepository.save(petugasLama);
 
@@ -57,6 +60,7 @@ class DisputeReassignmentTest {
         petugasBaru.setEmail("petugas.baru@aduaja.go.id");
         petugasBaru.setFullName("Petugas Baru");
         petugasBaru.setRole(User.Role.PETUGAS);
+        petugasBaru.setAccountStatus(User.AccountStatus.ACTIVE);
         petugasBaru.setPasswordHash("pass");
         userRepository.save(petugasBaru);
 
