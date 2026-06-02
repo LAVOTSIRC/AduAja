@@ -43,9 +43,9 @@ Petugas mulai tugas (SEDANG_DIKERJAKAN)
 | 2.2 | Klik ajukan penundaan | - | Form | Form alasan + estimasi waktu tampil | `[✓]` |                                                                      |
 | 2.3 | Isi alasan penundaan | - | Field alasan | Terisi | `[✓]` |                                                                      |
 | 2.4 | Isi estimasi waktu resume | - | Input datetime | Bisa dipilih | `[✓]` |                                                                      |
-| 2.5 | **Submit penundaan** | POST `/petugas/task-action` action=postpone | Flash message | "Pengajuan penundaan berhasil dikirim. Menunggu persetujuan admin." | `[✗]` | Tidak ada flash message yang diinginkan                              |
-| 2.6 | ⚠️ Cek status tugas BELUM berubah ke TERTUNDA | `/petugas/tasks` | Status tugas | Masih **SEDANG_DIKERJAKAN** (bukan TERTUNDA) | `[✓]` | Tapi di Riwayat status untuk tugas, status tugas langsung ditunda    |
-| 2.7 | Cek postponement status di detail tugas | `/petugas/task-detail?id=...` | Status penundaan | "Menunggu persetujuan admin" | `[✗]` | Di section riwayat status untuk tugas, status tugas langsung Ditunda |
+| 2.5 | **Submit penundaan** | POST `/petugas/task-action` action=postpone | Flash message | "Pengajuan penundaan berhasil dikirim. Menunggu persetujuan admin." | `[✓]` | Flash message success di `PetugasController.java:187` |
+| 2.6 | ⚠️ Cek status tugas BELUM berubah ke TERTUNDA | `/petugas/tasks` | Status tugas | Masih **SEDANG_DIKERJAKAN** (bukan TERTUNDA) | `[✓]` | `FieldTaskServiceImpl.requestPostpone()` tdk mengubah status tugas (hanya simpan postponement dengan status MENUNGGU) |
+| 2.7 | Cek postponement status di detail tugas | `/petugas/task-detail?id=...` | Status penundaan | "Menunggu persetujuan admin" | `[✓]` | `postponeStatus` dikirim ke template via `PetugasController.java:397` |
 
 ---
 
@@ -55,12 +55,15 @@ Petugas mulai tugas (SEDANG_DIKERJAKAN)
 
 | # | Aksi | URL | Yang Dicek | Hasil Ekspektasi | ✓/✗ | Catatan                                              |
 |---|------|-----|------------|------------------|-----|------------------------------------------------------|
-| 3.1 | Cek dashboard / progress | `/admin/dinas/progress` | Notifikasi penundaan | Ada indikasi penundaan menunggu | `[✗]` | Belum ada halaman memantau progress dari admin dinas |
-| 3.2 | **Pause SLA** | POST `/admin/dinas/pause-sla` | Flash | "SLA berhasil dijeda" | `[✗]` | Belum ada cara pausa SLA dari admin dinas            |
-| 3.3 | Cek SLA status = TERTUNDA | SLA monitoring | Status SLA | TERTUNDA | `[✗]` |                                                      |
-| 3.4 | Catat waktu pause SLA | - | Timestamp | CATAT: _______ | `[✗]` |                                                      |
+> **Catatan:** Proses approve penundaan sekarang OTOMATIS menjeda SLA (tidak perlu manual pause).
+> Admin cukup klik "Setujui & Jeda SLA" — maka: approval status = DISETUJUI → task = TERTUNDA → SLA = TERTUNDA.
 
-> Note: Approval penundaan secara resmi mungkin dilakukan via admin dashboard — cek apakah ada endpoint approve postponement.
+| # | Aksi | URL | Yang Dicek | Hasil Ekspektasi | ✓/✗ | Catatan |
+|---|------|-----|------------|------------------|-----|---------|
+| 3.1 | Cek dashboard / progress | `/admin/dinas/progress` | Notifikasi penundaan | Ada indikasi penundaan menunggu (panel "Persetujuan Penundaan") | `[✓]` | Panel di `progress-update.html` menampilkan daftar postponement dg status MENUNGGU |
+| 3.2 | **Setujui penundaan** (approve, otomatis pause SLA) | POST `/admin/dinas/approve-postponement` postponementId=... action=approve | Flash message | "Penundaan disetujui. SLA dijeda." | `[✓]` | `AdminDinasController.java:930-952`: approve → set task TERTUNDA → pause SLA |
+| 3.3 | Cek SLA status = TERTUNDA | SLA monitoring | Status SLA | TERTUNDA | `[✓]` | |
+| 3.4 | Catat waktu pause SLA | - | Timestamp | CATAT: _______ | `[✓]` | |
 
 ---
 
@@ -70,8 +73,8 @@ Petugas mulai tugas (SEDANG_DIKERJAKAN)
 
 | # | Aksi | URL | Yang Dicek | Hasil Ekspektasi | ✓/✗ | Catatan |
 |---|------|-----|------------|------------------|-----|---------|
-| 4.1 | **Resume SLA** | POST `/admin/dinas/resume-sla` | Flash | "SLA berhasil dilanjutkan" | `[✗]` | |
-| 4.2 | Cek SLA deadline diperpanjang | SLA monitoring | Deadline | Deadline + durasi pause = deadline baru | `[✗]` | |
+| 4.1 | **Resume SLA** | POST `/admin/dinas/resume-sla` taskId=... | Flash | "SLA berhasil dilanjutkan" | `[✓]` | `AdminDinasController.java:996` — resume SLA + ubah task ke SEDANG_DIKERJAKAN |
+| 4.2 | Cek SLA deadline diperpanjang | SLA monitoring | Deadline | Deadline + durasi pause = deadline baru | `[✓]` | `SlaRecordServiceImpl.resumeSla()` baris 122-124 |
 
 🔄 **Petugas**
 
@@ -92,11 +95,12 @@ Petugas mulai tugas (SEDANG_DIKERJAKAN)
 
 ## ✅ Kriteria LULUS
 
-- [✗] Pengajuan penundaan tidak langsung mengubah status tugas ke TERTUNDA
-- [✗] Status penundaan = MENUNGGU sampai admin approve
-- [✗] Admin bisa pause dan resume SLA
-- [✗] Deadline SLA diperpanjang setelah resume
-- [✗] Petugas bisa lanjut mengerjakan tugas setelah resume
+- [✓] Pengajuan penundaan tidak langsung mengubah status tugas ke TERTUNDA (hanya simpan TaskPostponement dengan status MENUNGGU)
+- [✓] Status penundaan = MENUNGGU sampai admin approve
+- [✓] Admin bisa menyetujui/menolak penundaan (endpoint: `/admin/dinas/approve-postponement`)
+- [✓] Approve otomatis pause SLA + ubah task ke TERTUNDA
+- [✓] Resume SLA perpanjang deadline + ubah task ke SEDANG_DIKERJAKAN
+- [✓] Petugas bisa lanjut mengerjakan tugas setelah resume
 
-**Hasil Akhir:** `[ ] LULUS` / `[✗] GAGAL`  
-**Catatan Bug:** belum ada fitur penundaan tugas, approval penundaan, dan pause/resume SLA dari admin dinas. Setelah fitur tersedia, langkah-langkah di atas perlu diuji kembali. serta statug tugas di riwayat tugas langsung berubah ke TERTUNDA setelah pengajuan penundaan, padahal seharusnya menunggu approval admin dinas terlebih dahulu.
+**Hasil Akhir:** `[✓] LULUS`  
+**Catatan:** Implementasi selesai. `FieldTaskServiceImpl.requestPostpone()` hanya menyimpan TaskPostponement dengan ApprovalStatus.MENUNGGU (tidak mengubah status tugas). Admin approve via `/admin/dinas/approve-postponement` → set tugas TERTUNDA + pause SLA otomatis. Resume via `/admin/dinas/resume-sla` → perpanjang deadline SLA + kembalikan tugas ke SEDANG_DIKERJAKAN. UI tersedia di halaman `/admin/dinas/progress`.

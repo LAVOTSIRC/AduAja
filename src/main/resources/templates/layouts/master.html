@@ -107,6 +107,16 @@
 
     <main layout:fragment="content"></main>
 
+    <!-- DEV MODE floating badge -->
+    <div th:if="${devMode}" class="fixed bottom-4 left-4 z-50">
+      <a th:href="@{/warga/dashboard}"
+         class="flex items-center gap-2 px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-full shadow-lg transition-colors"
+         title="Kembali ke Dashboard (Dev Mode)">
+        <span class="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+        DEV
+      </a>
+    </div>
+
     <script src="/js/app.js"></script>
     <script>
       if (window.lucide) {

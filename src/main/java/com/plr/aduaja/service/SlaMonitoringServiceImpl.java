@@ -4,6 +4,7 @@ import com.plr.aduaja.model.Report;
 import com.plr.aduaja.model.SlaRecord;
 import com.plr.aduaja.model.SlaRecord.SlaStatus;
 import com.plr.aduaja.model.TaskPostponement;
+import com.plr.aduaja.repository.ReportRepository;
 import com.plr.aduaja.repository.SlaRecordRepository;
 import com.plr.aduaja.repository.TaskPostponementRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +35,9 @@ public class SlaMonitoringServiceImpl implements SlaMonitoringService {
     @Autowired
     private ConfirmationService confirmationService;
 
+    @Autowired
+    private ReportRepository reportRepository;
+
     // Scheduled job — cek SLA violations tiap jam
     @Scheduled(fixedRate = 3600000)
     public void checkSlaViolations() {
@@ -44,6 +48,16 @@ public class SlaMonitoringServiceImpl implements SlaMonitoringService {
             if (sla.getCurrentStatus() == SlaStatus.BERJALAN) {
                 sla.setCurrentStatus(SlaStatus.TERLAMBAT);
                 slaRecordRepository.save(sla);
+
+                // FR-ESK-02: Auto-set Report.status to TERLAMBAT
+                Report report = sla.getReport();
+                if (report != null && report.getStatus() != Report.ReportStatus.TERLAMBAT
+                        && report.getStatus() != Report.ReportStatus.SELESAI
+                        && report.getStatus() != Report.ReportStatus.SELESAI_OTOMATIS
+                        && report.getStatus() != Report.ReportStatus.DITOLAK) {
+                    report.setStatus(Report.ReportStatus.TERLAMBAT);
+                    reportRepository.save(report);
+                }
             }
         }
 

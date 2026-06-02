@@ -34,6 +34,16 @@ public class SlaRecord extends BaseEntity {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    // FR-ESK-03: Mandatory review workflow for overdue tickets
+    @Column(name = "overdue_reviewed", nullable = false, columnDefinition = "boolean default false")
+    private boolean overdueReviewed = false;
+
+    @Column(name = "overdue_review_notes", columnDefinition = "TEXT")
+    private String overdueReviewNotes;
+
+    @Column(name = "overdue_reviewed_at")
+    private LocalDateTime overdueReviewedAt;
+
     public enum SlaStatus {
         BERJALAN, TERTUNDA, TERLAMBAT, SELESAI
     }
@@ -58,4 +68,13 @@ public class SlaRecord extends BaseEntity {
 
     public LocalDateTime getCompletedAt() { return completedAt; }
     public void setCompletedAt(LocalDateTime completedAt) { this.completedAt = completedAt; }
+
+    public boolean isOverdueReviewed() { return overdueReviewed; }
+    public void setOverdueReviewed(boolean overdueReviewed) { this.overdueReviewed = overdueReviewed; }
+
+    public String getOverdueReviewNotes() { return overdueReviewNotes; }
+    public void setOverdueReviewNotes(String overdueReviewNotes) { this.overdueReviewNotes = overdueReviewNotes; }
+
+    public LocalDateTime getOverdueReviewedAt() { return overdueReviewedAt; }
+    public void setOverdueReviewedAt(LocalDateTime overdueReviewedAt) { this.overdueReviewedAt = overdueReviewedAt; }
 }

@@ -174,6 +174,7 @@ public class PetugasController {
             @RequestParam(value = "estimatedTime", required = false) String estimatedTime,
             @RequestParam(value = "photos", required = false) MultipartFile[] photos,
             @RequestParam(value = "documents", required = false) MultipartFile[] documents,
+            @RequestParam(value = "additionalNotes", required = false) String additionalNotes,
             HttpSession session,
             RedirectAttributes redirectAttributes
     ) {
@@ -198,7 +199,9 @@ public class PetugasController {
                     case "complete" -> fieldTaskService.completeTask(id);
                     case "postpone" -> {
                         // FIX-8: FR-PTG-27 — Ajukan penundaan, TIDAK langsung TERTUNDA
-                        String reason = description != null && !description.isBlank() ? description : "Ditunda oleh petugas";
+                        String catReason = description != null && !description.isBlank() ? description : "Ditunda oleh petugas";
+                        String notes = additionalNotes != null ? additionalNotes.trim() : "";
+                        String reason = notes.isEmpty() ? catReason : catReason + " — " + notes;
                         LocalDateTime estimated = null;
                         if (estimatedTime != null && !estimatedTime.isBlank()) {
                             try { estimated = LocalDateTime.parse(estimatedTime); }
@@ -303,10 +306,18 @@ public class PetugasController {
         if (!model.containsAttribute("user")) return "redirect:/petugas/login";
 
         List<FieldTask> realTasks = fieldTaskService.getTasksByOfficer(userId);
+        log.info("[DASHBOARD] userId={}, realTasks count={}", userId, realTasks.size());
+        for (FieldTask t : realTasks) {
+            log.info("[DASHBOARD] taskId={}, status={}, officerId={}",
+                t.getTaskId(), t.getTaskStatus(),
+                t.getOfficer() != null ? t.getOfficer().getUserId() : "null");
+        }
         long s  = realTasks.stream().filter(t -> t.getTaskStatus() == TaskStatus.SELESAI).count();
         long ip = realTasks.stream().filter(t -> t.getTaskStatus() == TaskStatus.SEDANG_DIKERJAKAN).count();
-        long n  = realTasks.stream().filter(t -> t.getTaskStatus() == TaskStatus.BARU).count();
+        long n  = realTasks.stream().filter(t -> t.getTaskStatus() == TaskStatus.BARU
+                || t.getTaskStatus() == TaskStatus.DITUGASKAN_ULANG).count();
         long p  = realTasks.stream().filter(t -> t.getTaskStatus() == TaskStatus.TERTUNDA).count();
+        log.info("[DASHBOARD] stats: tugasBaru={}, sedangDikerjakan={}, tertunda={}, selesai={}", n, ip, p, s);
         model.addAttribute("stats", Map.of(
             "selesaiHariIni", s, "sedangDikerjakan", ip, "tugasBaru", n, "tertunda", p));
 
@@ -383,6 +394,7 @@ public class PetugasController {
         for (FieldTask t : realTasks) {
             switch (t.getTaskStatus()) {
                 case BARU -> tasksNew.add(toPetugasTaskMap(t, userLat, userLng));
+                case DITUGASKAN_ULANG -> tasksNew.add(toPetugasTaskMap(t, userLat, userLng));
                 case SEDANG_DIKERJAKAN -> tasksInProgress.add(toPetugasTaskMap(t, userLat, userLng));
                 case TERTUNDA -> tasksPending.add(toPetugasTaskMap(t, userLat, userLng));
                 default -> {}
@@ -440,6 +452,10 @@ public class PetugasController {
                     ? lp.getRequestedAt().format(ControllerHelper.DATETIME_FMT) : "-");
                 task.put("postponeStatus", lp.getApprovalStatus() != null ? lp.getApprovalStatus().name() : "MENUNGGU");
             });
+
+            // Riwayat status tugas dari FieldTaskStatusRevision
+            List<FieldTaskStatusRevision> revisions = fieldTaskService.getTaskRevisions(id);
+            task.put("taskRevisions", revisions);
 
             // FIX-1: Gunakan koordinat LAPORAN (lokasi kerusakan) untuk navigasi
             Map<String, Object> locationMap = new HashMap<>();
