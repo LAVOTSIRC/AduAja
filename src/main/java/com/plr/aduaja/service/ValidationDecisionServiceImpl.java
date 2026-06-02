@@ -37,6 +37,12 @@ public class ValidationDecisionServiceImpl implements ValidationDecisionService 
     public ValidationDecision createDecision(String reportId, String adminId, Decision decision, String reason) {
         Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new RuntimeException("Report tidak ditemukan: " + reportId));
+
+        // Cegah validasi langsung pada child ticket yang sudah digabungkan
+        if (report.getStatus() == Report.ReportStatus.TERGABUNG) {
+            throw new IllegalStateException("Laporan yang sudah digabungkan tidak dapat divalidasi secara langsung.");
+        }
+
         User admin = userRepository.findById(adminId)
                 .orElseThrow(() -> new RuntimeException("Admin tidak ditemukan: " + adminId));
 

@@ -6,6 +6,7 @@ import com.plr.aduaja.dto.DisputeDTO;
 import com.plr.aduaja.model.ConfirmationRequest;
 import com.plr.aduaja.model.Report;
 import com.plr.aduaja.model.Report.ReportStatus;
+import com.plr.aduaja.model.ReportCategory;
 import com.plr.aduaja.model.ReportRevision;
 import com.plr.aduaja.model.SlaRecord;
 import com.plr.aduaja.model.Region;
@@ -22,6 +23,7 @@ import com.plr.aduaja.service.SupabaseStorageService;
 import com.plr.aduaja.service.UserService;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -31,7 +33,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.*;
 
 @Slf4j
@@ -71,7 +76,15 @@ public class WargaController {
     @Autowired
     private ReportRepository reportRepository;
 
+    @Value("${app.dev-mode:false}")
+    private boolean devMode;
+
     // ABSTRAKSI: Controller tidak inject Repository langsung
+
+    @ModelAttribute("devMode")
+    public boolean isDevMode() {
+        return devMode;
+    }
 
     @GetMapping("/warga/module")
     public String wargaModule() {
@@ -96,6 +109,8 @@ public class WargaController {
         userMap.put("id", user.getUserId());
         userMap.put("profilePhotoUrl", user.getUserProfile() != null ? user.getUserProfile().getProfilePhotoUrl() : null);
         model.addAttribute("user", userMap);
+        model.addAttribute("categories", reportCategoryRepository.findByIsActiveTrue());
+        model.addAttribute("userProfile", user.getUserProfile());
 
         List<Report> dbReports = reportService.getReportsByWarga(userId);
         long total = dbReports.size();
@@ -419,17 +434,21 @@ public class WargaController {
             case SELESAI, SELESAI_OTOMATIS -> "bg-green-100 text-green-700";
             case DITOLAK -> "bg-red-100 text-red-700";
             case SENGKETA -> "bg-orange-100 text-orange-700";
+            case TERGABUNG -> "bg-purple-100 text-purple-700";
+            case DALAM_EVALUASI_SENGKETA -> "bg-orange-100 text-orange-700";
             default -> "bg-gray-100 text-gray-700";
         };
         reportMap.put("statusColor", cc);
 
         // FR-RSL-07: Cek apakah konfirmasi sudah dikunci (one-time logic)
         boolean confirmationIsLocked = false;
+        boolean hasPendingConfirmation = false;
         String confirmationDeadlineIso = null;
         try {
             Optional<ConfirmationRequest> confOpt = confirmationService.getByReportId(report.getReportId());
             if (confOpt.isPresent()) {
                 confirmationIsLocked = Boolean.TRUE.equals(confOpt.get().getIsLocked());
+                hasPendingConfirmation = !confirmationIsLocked;
                 if (confOpt.get().getDeadlineAt() != null) {
                     confirmationDeadlineIso = confOpt.get().getDeadlineAt().toString();
                 }
@@ -438,6 +457,7 @@ public class WargaController {
             log.warn("Gagal ambil confirmation request untuk report {}: {}", id, ex.getMessage());
         }
         model.addAttribute("confirmationIsLocked", confirmationIsLocked);
+        model.addAttribute("hasPendingConfirmation", hasPendingConfirmation);
         model.addAttribute("confirmationDeadlineIso", confirmationDeadlineIso);
 
         // FR-RSL-11: Cek apakah sengketa sudah pernah diajukan (maks 1x)
@@ -772,6 +792,159 @@ public class WargaController {
         } catch (IllegalArgumentException e) {
             return statusName;
         }
+    }
+
+    // ===========================
+    // DEV MODE: Generate test reports otomatis
+    // Hanya aktif saat app.dev-mode=true
+    // ===========================
+    private static final String PLACEHOLDER_PHOTO =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+    private static final String[][] LOKASI_TES = {
+        {"Medan",  "Kota Medan",       "Kecamatan Medan Baru",       "3.5952", "98.6722"},
+        {"Pekanbaru", "Kota Pekanbaru","Kecamatan Tampan",           "0.5071", "101.4478"},
+        {"Tanjungpinang", "Kota Tanjungpinang", "Kecamatan Bukit Bestari", "0.9167", "104.4500"},
+    };
+
+    private static final String[] DESKRIPSI = {
+        "Jalan berlubang besar di depan pasar tradisional, sudah 2 minggu tidak diperbaiki",
+        "Lampu penerangan jalan umum mati total di sepanjang jalan utama, sangat gelap saat malam",
+        "Taman kota tidak terawat, rumput liar setinggi lutut dan bangku taman rusak",
+        "Tumpukan sampah di TPS sudah menggunung selama 3 hari tidak diangkut",
+        "Saluran air tersumbat sampah, air meluap ke jalan saat hujan",
+        "Trotoar rusak dan membahayakan pejalan kaki di depan sekolah dasar",
+        "Pohon tumbang menutup akses jalan setelah hujan angin semalam",
+        "Banjir setinggi 30 cm di pemukiman warga karena drainase buruk",
+        "Jembatan gantung rusak, warga tidak bisa menyeberang sungai",
+        "Gedung serbaguna bocor parah saat hujan, atap perlu diperbaiki",
+        "Marka jalan pudar tidak terlihat di perempatan utama, rawan kecelakaan",
+        "Fasilitas olahraga di lapangan desa rusak, ring basket patah",
+        "Sumur bor warga kering, pasokan air bersih terhenti",
+        "Pipa PDAM bocor menggenangi jalan selama seminggu",
+        "Halte bus rusak dan tidak memiliki atap pelindung",
+        "Tiang listrik miring di pinggir jalan, rawan roboh",
+        "Gotong royong membersihkan kali butuh peralatan tambahan",
+        "Tempat ibadah butuh renovasi atap dan penerangan",
+        "Pos kamling tidak layak pakai, atap bocor dan dinding retak",
+        "Jalan lingkungan belum diaspal, becek saat hujan dan berdebu saat kemarau",
+    };
+
+    @PostMapping("/warga/generate-test-reports")
+    public String generateTestReports(
+            @RequestParam(value = "count", defaultValue = "5") int count,
+            @RequestParam(value = "categoryId", required = false) String categoryId,
+            @RequestParam(value = "locationMode", defaultValue = "RANDOM") String locationMode,
+            @RequestParam(value = "customLat", required = false) String customLat,
+            @RequestParam(value = "customLng", required = false) String customLng,
+            HttpSession session,
+            RedirectAttributes redirectAttributes) {
+        if (!devMode) {
+            redirectAttributes.addFlashAttribute("error", "Fitur ini hanya tersedia dalam mode developer.");
+            return "redirect:/warga/dashboard";
+        }
+
+        String userId = ControllerHelper.requireRole(session, "WARGA");
+        if (userId == null) return "redirect:/warga/login";
+
+        List<ReportCategory> categories = reportCategoryRepository.findByIsActiveTrue();
+        if (categories.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Tidak ada kategori laporan. Jalankan DataSeeder terlebih dahulu.");
+            return "redirect:/warga/dashboard";
+        }
+
+        List<Region> regions = regionRepository.findAll();
+        if (regions.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Tidak ada region. Jalankan DataSeeder terlebih dahulu.");
+            return "redirect:/warga/dashboard";
+        }
+
+        // Siapkan koordinat & region untuk lokasi tetap
+        String fixedLat = null, fixedLng = null, fixedKota = null, fixedKecamatan = null;
+        if ("MY_LOCATION".equals(locationMode)) {
+            User user = userService.findById(userId).orElse(null);
+            if (user != null && user.getUserProfile() != null
+                    && user.getUserProfile().getDomisiliLatitude() != null
+                    && user.getUserProfile().getDomisiliLongitude() != null) {
+                fixedLat = user.getUserProfile().getDomisiliLatitude().toPlainString();
+                fixedLng = user.getUserProfile().getDomisiliLongitude().toPlainString();
+                fixedKota = "Lokasi Saya";
+                fixedKecamatan = "Lokasi Saya";
+            } else {
+                redirectAttributes.addFlashAttribute("warning",
+                    "Profil belum memiliki koordinat domisili. Gunakan mode lokasi lain.");
+                return "redirect:/warga/dashboard";
+            }
+        } else if (List.of("MEDAN", "PEKANBARU", "TANJUNGPINANG").contains(locationMode)) {
+            for (String[] lok : LOKASI_TES) {
+                if (lok[0].toUpperCase().equals(locationMode)) {
+                    fixedLat = lok[3]; fixedLng = lok[4]; fixedKota = lok[0]; fixedKecamatan = lok[2];
+                    break;
+                }
+            }
+        } else if ("CUSTOM".equals(locationMode)) {
+            if (customLat == null || customLng == null || customLat.isBlank() || customLng.isBlank()) {
+                redirectAttributes.addFlashAttribute("error", "Isi koordinat latitude dan longitude untuk lokasi kustom.");
+                return "redirect:/warga/dashboard";
+            }
+            fixedLat = customLat.trim();
+            fixedLng = customLng.trim();
+            fixedKota = "Kustom";
+            fixedKecamatan = "Kustom";
+        }
+
+        int generated = 0;
+        int max = Math.min(count, 20);
+        Random rand = new Random();
+
+        for (int i = 0; i < max; i++) {
+            try {
+                String lat, lng, kota, kecamatan;
+                if (fixedLat != null) {
+                    lat = fixedLat; lng = fixedLng; kota = fixedKota; kecamatan = fixedKecamatan;
+                } else {
+                    String[] lokasi = LOKASI_TES[rand.nextInt(LOKASI_TES.length)];
+                    lat = lokasi[3]; lng = lokasi[4]; kota = lokasi[0]; kecamatan = lokasi[2];
+                }
+
+                Region kecamatanRegion = findRegion(regions, kecamatan);
+                Region kotaRegion = findRegion(regions, kota);
+                String desc = DESKRIPSI[rand.nextInt(DESKRIPSI.length)];
+
+                // Pilih kategori
+                String selectedCategoryId = categoryId;
+                if (selectedCategoryId == null || selectedCategoryId.isBlank()) {
+                    selectedCategoryId = categories.get(rand.nextInt(categories.size())).getCategoryId();
+                }
+
+                CreateReportDTO dto = new CreateReportDTO();
+                dto.setDescription(desc);
+                dto.setLocationHint(kota + ", " + kecamatan);
+                dto.setLatitude(new BigDecimal(lat));
+                dto.setLongitude(new BigDecimal(lng));
+                dto.setPhotoBase64(PLACEHOLDER_PHOTO);
+                dto.setCategoryId(selectedCategoryId);
+                dto.setRegionId(kecamatanRegion != null ? kecamatanRegion.getRegionId() :
+                                (kotaRegion != null ? kotaRegion.getRegionId() : null));
+                dto.setPhotoTakenAt(LocalDateTime.now().minusDays(rand.nextInt(7))
+                    .minusHours(rand.nextInt(24)).toString());
+
+                reportService.createReport(dto, userId);
+                generated++;
+            } catch (Exception e) {
+                log.warn("Gagal generate report ke-{}: {}", i + 1, e.getMessage());
+            }
+        }
+
+        redirectAttributes.addFlashAttribute("success",
+            "Berhasil membuat " + generated + " laporan uji coba.");
+        return "redirect:/warga/dashboard";
+    }
+
+    private Region findRegion(List<Region> regions, String name) {
+        return regions.stream()
+            .filter(r -> r.getRegionName().equalsIgnoreCase(name))
+            .findFirst().orElse(null);
     }
 
     private String toWargaStatusLabel(Report.ReportStatus status) {

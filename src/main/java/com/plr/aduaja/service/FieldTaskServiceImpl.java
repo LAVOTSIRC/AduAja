@@ -47,6 +47,15 @@ public class FieldTaskServiceImpl implements FieldTaskService {
     @Autowired
     private ReportService reportService;
 
+    @Autowired
+    private MergeRecordService mergeRecordService;
+
+    @Autowired
+    private ConfirmationService confirmationService;
+
+    @Autowired
+    private NotificationService notificationService;
+
     private static final Logger log = LoggerFactory.getLogger(FieldTaskServiceImpl.class);
 
     @Override
@@ -128,6 +137,8 @@ public class FieldTaskServiceImpl implements FieldTaskService {
             reportRepository.save(report);
             reportService.addReportRevision(report, oldStatus, Report.ReportStatus.DITUGASKAN,
                 "Laporan ditugaskan ke petugas", assignedById);
+            reportService.cascadeStatusToChildren(report.getReportId(), Report.ReportStatus.DITUGASKAN,
+                "Status diselaraskan dengan parent", assignedById);
         } catch (Exception e) {
             log.warn("Gagal update status laporan ke DITUGASKAN: {}", e.getMessage());
         }
@@ -215,6 +226,9 @@ public class FieldTaskServiceImpl implements FieldTaskService {
             Report.ReportStatus oldStatus = report.getStatus();
             report.setStatus(Report.ReportStatus.MENUNGGU_VALIDASI);
             reportRepository.save(report);
+            String changedBy = task.getOfficer() != null ? task.getOfficer().getUserId() : "SYSTEM";
+            reportService.cascadeStatusToChildren(report.getReportId(), Report.ReportStatus.MENUNGGU_VALIDASI,
+                "Status diselaraskan dengan parent", changedBy);
 
             // PRIORITAS #1: Buat ConfirmationRequest dulu (paling critical untuk flow)
             Optional<ConfirmationRequest> existing = confirmationRequestRepository
@@ -231,9 +245,43 @@ public class FieldTaskServiceImpl implements FieldTaskService {
                 confirmationRequestRepository.save(confirmation);
             }
 
+            // FR-ADM-16: Jika parent memiliki child tiket (merge group),
+            // buat ConfirmationRequest untuk setiap child reporter juga
+            List<Report> childReports = mergeRecordService.getAllChildReportsForParent(report.getReportId());
+            for (Report child : childReports) {
+                if (child.getReporter() != null) {
+                    Optional<ConfirmationRequest> childExisting = confirmationRequestRepository
+                            .findByReportReportId(child.getReportId());
+                    boolean childNeedsNew = childExisting.isEmpty() ||
+                            Boolean.TRUE.equals(childExisting.get().getIsLocked());
+                    if (childNeedsNew) {
+                        childExisting.ifPresent(confirmationRequestRepository::delete);
+                        ConfirmationRequest childConfirmation = new ConfirmationRequest();
+                        childConfirmation.setReport(child);
+                        childConfirmation.setWarga(child.getReporter());
+                        childConfirmation.setDeadlineAt(LocalDateTime.now().plusHours(72));
+                        childConfirmation.setIsLocked(false);
+                        confirmationRequestRepository.save(childConfirmation);
+                    }
+                }
+                // Kirim notifikasi ke child reporter
+                try {
+                    if (child.getReporter() != null) {
+                        notificationService.createNotification(
+                            child.getReporter().getUserId(),
+                            "Konfirmasi Hasil Perbaikan",
+                            "Laporan terkait #" + child.getTicketNumber() + " telah selesai diperbaiki. Silakan konfirmasi hasilnya.",
+                            "REPORT",
+                            child.getReportId()
+                        );
+                    }
+                } catch (Exception e) {
+                    log.warn("Gagal kirim notifikasi ke child reporter {}: {}", child.getReportId(), e.getMessage());
+                }
+            }
+
             // PRIORITAS #2: Catat audit trail (tidak boleh blokir flow utama)
             try {
-                String changedBy = task.getOfficer() != null ? task.getOfficer().getUserId() : "SYSTEM";
                 reportService.addReportRevision(report, oldStatus, Report.ReportStatus.MENUNGGU_VALIDASI,
                     "Tugas selesai dikerjakan, menunggu konfirmasi warga", changedBy);
             } catch (Exception e) {
@@ -333,6 +381,8 @@ public class FieldTaskServiceImpl implements FieldTaskService {
             String changedBy = task.getAssignedBy() != null ? task.getAssignedBy().getUserId() : "SYSTEM";
             reportService.addReportRevision(report, oldStatus, Report.ReportStatus.DITUGASKAN,
                 "Tugas ditugaskan ulang ke petugas baru", changedBy);
+            reportService.cascadeStatusToChildren(report.getReportId(), Report.ReportStatus.DITUGASKAN,
+                "Status diselaraskan dengan parent", changedBy);
             log.info("[REASSIGN] Report status berhasil diupdate");
         } else {
             log.warn("[REASSIGN] Report NULL pada saved task!");
@@ -372,6 +422,8 @@ public class FieldTaskServiceImpl implements FieldTaskService {
             reportRepository.save(report);
             reportService.addReportRevision(report, oldStatus, Report.ReportStatus.SELESAI,
                 "Tugas ditutup oleh admin", "SYSTEM");
+            reportService.cascadeStatusToChildren(report.getReportId(), Report.ReportStatus.SELESAI,
+                "Status diselaraskan dengan parent", "SYSTEM");
         }
 
         return task;
