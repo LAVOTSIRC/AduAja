@@ -257,10 +257,26 @@
                 >08:00</span
               >
             </div>
-            <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center justify-between mb-4"
+                 th:data-checkin="${attendance.rawCheckInAt}"
+                 x-data="{
+                   startMs: parseInt($el.dataset.checkin) || 0,
+                   duration: '00:00:00',
+                   update() {
+                     if(!this.startMs) return;
+                     let diff = Math.floor((Date.now() - this.startMs) / 1000);
+                     if (diff < 0) diff = 0;
+                     let h = Math.floor(diff / 3600).toString().padStart(2, '0');
+                     let m = Math.floor((diff % 3600) / 60).toString().padStart(2, '0');
+                     let s = Math.floor(diff % 60).toString().padStart(2, '0');
+                     this.duration = h + ':' + m + ':' + s;
+                   }
+                 }"
+                 x-init="update(); setInterval(() => update(), 1000);">
               <span class="text-sm text-gray-600">Durasi:</span>
               <span
                 class="text-sm font-semibold"
+                x-text="startMs ? duration : '00:00:00'"
                 th:text="${attendance.workDuration}"
                 >00:00:00</span
               >

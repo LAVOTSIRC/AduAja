@@ -19,6 +19,10 @@
     filterCategory: 'all',
     sortBy: 'sla',
     searchQuery: '',
+    isOnline: navigator.onLine,
+    lastRefresh: new Date().toLocaleTimeString('id-ID'),
+    nextRefresh: 900,
+    offlineQueue: 0,
     sortCards(containerId) {
       const container = document.getElementById(containerId);
       if (!container) return;

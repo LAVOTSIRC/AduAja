@@ -126,11 +126,11 @@ public class PetugasController {
                     double centerLat = DINAS_CENTER_LAT;
                     double centerLon = DINAS_CENTER_LON;
                     User officer = userService.findById(userId).orElse(null);
-                    if (officer != null && officer.getUserProfile() != null) {
-                        UserProfile profile = officer.getUserProfile();
-                        if (profile.getDomisiliLatitude() != null && profile.getDomisiliLongitude() != null) {
-                            centerLat = profile.getDomisiliLatitude().doubleValue();
-                            centerLon = profile.getDomisiliLongitude().doubleValue();
+                    if (officer != null && officer.getAgency() != null) {
+                        Agency agency = officer.getAgency();
+                        if (agency.getLatitude() != null && agency.getLongitude() != null) {
+                            centerLat = agency.getLatitude().doubleValue();
+                            centerLon = agency.getLongitude().doubleValue();
                         }
                     }
 
@@ -330,6 +330,8 @@ public class PetugasController {
                 : shift.getShiftStatus() == OfficerAttendance.ShiftStatus.ISTIRAHAT ? "Istirahat" : "Selesai Shift");
             attendance.put("checkInTime", shift.getCheckInAt() != null
                 ? shift.getCheckInAt().format(ControllerHelper.TIME_FMT) : "-");
+            attendance.put("rawCheckInAt", shift.getCheckInAt() != null
+                ? shift.getCheckInAt().atZone(java.time.ZoneId.systemDefault()).toEpochSecond() * 1000 : null);
             attendance.put("workDuration", shift.getCheckInAt() != null
                 ? formatDuration(Duration.between(shift.getCheckInAt(), LocalDateTime.now())) : "00:00:00");
             attendance.put("location", shift.getCheckInLatitude() != null
@@ -908,6 +910,8 @@ public class PetugasController {
             ? task.getReport().getSubmittedAt().atZone(java.time.ZoneId.systemDefault()).toEpochSecond() : 0L);
         // FR-PTG-17: flag koreksi koordinat agar UI modal bisa tampilkan status 1x
         m.put("coordinateCorrected", task.getReport() != null && task.getReport().isCoordinateCorrected());
+        // Laporan Warga Evidence
+        m.put("photoBase64", task.getReport() != null ? task.getReport().getPhotoBase64() : null);
 
         // Calculate distance
         if (userLat != null && userLng != null && task.getReport() != null &&
