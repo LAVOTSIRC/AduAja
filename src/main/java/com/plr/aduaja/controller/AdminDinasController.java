@@ -503,13 +503,15 @@ public class AdminDinasController {
             @RequestParam(value = "id", required = false) String id
     ) {
         if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
-        String regionId = ControllerHelper.getSessionRegionId(session);
+        String agencyId = ControllerHelper.getSessionAgencyId(session);
 
         List<DisputeRecord> realDisputes = disputeService.getPendingDisputes();
-        if (regionId != null) {
+        if (agencyId != null) {
             realDisputes = realDisputes.stream()
-                .filter(d -> d.getReport() != null && d.getReport().getRegion() != null
-                    && regionId.equals(d.getReport().getRegion().getRegionId()))
+                .filter(d -> d.getReport() != null
+                    && d.getReport().getDisposition() != null
+                    && d.getReport().getDisposition().getTargetAgency() != null
+                    && agencyId.equals(d.getReport().getDisposition().getTargetAgency().getAgencyId()))
                 .collect(Collectors.toList());
         }
 
@@ -573,9 +575,6 @@ public class AdminDinasController {
                     break;
                 }
             }
-            if (selected == null && !disputes.isEmpty()) selected = disputes.get(0);
-        } else if (!disputes.isEmpty()) {
-            selected = disputes.get(0);
         }
 
         // FR-RSL-12: Report region untuk validasi wilayah petugas
@@ -583,7 +582,6 @@ public class AdminDinasController {
         String reportWilayahName = null;
         if (selected != null) {
             String originalPetugasId = (String) selected.get("petugasId");
-            String agencyId = ControllerHelper.getSessionAgencyId(session);
             List<User> agencyPetugas;
             if (agencyId != null) {
                 agencyPetugas = userRepository.findByRoleAndAgencyAgencyId(User.Role.PETUGAS, agencyId);
@@ -649,9 +647,6 @@ public class AdminDinasController {
             model.addAttribute("originalPetugasNama", selected.get("petugasNama"));
         }
 
-        if (selected == null && disputes.isEmpty()) {
-            return "redirect:/admin/dinas/dashboard";
-        }
         model.addAttribute("selectedDispute", selected);
         model.addAttribute("dinasName", ControllerHelper.getSessionAgencyName(session));
         return "admin/dinas/sengketa-dinas";
@@ -667,10 +662,7 @@ public class AdminDinasController {
             RedirectAttributes redirectAttributes
     ) {
         String adminId = ControllerHelper.requireAnyAdminSession(session);
-        if (adminId == null) {
-            adminId = userService.getUserByEmail("admin.pu@aduaja.go.id")
-                    .map(User::getUserId).orElse(null);
-        }
+        if (adminId == null) return "redirect:/admin/login";
 
         log.info("[SENGKETA POST] id={}, keputusan={}, petugasId={}, catatan panjang={}",
             id, keputusan, petugasId, catatan != null ? catatan.length() : 0);
