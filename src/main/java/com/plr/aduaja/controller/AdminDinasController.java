@@ -740,6 +740,16 @@ public class AdminDinasController {
                     redirectAttributes.addFlashAttribute("error", "Pilih petugas pengganti untuk perbaikan ulang.");
                     return "redirect:/admin/dinas/sengketa" + (id != null ? "?id=" + id : "");
                 }
+                // Pastikan petugas yang dipilih masih aktif
+                User selectedOfficer = userRepository.findById(petugasId).orElse(null);
+                if (selectedOfficer == null) {
+                    redirectAttributes.addFlashAttribute("error", "Petugas yang dipilih tidak ditemukan.");
+                    return "redirect:/admin/dinas/sengketa" + (id != null ? "?id=" + id : "");
+                }
+                if (selectedOfficer.getAccountStatus() != User.AccountStatus.ACTIVE) {
+                    redirectAttributes.addFlashAttribute("error", "Petugas dengan status " + selectedOfficer.getAccountStatus() + " tidak dapat ditugaskan.");
+                    return "redirect:/admin/dinas/sengketa" + (id != null ? "?id=" + id : "");
+                }
                 if (adminId != null) {
                     disputeService.resolveDispute(id, DisputeRecord.ResolutionType.TUGASKAN_KEMBALI, adminId, catatan);
                 }

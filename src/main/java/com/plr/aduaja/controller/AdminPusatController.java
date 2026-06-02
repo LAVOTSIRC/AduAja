@@ -218,6 +218,7 @@ public class AdminPusatController {
         List<Map<String, Object>> disposisiReports = new ArrayList<>();
         List<Report> validated = regionId != null ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.DITERIMA, regionId) : reportService.getReportsByStatus(Report.ReportStatus.DITERIMA);
         for (Report r : validated) {
+            if (mergedChildIds.contains(r.getReportId())) continue;
             Map<String, Object> m = new HashMap<>();
             m.put("id", r.getReportId());
             m.put("judul", r.getTicketNumber() != null ? r.getTicketNumber() : "Laporan #" + r.getReportId().substring(0, 8));
@@ -716,10 +717,12 @@ public class AdminPusatController {
         if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
 
         String regionId = ControllerHelper.getSessionRegionId(session);
+        Set<String> childIds = getAllActiveChildIds();
         List<Map<String, Object>> reports = new ArrayList<>();
         List<Report> validated = regionId != null ? reportService.getReportsByStatusAndRegion(Report.ReportStatus.DITERIMA, regionId) : reportService.getReportsByStatus(Report.ReportStatus.DITERIMA);
         if (!validated.isEmpty()) {
             for (Report r : validated) {
+                if (childIds.contains(r.getReportId())) continue;
                 Map<String, Object> m = new HashMap<>();
                 m.put("id", r.getReportId());
                 m.put("judul", r.getTicketNumber() != null ? r.getTicketNumber() : "Laporan #" + r.getReportId().substring(0, 8));

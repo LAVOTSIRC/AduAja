@@ -393,12 +393,16 @@ public class FieldTaskServiceImpl implements FieldTaskService {
     }
 
     @Override
+    @Transactional
     public FieldTask reassignTask(String taskId, String newOfficerId) {
         log.info("[REASSIGN] Mencari taskId={}, newOfficerId={}", taskId, newOfficerId);
         FieldTask task = fieldTaskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task not found: " + taskId));
         User newOfficer = userRepository.findById(newOfficerId)
                 .orElseThrow(() -> new RuntimeException("New officer not found: " + newOfficerId));
+        if (newOfficer.getAccountStatus() != User.AccountStatus.ACTIVE) {
+            throw new IllegalStateException("Petugas dengan status " + newOfficer.getAccountStatus() + " tidak dapat ditugaskan.");
+        }
         log.info("[REASSIGN] Ditemukan task status={}, officer={}", task.getTaskStatus(),
                 task.getOfficer() != null ? task.getOfficer().getUserId() : "null");
         task.setOfficer(newOfficer);
