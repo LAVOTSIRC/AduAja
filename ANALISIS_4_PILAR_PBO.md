@@ -1,538 +1,595 @@
-# ANALISIS 4 PILAR PBO PADA APLIKASI AduAja
+# Analisis 4 Pilar PBO pada Aplikasi AduAja
+
+**AduAja** — Aplikasi Pelaporan Masyarakat berbasis Java Spring Boot
+
+**Kelompok PLR-PEMUDA LEGEND REVOLUTIONER**
+
+| No | Nama | NIM |
+|---|---|---|
+| 1 | Christein Akadojuanrich Habayaki Purba | 241401012 |
+| 2 | El Fahreza Sufi | 241401042 |
+| 3 | Cristoval Pratama Siahaan | 241401057 |
+| 4 | M. Zidan Ruriano AG | 241401063 |
 
 ---
 
-## FITUR 1: Registrasi & Login Warga
+## Daftar Isi
 
-**File utama:** `WargaAuthController.java`, `AuthService.java` / `AuthServiceImpl.java`, `UserService.java` / `UserServiceImpl.java`, `LoginAttempt.java`, `User.java`
-
-### Inheritance
-
-```java
-// User.java:14 — User mewarisi BaseEntity
-public class User extends BaseEntity { ... }
-
-// LoginAttempt.java:13 — Catatan percobaan login juga extends BaseEntity
-public class LoginAttempt extends BaseEntity { ... }
-```
-**Penjelasan:** `User` dan `LoginAttempt` mendapat `createdAt`/`updatedAt` otomatis dari `BaseEntity`. Fitur login otomatis mencatat kapan user login terakhir tanpa perlu coding manual.
-
-### Encapsulation
-
-**Ada 3 level enkapsulasi di fitur ini:**
-
-**1. Enkapsulasi data User** — `User.java:20-101`
-```java
-private String passwordHash;  // PRIVATE: tidak bisa dibaca dari luar
-// Hanya bisa diakses via:
-public String getPasswordHash() { return passwordHash; }
-public void setPasswordHash(String hash) { this.passwordHash = hash; }
-```
-
-**2. Enkapsulasi password** — `UserServiceImpl.java:83`
-```java
-user.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
-// Logika hashing (BCrypt) DIKURUNG di dalam createUser()
-// Controller tidak tahu password di-hash bagaimana
-```
-
-**3. Enkapsulasi konstanta keamanan** — `AuthServiceImpl.java:29-30`
-```java
-private static final int MAX_ATTEMPTS = 5;       // PRIVATE: tidak bisa diubah luar
-private static final int LOCKOUT_MINUTES = 30;   // PRIVATE
-// Hanya AuthServiceImpl yang tahu kapan akun di-lock
-```
-
-### Polymorphism
-
-**1. Overloading login** — `AuthService.java:23-25`
-```java
-public interface AuthService {
-    Optional<User> login(LoginDTO dto, String ipAddress);           // Login via DTO
-    Optional<User> loginByEmail(String email, String password, String ip); // Overload: langsung email
-    Optional<User> loginByPhone(String phone, String password, String ip); // Overload: langsung HP
-}
-```
-**Penjelasan:** Tiga method dengan nama mirip, parameter berbeda — Java memilih yang mana akan dipanggil saat kompilasi (compile-time polymorphism).
-
-**2. Overriding** — `AuthServiceImpl.java:27`
-```java
-public class AuthServiceImpl implements AuthService {
-    @Override  // Runtime Polymorphism
-    public Optional<User> login(LoginDTO dto, String ipAddress) { ... }
-}
-```
-
-### Abstraction
-
-```java
-// WargaAuthController.java:31-37 — Controller hanya tahu INTERFACE
-@Autowired
-private UserService userService;   // Interface, bukan UserServiceImpl
-@Autowired
-private AuthService authService;   // Interface, bukan AuthServiceImpl
-@Autowired
-private OtpService otpService;     // Interface, bukan OtpServiceImpl
-
-// WargaAuthController.java:129 — Panggil method tanpa tahu implementasi
-User user = userService.createUser(dto);
-// Controller tidak tahu: ada hashing password, ada validasi duplikat,
-// ada pembuatan UserProfile — semua DIABSTRAKSI
-```
+1. [Enkapsulasi (Encapsulation)](#1-enkapsulasi-encapsulation)
+2. [Pewarisan (Inheritance)](#2-pewarisan-inheritance)
+3. [Polimorfisme (Polymorphism)](#3-polimorfisme-polymorphism)
+4. [Abstraksi (Abstraction)](#4-abstraksi-abstraction)
 
 ---
 
-## FITUR 2: Edit Profile Warga
+## 1. Enkapsulasi (Encapsulation)
 
-**File utama:** `WargaAuthController.java` (method `updateProfile`), `UserService.java` / `UserServiceImpl.java`, `ProfileDTO.java`, `UserProfile.java`, `User.java`
+Enkapsulasi adalah prinsip menyembunyikan data internal suatu objek dan hanya menyediakan akses melalui metode publik (getter & setter). Berikut implementasinya di aplikasi AduAja:
 
-### Inheritance
+### 1.1 Entity Model — Semua Field Private
 
+Seluruh **26 entity class** menerapkan enkapsulasi dengan menjadikan semua field sebagai **`private`** dan hanya bisa diakses melalui getter/setter publik.
+
+| File | Field Private |
+|---|---|
+| `model/User.java` | `userId`, `fullName`, `email`, `phoneNumber`, `passwordHash`, `role`, `accountStatus` |
+| `model/Report.java` | `reportId`, `ticketNumber`, `description`, `latitude`, `longitude`, `photoBase64`, `status`, `adminNotes` |
+| `model/FieldTask.java` | `taskId`, `status`, `assignedTo`, `notes`, `photoBefore`, `photoAfter` |
+| `model/Disposition.java` | `dispositionId`, `fromAdmin`, `toAgency`, `notes`, `dispositionDate` |
+| `model/DisputeRecord.java` | `disputeId`, `reason`, `photoEvidence`, `resolution`, `resolvedAt` |
+| `model/SlaRecord.java` | `slaId`, `slaStartAt`, `slaDeadlineAt`, `totalPausedMinutes`, `currentStatus` |
+| `model/AuditLog.java` | `logId`, `actor`, `actionType`, `oldValue`, `newValue`, `ipAddress` |
+| `model/Notification.java` | `notificationId`, `title`, `message`, `isRead`, `recipient` |
+| `model/OfficerAttendance.java` | `attendanceId`, `officer`, `checkInTime`, `checkOutTime`, `latitude`, `longitude` |
+| `model/MergeRecord.java` | `mergeId`, `parentReport`, `childReport`, `mergedAt`, `mergedBy` |
+| `model/ConfirmationRequest.java` | `requestId`, `isConfirmed`, `confirmationDate`, `notes` |
+| `model/TaskEvidence.java` | `evidenceId`, `photoBase64`, `description`, `submittedAt` |
+| `model/ValidationDecision.java` | `decisionId`, `decision`, `reason`, `decidedAt`, `decidedBy` |
+
+**Contoh kode** — `User.java:18–43`:
 ```java
-// User.java:14 — User extends BaseEntity
-// UserProfile.java:12 — UserProfile extends BaseEntity
-public class UserProfile extends BaseEntity {
-    // Otomatis punya createdAt dan updatedAt dari BaseEntity
-    // Berguna untuk track kapan terakhir profil diubah
+public class User extends BaseEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private String userId;
+
+    @Column(nullable = false, unique = true, length = 150)
+    private String email;
+
+    @Column(name = "password_hash", nullable = false)
+    private String passwordHash;        // ← private: tidak bisa diakses langsung
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role;                  // ← private: hanya bisa diubah via setter
+
+    // Getter publik untuk akses terkontrol
+    public String getUserId() { return userId; }
+    public String getEmail() { return email; }
+    public Role getRole() { return role; }
+    public void setRole(Role role) { this.role = role; }
 }
 ```
 
-### Encapsulation
+### 1.2 DTO — Data Transfer Object Sebagai Pembatas
 
-**1. DTO pattern** — `ProfileDTO.java`
+DTO memisahkan data input dari Entity. Semua field dalam **16 DTO class** bersifat private.
+
+| File | Field Private |
+|---|---|
+| `dto/CreateReportDTO.java` | `description`, `locationHint`, `latitude`, `longitude`, `photoBase64`, `categoryId`, `regionId` |
+| `dto/LoginDTO.java` | `email`, `password` |
+| `dto/RegisterDTO.java` | `fullName`, `email`, `password`, `phoneNumber` |
+| `dto/DispositionDTO.java` | `reportId`, `agencyId`, `notes`, `priority` |
+| `dto/DisputeDTO.java` | `reason`, `photoEvidence` |
+| `dto/MergeDTO.java` | `parentReportId`, `childReportIds` |
+| `dto/ProfileDTO.java` | `fullName`, `phoneNumber`, `address` |
+| `dto/ResetPasswordDTO.java` | `token`, `newPassword`, `confirmPassword` |
+| `dto/ReportFilterDTO.java` | `status`, `categoryId`, `regionId`, `startDate`, `endDate` |
+| `dto/SlaStatusDTO.java` | `reportId`, `slaStatus`, `remainingMinutes` |
+| `dto/TaskExecutionDTO.java` | `taskId`, `photoAfter`, `description` |
+
+**Contoh kode** — `CreateReportDTO.java:9–19`:
 ```java
-// Data dari form edit profile dikurung dalam DTO (Data Transfer Object)
-public class ProfileDTO {
-    private String fullName;      // PRIVATE
-    private String email;         // PRIVATE
-    private String phoneNumber;   // PRIVATE
-    private String nik;           // PRIVATE
-    private String alamatLengkap; // PRIVATE
+public class CreateReportDTO {
+    private String description;
+    private BigDecimal latitude;
+    private BigDecimal longitude;
+    private String photoBase64;
+    private String categoryId;
 
-    public String getFullName() { return fullName; }        // Getter publik
-    public void setFullName(String n) { this.fullName = n; }  // Setter publik
+    // Hanya getter & setter publik
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+    public BigDecimal getLatitude() { return latitude; }
+    public BigDecimal getLongitude() { return longitude; }
 }
 ```
-**Penjelasan:** Entity `User` tidak pernah terekspos langsung ke view/html. Data dari form ditangkap oleh `ProfileDTO` — ini enkapsulasi data antar lapisan.
 
-**2. Enkapsulasi logika update** — `UserServiceImpl.java:109-150`
+### 1.3 Enkapsulasi Tingkat Lanjut — Package-Private Setter
+
+**`AuditLog.java`** menerapkan enkapsulasi yang lebih ketat dengan **package-private setter** (tanpa modifier `public`). Setter hanya bisa diakses oleh class dalam package `model`, seperti `AuditLogFactory`.
+
+```java
+// AuditLog.java:61-73 — Setter package-private (tanpa public)
+void setLogId(String logId) { this.logId = logId; }       // ← tidak public
+void setActor(User actor) { this.actor = actor; }          // ← tidak public
+void setActionType(String actionType) { this.actionType = actionType; }
+void setOldValue(String oldValue) { this.oldValue = oldValue; }
+void setNewValue(String newValue) { this.newValue = newValue; }
+```
+
+Audit dari luar hanya bisa dibuat melalui **static factory method** `AuditLog.create()` atau `AuditLogFactory`, sehingga data audit log terproteksi dari modifikasi sembarangan.
+
+### 1.4 Enkapsulasi Logika Bisnis di Service Layer
+
+Service menyembunyikan detail implementasi dari Controller. Contoh di `AuthServiceImpl.java:113–116`:
+
 ```java
 @Override
-public User updateProfile(String userId, ProfileDTO dto) {
-    // Semua validasi disembunyikan di sini:
-    // - Cek duplikat email
-    // - Cek duplikat NIK
-    // - Update User + UserProfile dalam 1 method transaksional
-    // Controller hanya panggil: userService.updateProfile(id, dto);
+public boolean verifyPassword(String rawPassword, String hashedPassword) {
+    // ENKAPSULASI: detail BCrypt tersembunyi dari caller
+    return passwordEncoder.matches(rawPassword, hashedPassword);
 }
 ```
 
-### Polymorphism
-
-**Overriding** — `UserServiceImpl.java:109`
-```java
-@Override  // Runtime Polymorphism: override dari UserService interface
-public User updateProfile(String userId, ProfileDTO dto) { ... }
-```
-**Penjelasan:** Saat `WargaAuthController` memanggil `userService.updateProfile()`, yang dijalankan adalah `UserServiceImpl.updateProfile()` — Spring menentukan implementasi saat runtime.
-
-### Abstraction
-
-```java
-// WargaAuthController — method updateProfile milik controller
-userService.updateProfile(userId, dto);
-// Controller tidak tahu:
-// 1. Bahwa method ini juga mengupdate UserProfile
-// 2. Bagaimana validasi duplikat email/NIK
-// 3. Bahwa ada transaksi database di dalamnya
-// Semua DIABSTRAKSI oleh interface UserService
-```
+Controller tidak perlu tahu bagaimana password diverifikasi — cukup panggil `authService.verifyPassword()`.
 
 ---
 
-## FITUR 3: Buat Laporan (Create Report)
+## 2. Pewarisan (Inheritance)
 
-**File utama:** `WebController.java` (method `wargaCreateReportPost`), `Report.java`, `ReportService.java` / `ReportServiceImpl.java`, `CreateReportDTO.java`, `ReportCategory.java`
+Inheritance adalah mekanisme di mana suatu class mewarisi properti dan method dari class lain. Di AduAja, inheritance diterapkan dalam 3 bentuk:
 
-### Inheritance
+### 2.1 Inheritance Class — `BaseEntity` sebagai Parent
 
+Semua **26 entity class** mewarisi `BaseEntity` menggunakan keyword `extends`.
+
+| Entity Class | Parent |
+|---|---|
+| `User.java` | `extends BaseEntity` |
+| `Report.java` | `extends BaseEntity` |
+| `FieldTask.java` | `extends BaseEntity` |
+| `Disposition.java` | `extends BaseEntity` |
+| `DisputeRecord.java` | `extends BaseEntity` |
+| `SlaRecord.java` | `extends BaseEntity` |
+| `AuditLog.java` | `extends BaseEntity` |
+| `Notification.java` | `extends BaseEntity` |
+| `ActiveSession.java` | `extends BaseEntity` |
+| `Agency.java` | `extends BaseEntity` |
+| `ConfirmationRequest.java` | `extends BaseEntity` |
+| `FieldTaskStatusRevision.java` | `extends BaseEntity` |
+| `LoginAttempt.java` | `extends BaseEntity` |
+| `MergeRecord.java` | `extends BaseEntity` |
+| `OfficerAttendance.java` | `extends BaseEntity` |
+| `OtpVerification.java` | `extends BaseEntity` |
+| `ReportCategory.java` | `extends BaseEntity` |
+| `ReportRevision.java` | `extends BaseEntity` |
+| `SlaPauseLog.java` | `extends BaseEntity` |
+| `TaskEvidence.java` | `extends BaseEntity` |
+| `TaskPostponement.java` | `extends BaseEntity` |
+| `UserProfile.java` | `extends BaseEntity` |
+| `ValidationDecision.java` | `extends BaseEntity` |
+
+**Diagram inheritance:**
+```
+            ┌─────────────────────────┐
+            │     BaseEntity (abstract)│
+            │  - createdAt: LocalDateTime│
+            │  - updatedAt: LocalDateTime│
+            │  + getCreatedAt()          │
+            │  + getUpdatedAt()          │
+            └──────────┬────────────────┘
+                       │ extends
+          ┌────────────┼─────────────┬──────────────────┐
+          ▼            ▼             ▼                  ▼
+      User.java    Report.java   FieldTask.java    AuditLog.java
+   (field: email,  (field: ticket,  (field: assignedTo,  (field: actionType,
+    role, ...)      description, ...) photoBefore, ...)   oldValue, ...)
+
+    ... dan 22 entity lainnya ...
+```
+
+**Kode `BaseEntity.java:11–37`:**
 ```java
-// Report.java:15 — Report extends BaseEntity
-public class Report extends BaseEntity {
-    // Mendapat createdAt (kapan laporan dibuat)
-    // Mendapat updatedAt (kapan laporan diubah)
+@MappedSuperclass
+public abstract class BaseEntity {
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+}
+```
+
+Setiap entity mewarisi `createdAt` dan `updatedAt` beserta logic `@PrePersist`/`@PreUpdate` — tanpa perlu menulis ulang.
+
+### 2.2 Inheritance Interface — Service Layer
+
+**18 interface service** diwarisi oleh **18 class implementasi** masing-masing.
+
+| Interface (Parent) | Implementation (Child) |
+|---|---|
+| `AuthService` | `AuthServiceImpl` |
+| `UserService` | `UserServiceImpl` |
+| `ReportService` | `ReportServiceImpl` |
+| `FieldTaskService` | `FieldTaskServiceImpl` |
+| `DispositionService` | `DispositionServiceImpl` |
+| `DisputeService` | `DisputeServiceImpl` |
+| `NotificationService` | `NotificationServiceImpl` |
+| `EmailService` | `EmailServiceImpl` |
+| `OtpService` | `OtpServiceImpl` |
+| `AgencyService` | `AgencyServiceImpl` |
+| `AttendanceService` | `AttendanceServiceImpl` |
+| `AuditLogService` | `AuditLogServiceImpl` |
+| `ConfirmationService` | `ConfirmationServiceImpl` |
+| `MergeRecordService` | `MergeRecordServiceImpl` |
+| `SlaMonitoringService` | `SlaMonitoringServiceImpl` |
+| `SlaRecordService` | `SlaRecordServiceImpl` |
+| `ValidationDecisionService` | `ValidationDecisionServiceImpl` |
+| `SupabaseStorageService` | (single class) |
+
+**Pola kode** — setiap service interface memiliki satu implementasi:
+```java
+// AuthService.java (interface)
+public interface AuthService {
+    Optional<User> login(LoginDTO dto, String ipAddress);
+    Optional<User> loginByEmail(String email, String password, String ipAddress);
+    boolean verifyPassword(String rawPassword, String hashedPassword);
+    void recordLoginAttempt(String email, boolean success, String ipAddress);
 }
 
-// ReportCategory.java:11 — Kategori juga entity
-public class ReportCategory extends BaseEntity { ... }
-```
-
-### Encapsulation
-
-```java
-// Report.java:20-105 — 24 field PRIVATE
-private String description;       // PRIVATE
-private String photoBase64;       // PRIVATE — foto warga
-private BigDecimal latitude;      // PRIVATE — lokasi
-private String adminNotes;        // PRIVATE — catatan internal admin
-private String rejectionReason;   // PRIVATE — alasan penolakan
-
-// Semua hanya bisa diakses via getter publik
-public String getDescription() { return description; }
-public String getAdminNotes() { return adminNotes; }
-```
-**Penjelasan:** Data sensitif laporan (foto, lokasi, catatan admin) dikurung dalam `private` field. Catatan admin tidak bisa dibaca oleh warga karena tidak ada getter yang diekspos ke view warga.
-
-### Polymorphism
-
-**Enum switch-case** — `WebController.java:1325-1331`
-```java
-switch (r.getStatus()) {
-    case MENUNGGU_VALIDASI:  // Label: "Menunggu Validasi"
-    case DIVALIDASI:         // Label: "Tervalidasi"
-    case DIDISPOSISI:        // Label: "Didisposisi"
-    case SEDANG_DIKERJAKAN:  // Label: "Sedang Dikerjakan"
-    case SELESAI:            // Label: "Selesai"
-    case DITOLAK:            // Label: "Ditolak"
-    // ... 12 status total
+// AuthServiceImpl.java (implementasi) — implements AuthService
+@Service
+public class AuthServiceImpl implements AuthService {
+    @Override
+    public Optional<User> login(LoginDTO dto, String ipAddress) { ... }
+    @Override
+    public Optional<User> loginByEmail(...) { ... }
+    // ...
 }
 ```
-**Penjelasan:** Satu struktur switch menangani 12 status laporan berbeda. Setiap `ReportStatus` enum menghasilkan label dan tampilan berbeda — ini **polymorphism via enum**.
 
-### Abstraction
+### 2.3 Inheritance Repository — Spring Data JPA
 
-```java
-// WebController.java:37 — hanya tahu interface
-@Autowired
-private ReportService reportService;  // Interface
+**24 repository interface** mewarisi `JpaRepository` dari Spring Data JPA:
 
-// Di ReportServiceImpl, logika lengkap pembuatan laporan:
-// - Validasi user
-// - Set status MENUNGGU_VALIDASI
-// - Simpan relasi ke User (reporter)
-// - Kirim notifikasi ke admin
-// Controller hanya panggil:
-reportService.createReport(dto, reporterId);
 ```
+UserRepository extends JpaRepository<User, String>
+ReportRepository extends JpaRepository<Report, String>
+FieldTaskRepository extends JpaRepository<FieldTask, String>
+... dan 21 repository lainnya ...
+```
+
+Ini mewarisi method bawaan seperti `findAll()`, `findById()`, `save()`, `delete()` tanpa perlu implementasi manual.
 
 ---
 
-## FITUR 4: Validasi Laporan oleh Admin
+## 3. Polimorfisme (Polymorphism)
 
-**File utama:** `WebController.java` (method `adminValidationPost`), `ReportService.java` / `ReportServiceImpl.java`, `ValidationDecision.java`, `ReportRevision.java`, `Notification.java`
+Polimorfisme memungkinkan objek dari tipe berbeda merespons panggilan method yang sama dengan perilaku berbeda. AduAja menerapkan dua jenis polimorfisme:
 
-### Inheritance
+### 3.1 Run-time Polymorphism (Method Overriding)
 
+Setiap **18 service implementation** melakukan override terhadap method-method interfacenya menggunakan `@Override`.
+
+**Method yang di-override di `AuthServiceImpl`:**
+
+| Method Interface | Deskripsi | Baris |
+|---|---|---|
+| `login()` | Delegasi ke `loginByEmail` | 41–45 |
+| `loginByEmail()` | Validasi email + password + akun lock | 47–84 |
+| `loginByPhone()` | Validasi via nomor HP | 86–110 |
+| `verifyPassword()` | Verifikasi BCrypt | 112–116 |
+| `isAccountLocked()` | Deteksi lockout 30 menit | 118–125 |
+| `recordLoginAttempt()` | Simpan riwayat percobaan login | 127–136 |
+| `logout()` | Invalidate session | 138–142 |
+
+**Contoh kode — `AuthServiceImpl.java:41–45`:**
 ```java
-// ReportRevision.java:12 — extends BaseEntity (mencatat revisi)
-public class ReportRevision extends BaseEntity { ... }
-
-// ValidationDecision.java:8 — extends BaseEntity (keputusan validasi)
-public class ValidationDecision extends BaseEntity { ... }
-
-// Notification.java:12 — extends BaseEntity
-public class Notification extends BaseEntity { ... }
-```
-
-### Encapsulation
-
-**Logika validasi dikurung di service:**
-```java
-// ReportServiceImpl — method validasi internal
-// Method PRIVATE untuk logging internal
-private void createRevision(Report report, String changes, String changedBy) {
-    // Hanya dipanggil di dalam class yang sama
-    // Controller tidak bisa mengakses langsung
+@Override  // ← Run-time Polymorphism
+public Optional<User> login(LoginDTO dto, String ipAddress) {
+    return loginByEmail(dto.getEmail(), dto.getPassword(), ipAddress);
 }
 ```
 
-### Polymorphism
+**Contoh kode — `ReportServiceImpl.java`:**
+```java
+@Override
+public Report createReport(CreateReportDTO dto, String wargaId) {
+    // Logic lengkap: validasi, set region, generate ticket, persist
+}
 
-**Overloading updateStatus** — `ReportService.java:42-43`
+@Override
+public Report updateStatus(String reportId, Report.ReportStatus newStatus,
+                           String notes, String changedBy) {
+    // Logic update status 1
+}
+
+@Override
+public Report updateStatus(String reportId, Report.ReportStatus newStatus,
+                           String rejectionReason, String adminNotes,
+                           String changedBy) {
+    // Logic update status 2 (dengan alasan penolakan)
+}
+```
+
+### 3.2 Compile-time Polymorphism (Method Overloading)
+
+Method overloading terjadi ketika beberapa method memiliki nama sama tetapi parameter berbeda.
+
+#### a. Method Overloading di `AuthService.java:23–25`
+```java
+public interface AuthService {
+    // Login via DTO
+    Optional<User> login(LoginDTO dto, String ipAddress);
+
+    // Login via email — OVERLOAD
+    Optional<User> loginByEmail(String email, String password, String ipAddress);
+
+    // Login via nomor HP — OVERLOAD
+    Optional<User> loginByPhone(String phone, String password, String ipAddress);
+}
+```
+
+#### b. Method Overloading di `ReportService.java:32–44`
 ```java
 public interface ReportService {
-    // Overload 1: 4 parameter
-    Report updateStatus(String reportId, Report.ReportStatus newStatus, String notes, String changedBy);
+    // Overload: cari laporan dalam rentang tanggal
+    List<Report> getReportsByDateRange(LocalDate start, LocalDate end);
 
-    // Overload 2: 5 parameter — dengan rejectionReason + adminNotes
+    // Overload: cari + filter status
+    List<Report> getReportsByStatusAndDateRange(Report.ReportStatus status,
+                                                 LocalDate start, LocalDate end);
+
+    // Overload: update status tanpa rejection reason
     Report updateStatus(String reportId, Report.ReportStatus newStatus,
-                        String rejectionReason, String adminNotes, String changedBy);
+                        String notes, String changedBy);
+
+    // Overload: update status dengan rejection reason
+    Report updateStatus(String reportId, Report.ReportStatus newStatus,
+                        String rejectionReason, String adminNotes,
+                        String changedBy);
 }
 ```
 
-### Abstraction
+#### c. Default Method (Backward Compatibility) di `ReportService.java:65–109`
+```java
+// Default method — bentuk lain dari polimorfisme
+default Report updateStatus(String id, Report.ReportStatus status) {
+    return updateStatus(id, status, null, "SYSTEM");
+}
+
+default List<Report> searchReports(String query) {
+    return getAllReports().stream()
+        .filter(r -> r.getDescription() != null &&
+                     r.getDescription().toLowerCase().contains(query.toLowerCase()))
+        .toList();
+}
+
+default Report createReport(Report report, String userId) {
+    CreateReportDTO dto = new CreateReportDTO();
+    dto.setDescription(report.getDescription());
+    // ... mapping ...
+    return createReport(dto, userId);
+}
+```
+
+#### d. Factory Method Overloading di `AuditLogFactory.java:10–56`
+```java
+public class AuditLogFactory {
+    // Factory method 1: basic log
+    public static AuditLog create(User actor, String actionType,
+                                   String oldVal, String newVal) { ... }
+
+    // Factory method 2: log dengan report — OVERLOAD
+    public static AuditLog createWithReport(User actor, Report report,
+                                             String action, String oldVal,
+                                             String newVal) { ... }
+
+    // Factory method 3: log paling lengkap — OVERLOAD
+    public static AuditLog createFull(User actor, String targetType,
+                                       String targetId, String action,
+                                       String oldVal, String newVal,
+                                       String ipAddress, String deviceInfo) { ... }
+}
+```
+
+### 3.3 Instanceof Pattern — Pengecekan Tipe Dinamis
+
+Di controller, role user dicek secara dinamis menggunakan `instanceof`-like pattern untuk menentukan perilaku:
 
 ```java
-// WebController: method adminValidationPost
-reportService.updateStatus(ticketId, Report.ReportStatus.DIVALIDASI, note, adminId);
-// Controller tidak tahu bahwa di dalamnya:
-// 1. Report di-save ke database
-// 2. ReportRevision dibuat otomatis
-// 3. ValidationDecision dicatat
-// 4. Notifikasi dikirim ke warga
+// Contoh pola di AdminPusatController.java
+User currentUser = (User) session.getAttribute("user");
+if (currentUser.getRole() == User.Role.ADMIN_PUSAT) {
+    // perilaku A
+} else if (currentUser.getRole() == User.Role.ADMIN_DINAS) {
+    // perilaku B
+}
 ```
+
+### 3.4 Enum Polymorphism — Status Berbeda, Perilaku Berbeda
+
+Entity `Report.java:110–114` menggunakan enum `ReportStatus` dengan 14 nilai status:
+```java
+public enum ReportStatus {
+    MENUNGGU_VERIFIKASI, DITOLAK, MENUNGGU_REVISI, DITERIMA, TERGABUNG,
+    DALAM_PENINJAUAN, DITUGASKAN, SEDANG_BERJALAN, TERTUNDA, TERLAMBAT,
+    MENUNGGU_VALIDASI, SENGKETA, DALAM_EVALUASI_SENGKETA, SELESAI_OTOMATIS, SELESAI
+}
+```
+
+Setiap status diperlakukan berbeda di service/controller — method `updateStatus()` berperilaku berbeda tergantung status lama dan baru.
 
 ---
 
-## FITUR 5: Disposisi + SLA
+## 4. Abstraksi (Abstraction)
 
-**File utama:** `DispositionService.java`, `SlaRecordService.java`, `SlaMonitoringService.java`, `Disposition.java`, `SlaRecord.java`, `SlaPauseLog.java`, `Agency.java`
+Abstraksi adalah prinsip menyembunyikan detail implementasi dan hanya menampilkan fungsionalitas esensial. AduAja menerapkan abstraksi di beberapa level:
 
-### Inheritance
+### 4.1 Abstract Class — `BaseEntity.java`
 
-Entity berikut **TIDAK** extends `BaseEntity` (berdiri sendiri):
+**`BaseEntity`** adalah abstract class yang menjadi fondasi seluruh entity. Ia menyediakan:
+- Properti `createdAt` dan `updatedAt`
+- Method lifecycle `@PrePersist` dan `@PreUpdate`
+- Getter publik
+
+Class ini tidak bisa di-instantiate langsung — hanya bisa di-*extends*.
+
 ```java
-// Disposition.java:8 — entity berdiri sendiri
-public class Disposition { ... }
+@MappedSuperclass
+public abstract class BaseEntity {    // ← ABSTRACT CLASS
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
-// SlaRecord.java:8 — entity berdiri sendiri
-public class SlaRecord { ... }
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();  // Logic otomatis
+        this.updatedAt = LocalDateTime.now();
+    }
 
-// SlaPauseLog.java:8 — entity berdiri sendiri
-public class SlaPauseLog { ... }
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();  // Logic otomatis
+    }
 
-// Agency.java:7 — entity berdiri sendiri
-public class Agency { ... }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+}
 ```
 
-**Penjelasan:** Ini contoh bahwa Inheritance TIDAK WAJIB dipakai untuk semua class. Entity ini tidak membutuhkan `createdAt`/`updatedAt` karena datanya sudah punya timestamp sendiri (`dispatchedAt`, `slaStartAt`, `pausedAt`).
+26 entity lain tidak perlu menulis ulang field waktu — cukup `extends BaseEntity`.
 
-### Encapsulation
+### 4.2 Service Interface — Kontrak Tanpa Implementasi
 
+**18 service interface** menyediakan abstraksi penuh. Controller hanya bergantung pada interface, bukan implementasi konkret.
+
+**Contoh — `AuthService.java` (abstraksi auth):**
 ```java
-// DispositionService.java:47-77 — Logika disposisi + SLA dikurung dalam 1 method
-public Disposition createDisposition(String reportId, ...) {
-    // Enkapsulasi: perhitungan deadline SLA disembunyikan
-    if (report.getCategory() != null && report.getCategory().getSlaDurationHours() != null) {
-        sla.setSlaDeadlineAt(LocalDateTime.now().plusHours(report.getCategory().getSlaDurationHours()));
-    } else {
-        sla.setSlaDeadlineAt(LocalDateTime.now().plusHours(48));  // Default dikurung di sini
+public interface AuthService {
+    // Controller hanya tahu method ini — detail di-hidden
+    Optional<User> login(LoginDTO dto, String ipAddress);
+    boolean verifyPassword(String rawPassword, String hashedPassword);
+    boolean isAccountLocked(String email);
+    void recordLoginAttempt(String email, boolean success, String ipAddress);
+    void logout(String userId);
+}
+```
+
+Controller menggunakannya tanpa tahu detail:
+```java
+@Controller
+public class AdminAuthController {
+    @Autowired
+    private AuthService authService;        // ← Tergantung interface, bukan impl
+
+    public String login(LoginDTO dto, HttpSession session) {
+        Optional<User> userOpt = authService.login(dto, request.getRemoteAddr());
+        // Tidak peduli bagaimana login diimplementasikan
     }
 }
 ```
 
-### Polymorphism
+**18 Service Interface (Abstraksi):**
 
-**Method variasi** — `DispositionService.java:35-44`
+| Interface | Fungsi |
+|---|---|
+| `AuthService` | Login, verifikasi password, lockout detection |
+| `UserService` | Registrasi, profil, manajemen user |
+| `ReportService` | CRUD laporan, update status, generate tiket |
+| `FieldTaskService` | Assign, mulai, selesaikan tugas lapangan |
+| `DispositionService` | Disposisi laporan ke dinas |
+| `DisputeService` | Sengketa, reassign, tutup sengketa |
+| `NotificationService` | Kirim notifikasi, mark as read |
+| `EmailService` | Kirim email OTP dan notifikasi |
+| `OtpService` | Generate dan verifikasi OTP |
+| `AgencyService` | CRUD dinas/instansi |
+| `AttendanceService` | Check-in/out petugas + GPS |
+| `AuditLogService` | Catat dan riwayat aktivitas |
+| `ConfirmationService` | Konfirmasi/sengketa dari warga |
+| `MergeRecordService` | Merge tiket duplikat |
+| `SlaMonitoringService` | Monitor kepatuhan SLA |
+| `SlaRecordService` | Start/pause/resume SLA |
+| `ValidationDecisionService` | Validasi/tolak/revisi laporan |
+| `SupabaseStorageService` | Upload/hapus foto ke Supabase |
+
+### 4.3 Abstraksi Repository — Spring Data JPA
+
+24 repository interface memanfaatkan abstraksi Spring Data JPA. Cukup dengan extends `JpaRepository<T, ID>`, semua operasi CRUD tersedia tanpa implementasi:
+
 ```java
-public Optional<Disposition> getDispositionById(String id) { ... }        // By primary key
-public Optional<Disposition> getDispositionByReportId(String reportId) { ... }  // By report
-public List<Disposition> getDispositionsByAgency(String agencyId) { ... }       // By agency
-// Method berbeda dengan tujuan berbeda — variasi polymorphic
+public interface ReportRepository extends JpaRepository<Report, String> {
+    // Method query otomatis — Spring Data abstraksi
+    List<Report> findByStatus(Report.ReportStatus status);
+    Optional<Report> findByTicketNumber(String ticketNumber);
+    long countByStatus(Report.ReportStatus status);
+    long countByStatusAndRegion_RegionId(Report.ReportStatus status, String regionId);
+}
 ```
 
-### Abstraction
+Tanpa menulis satu baris implementasi, method seperti `findAll()`, `save()`, `findById()` langsung tersedia.
 
-```java
-// DisposisiApiController.java:20
-@Autowired
-private DispositionService dispositionService;
-// DispositionService adalah class konkret (tanpa interface terpisah)
-// Tapi tetap abstraksi karena method-methodnya menyembunyikan detail:
-// - Bagaimana SLA dibuat bersamaan dengan disposisi
-// - Bagaimana deadline dihitung
+### 4.4 Abstraksi DTO — Memisahkan Input dari Entity
+
+DTO menyediakan layer abstraksi antara form input dan database. Controller menerima data dari user dalam bentuk DTO, bukan Entity:
+
+```
+User Input (form)  →  Controller  →  DTO  →  Service  →  Entity  →  Database
 ```
 
-**Scheduled task menyembunyikan jadwal:**
+Contoh di `WargaController.java`:
 ```java
-// SlaMonitoringService.java:32 — Abstraksi waktu
-@Scheduled(fixedRate = 3600000)  // Setiap 1 jam — DIABSTRAKSI
-public void checkSlaViolations() {
-    // Method ini berjalan otomatis, tidak perlu dipanggil manual
+@PostMapping("/create-report")
+public String createReport(@ModelAttribute CreateReportDTO dto, HttpSession session) {
+    // Controller hanya tahu DTO, bukan struktur Entity Report
+    Report report = reportService.createReport(dto, wargaId);
+    return "redirect:/warga/dashboard";
+}
+```
+
+### 4.5 Abstraksi Konfigurasi — SecurityConfig
+
+`SecurityConfig.java` mengabstraksi aturan keamanan di satu tempat. Controller tidak perlu mengecek izin — framework yang menangani:
+
+```java
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http.authorizeHttpRequests(auth -> auth
+            .requestMatchers("/admin/**").authenticated()
+            .requestMatchers("/petugas/**").authenticated()
+            .requestMatchers("/warga/**").authenticated()
+            .requestMatchers("/", "/index", "/admin/login", "/warga/login").permitAll()
+        );
+        return http.build();
+    }
 }
 ```
 
 ---
 
-## FITUR 6: Merge Ticket
+## Ringkasan
 
-**File utama:** `MergeRecordService.java`, `MergeRecord.java`, `MergeRecordRepository.java`, `WebController.java`
-
-### Inheritance
-
-```java
-// MergeRecord.java:8 — entity berdiri sendiri
-public class MergeRecord { ... }  // TIDAK extends BaseEntity
-```
-**Penjelasan:** MergeRecord punya field `mergedAt` sendiri sehingga tidak perlu inheritance.
-
-### Encapsulation
-
-```java
-// MergeRecordService.java:59-69 — Logika undo dikurung rapat
-public MergeRecord undoMerge(String mergeId) {
-    // Enkapsulasi: operasi kompleks dalam 1 method
-    // 1. Cari record
-    // 2. Soft delete (isActive = false)
-    // 3. Lepas child dari parent
-    // 4. Simpan perubahan
-    // Semua detail ini DIKURUNG, pemanggil hanya lihat: undoMerge(id)
-}
-```
-
-### Polymorphism
-
-**Overriding** — `MergeRecordService.java` (method-method dari JpaRepository):
-```java
-// Runtime: mergeRecordRepository.findAll() memanggil implementasi Spring Data JPA
-// Runtime: mergeRecordRepository.save(record) — implementasi dari SimpleJpaRepository
-```
-
-### Abstraction
-
-```java
-// WebController.java:58
-@Autowired
-private MergeRecordService mergeRecordService;
-// WebController tidak tahu bahwa MergeRecordService:
-// - Mengakses 3 repository berbeda (MergeRecord, Report, User)
-// - Melakukan soft delete (isActive = false)
-// - Mengupdate childReport.parentReport
-```
-
----
-
-## FITUR 7: Notifikasi
-
-**File utama:** `Notification.java`, `NotificationService.java` / `NotificationServiceImpl.java`
-
-### Inheritance
-
-```java
-// Notification.java:12 — extends BaseEntity
-public class Notification extends BaseEntity {
-    // createdAt otomatis mencatat kapan notifikasi dikirim
-}
-```
-
-### Encapsulation
-
-```java
-// Notification.java:14-55 — 9 field PRIVATE
-private String messageText;     // PRIVATE
-private Boolean isRead = false; // PRIVATE
-// isRead tidak bisa diubah langsung dari luar
-// Harus via markAsRead() yang juga mengupdate di database
-```
-
-### Polymorphism
-
-**Overloading** — `NotificationService.java:18-20`
-```java
-public interface NotificationService {
-    List<Notification> getNotificationsByUser(String userId);               // Semua notif
-    List<Notification> getUnreadNotificationsByUser(String userId);         // Hanya belum dibaca
-    List<Notification> getNotificationsByType(String userId, String type);  // Filter tipe
-}
-```
-
-**Default method (Java 8+)** — `NotificationService.java:43-48`
-```java
-default Notification createNotification(String userId, String message,
-                                         Notification.NotificationType type) {
-    return createNotification(userId,
-            type != null ? type.name() : "NOTIFIKASI",
-            message, "SYSTEM", null);
-    // Default method: overloading untuk backward compatibility
-    // Bisa dioverride oleh implementasi jika perlu
-}
-```
-
-### Abstraction
-
-```java
-// WebController.java:55
-@Autowired
-private NotificationService notificationService;  // Interface!
-
-// notificationService.createNotification(...)
-// Controller tidak tahu bagaimana notifikasi disimpan
-// Tidak tahu database apa yang digunakan
-```
-
----
-
-## RINGKASAN PETA FITUR → PILAR PBO
-
-| Fitur | Inheritance | Encapsulation | Polymorphism | Abstraction |
-|-------|:-----------:|:-------------:|:------------:|:-----------:|
-| **Registrasi & Login** | `User extends BaseEntity`, `LoginAttempt extends BaseEntity` | Password di-hash, `MAX_ATTEMPTS` private, field `private` | Overloading `login()`/`loginByEmail()`/`loginByPhone()`, `@Override` di `AuthServiceImpl` | Controller pakai `AuthService` interface |
-| **Edit Profile** | `User extends BaseEntity`, `UserProfile extends BaseEntity` | `ProfileDTO` murni private + getter/setter, logika validasi di `updateProfile()` | `@Override UserServiceImpl.updateProfile()` | Controller panggil `userService.updateProfile()` tanpa tahu detail |
-| **Buat Laporan** | `Report extends BaseEntity` | 24 field private di Report, foto/lokasi dikurung | Switch-case 12 `ReportStatus` enum | Controller pakai `ReportService` interface |
-| **Validasi Laporan** | `ReportRevision extends BaseEntity`, `ValidationDecision extends BaseEntity`, `Notification extends BaseEntity` | Method `private createRevision()` | Overloading `updateStatus()` 4 vs 5 parameter | Validasi + notifikasi + revisi dalam 1 panggil `updateStatus()` |
-| **Disposisi + SLA** | (Entity berdiri sendiri — contoh Inheritance tidak selalu dipakai) | Deadline SLA dihitung internal di `createDisposition()` | Method variasi `getDisposisiBy...()` | `@Scheduled` abstraksi waktu |
-| **Merge Ticket** | (Entity berdiri sendiri) | Logika undo merge (soft delete + unlink) dikurung di `undoMerge()` | Polymorphism via JpaRepository bawaan | `MergeRecordService` abstraksi 3 repository |
-| **Notifikasi** | `Notification extends BaseEntity` | `isRead` private, harus via `markAsRead()` | Overloading `getNotificationsBy...()`, default method | Controller pakai `NotificationService` interface |
-
----
-
-## CONTOH SPESIFIK: **Edit Profile** — Pilar Apa Saja?
-
-```
-EDIT PROFILE → menggunakan 4 PILAR sekaligus:
-
-1. INHERITANCE   → User extends BaseEntity + UserProfile extends BaseEntity
-                    (data profil memiliki timestamp otomatis)
-
-2. ENCAPSULATION → ProfileDTO: semua field private
-                    UserServiceImpl.updateProfile(): validasi duplikat email/NIK
-                    dikurung dalam 1 method transaksional
-
-3. POLYMORPHISM  → @Override public User updateProfile(String userId, ProfileDTO dto)
-                    Runtime: Spring jalankan UserServiceImpl punya, bukan class lain
-
-4. ABSTRACTION   → WargaAuthController hanya lihat UserService interface
-                    Tidak tahu ada UserProfile, validasi duplikat, transaksi DB
-```
-
----
-
-## CONTOH SPESIFIK: **Disposisi + SLA** — Pilar Apa Saja?
-
-```
-DISPOSISI + SLA → menggunakan 4 PILAR:
-
-1. INHERITANCE   → TIDAK ada — entity Disposition, SlaRecord, SlaPauseLog, Agency
-                    berdiri sendiri (contoh Inheritance TIDAK WAJIB)
-
-2. ENCAPSULATION → Perhitungan deadline SLA (48 jam default) dikurung di
-                    DispositionService.createDisposition() dan SlaRecordService.createSlaRecord()
-
-3. POLYMORPHISM  → Method variasi getDispositionById / getDispositionByReportId /
-                    getDispositionsByAgency — nama berbeda, logika berbeda
-
-4. ABSTRACTION   → @Scheduled(fixedRate = 3600000): SlaMonitoringService berjalan
-                    otomatis setiap jam tanpa perlu dipanggil controller
-```
-
----
-
-## DIAGRAM HUBUNGAN 4 PILAR DI SELURUH APLIKASI
-
-```
-                    LAPISAN CONTROLLER (Abstraction)
-                    ┌──────────────────────────────────┐
-                    │  Hanya tahu Interface Service     │
-                    │  @Autowired UserService           │
-                    │  @Autowired ReportService         │
-                    └──────────┬───────────────────────┘
-                               │ Method calls via Interface
-                    ┌──────────▼───────────────────────┐
-                    │  LAPISAN SERVICE (Polymorphism)   │
-                    │  UserServiceImpl implements UserService  │
-                    │  @Override semua method          │
-                    │  ReportServiceImpl implements ReportService │
-                    └──────────┬───────────────────────┘
-                               │ Mengakses Entity & Repository
-              ┌────────────────┼────────────────────┐
-              │                │                    │
-    ┌─────────▼────────┐  ┌───▼────────┐   ┌───────▼───────┐
-    │ LAPISAN ENTITY   │  │ ENKAPSULASI │   │ ENKAPSULASI   │
-    │ (Inheritance)    │  │   Data      │   │   Logic       │
-    │                  │  │             │   │               │
-    │ BaseEntity       │  │ private     │   │ private       │
-    │  ├─ User         │  │ fields      │   │ helper methods│
-    │  ├─ Report       │  │ + getters   │   │ generateOtp() │
-    │  └─ ...          │  │ + setters   │   │ createRev()   │
-    └──────────────────┘  └─────────────┘   └──────────────┘
-```
+| Pilar | Implementasi |
+|---|---|
+| **Enkapsulasi** | 26 Entity + 16 DTO: semua field private, akses via getter/setter; Package-private setter + Factory; Logika bisnis (BCrypt, lockout) di Service |
+| **Inheritance** | `BaseEntity` → 26 Entity; 18 Interface → 18 `Impl`; 24 Repository → `JpaRepository` |
+| **Polimorfisme** | Run-time: `@Override` di 18 Impl; Compile-time: overloading `loginByEmail/Phone()`, `updateStatus()`; Default method + Factory |
+| **Abstraksi** | `BaseEntity` (abstract); 18 Service Interface (kontrak); Spring Data JPA (query otomatis); DTO Layer (pisahkan input) |
