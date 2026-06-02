@@ -64,7 +64,7 @@ public class AttendanceServiceImpl implements AttendanceService {
                                                   String deviceInfo,
                                                   double maxRadiusKm,
                                                   double centerLat, double centerLon) {
-        // FR-PTG-08: Validasi GPS dalam radius wilayah kerja (backend enforcement)
+        // Validasi GPS dalam radius wilayah kerja (backend enforcement)
         if (latitude != null && longitude != null) {
             double distKm = GeoUtils.haversineKm(latitude, longitude,
                     new java.math.BigDecimal(centerLat),
