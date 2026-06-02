@@ -187,9 +187,7 @@ public class FieldTaskServiceImpl implements FieldTaskService {
                 double distKm = GeoUtils.haversineKm(latitude, longitude,
                         report.getLatitude(), report.getLongitude());
                         
-                boolean isDummyAccount = task.getOfficer() != null && 
-                    (task.getOfficer().getEmail().equalsIgnoreCase("ahmad.fauzi@aduaja.go.id") || 
-                     task.getOfficer().getEmail().equalsIgnoreCase("rizal.harahap@aduaja.go.id"));
+                boolean isDummyAccount = task.getOfficer() != null && task.getOfficer().getEmail().endsWith("@aduaja.go.id");
                      
                 if (distKm > 10.0 && !isDummyAccount) {
                     throw new IllegalStateException(
