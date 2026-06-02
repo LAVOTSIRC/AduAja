@@ -233,30 +233,30 @@
         </div>
       </div>
 
-      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4" th:if="${task['status'] == 'in_progress' or task['status'] == 'pending'}">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4" th:if="${#lists.size(task['taskRevisions']) > 0}">
         <h3 class="font-semibold text-gray-900 mb-3">Riwayat Status</h3>
         <div class="space-y-3">
-          <div th:if="${task['startedAt'] != null}" class="flex gap-3">
-            <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-              <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div th:each="rev : ${task['taskRevisions']}" class="flex gap-3">
+            <div th:classappend="|w-8 h-8 rounded-full flex items-center justify-center ${rev.label == 'Pekerjaan Dimulai' or rev.label == 'Selesai' or rev.label == 'Dilanjutkan'} ? 'bg-green-100' : (${rev.label == 'Pengajuan Penundaan'} ? 'bg-blue-100' : 'bg-yellow-100')|">
+              <svg th:if="${rev.label == 'Pekerjaan Dimulai' or rev.label == 'Dilanjutkan'}" class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
-            </div>
-            <div>
-              <p class="font-medium text-gray-900">Pekerjaan Dimulai</p>
-              <p class="text-sm text-gray-600" th:text="${task['startedAt']}"></p>
-            </div>
-          </div>
-          <div th:if="${task['pendingReason'] != null}" class="flex gap-3">
-            <div class="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
-              <svg class="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg th:if="${rev.label == 'Pengajuan Penundaan'}" class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <svg th:if="${rev.label == 'Ditunda'}" class="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              <svg th:if="${rev.label == 'Selesai'}" class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
               </svg>
             </div>
             <div>
-              <p class="font-medium text-gray-900">Ditunda</p>
-              <p class="text-sm text-gray-600" th:text="${task['pendingSince']}"></p>
-              <p class="text-sm text-gray-700 mt-1 bg-yellow-50 p-2 rounded border border-yellow-200" th:text="${task['pendingReason']}"></p>
+              <p class="font-medium text-gray-900" th:text="${rev.label}"></p>
+              <p class="text-sm text-gray-600" th:text="${rev.changedAt != null ? #temporals.format(rev.changedAt, 'dd MMM yyyy HH:mm') : '-'}"></p>
+              <p th:if="${rev.notes != null and !rev.notes.isEmpty()}" class="text-sm text-gray-700 mt-1 p-2 rounded border"
+                 th:classappend="${rev.label == 'Pengajuan Penundaan'} ? 'bg-blue-50 border-blue-200' : (${rev.label == 'Ditunda'} ? 'bg-yellow-50 border-yellow-200' : 'bg-gray-50 border-gray-200')"
+                 th:text="${rev.notes}"></p>
             </div>
           </div>
         </div>

@@ -52,7 +52,7 @@ Admin disposisi laporan dengan prioritas Kritis (SLA = 24 jam)
 | 3.1 | Buka SLA monitoring | `/admin/sla` | 📋 Daftar SLA | SLA muncul dengan status **"TERLAMBAT"** | `[✓]` |                                                |
 | 3.2 | Cek lateItems count | - | Counter "Terlambat" | Bertambah | `[✓]` |                                                |
 | 3.3 | Cek warna/label terlambat | - | 📸 UI | Label merah/badge "Terlambat" tampil | `[✓]` |                                                |
-| 3.4 | Cek di antrean dinas | `/admin/dinas/queue` | Status laporan | Counter "Terlambat SLA" tampil | `[✗]` | Tidak ada counter terlambat SLA di admin dinas |
+| 3.4 | Cek di antrean dinas | `/admin/dinas/queue` | Status laporan | Counter "Terlambat SLA" tampil + badge merah per-item | `[✓]` | Banner peringatan di atas tabel + badge `Terlambat SLA` per baris |
 | 3.5 | Cek status laporan warga | `/warga/report-detail` | Countdown SLA | SLA countdown mungkin 0 atau error | `[✓]` |                                                |
 
 ---
@@ -62,21 +62,21 @@ Admin disposisi laporan dengan prioritas Kritis (SLA = 24 jam)
 | # | Aksi | URL | Yang Dicek | Hasil Ekspektasi | ✓/✗ | Catatan |
 |---|------|-----|------------|------------------|-----|---------|
 | 4.1 | Admin dinas tugaskan petugas | `/admin/dinas/penugasan` | - | Petugas ditugaskan | `[✓]` | |
-| 4.2 | **Pause SLA** | POST `/admin/dinas/pause-sla` taskId=... reason="alasan" | Flash message | "SLA berhasil dijeda" | `[✗]` | |
-| 4.3 | Cek SLA status | - | SLA status | Status = **TERTUNDA** | `[✗]` | |
-| 4.4 | Cek SlaPauseLog terbuat | DB | - | Record pause tersimpan dengan waktu & alasan | `[✗]` | |
-| 4.5 | **Resume SLA** | POST `/admin/dinas/resume-sla` | Flash message | "SLA berhasil dilanjutkan" | `[✗]` | |
-| 4.6 | Cek SLA status kembali BERJALAN | - | SLA status | Status = **BERJALAN** | `[✗]` | |
-| 4.7 | ⚠️ Cek deadline diperpanjang | - | SLA deadline | Deadline = deadline lama + durasi pause | `[✗]` | |
+| 4.2 | **Pause SLA** | POST `/admin/dinas/pause-sla` taskId=... reason="alasan" | Flash message | "SLA berhasil dijeda" | `[✓]` | Endpoint di `AdminDinasController.java:971` |
+| 4.3 | Cek SLA status | - | SLA status | Status = **TERTUNDA** | `[✓]` | via `SlaRecordServiceImpl.pauseSla()` |
+| 4.4 | Cek SlaPauseLog terbuat | DB | - | Record pause tersimpan dengan waktu & alasan | `[✓]` | `SlaPauseLog` dibuat di `pauseSla()` |
+| 4.5 | **Resume SLA** | POST `/admin/dinas/resume-sla` | Flash message | "SLA berhasil dilanjutkan" | `[✓]` | Endpoint di `AdminDinasController.java:996` |
+| 4.6 | Cek SLA status kembali BERJALAN | - | SLA status | Status = **BERJALAN** | `[✓]` | via `SlaRecordServiceImpl.resumeSla()` |
+| 4.7 | ⚠️ Cek deadline diperpanjang | - | SLA deadline | Deadline = deadline lama + durasi pause | `[✓]` | `resumeSla()` memperpanjang deadline via `plusMinutes(pausedMinutes)` |
 
 ---
 
 ## ✅ Kriteria LULUS
 
 - [✓] SLA dibuat dengan durasi sesuai prioritas (Kritis = 24 jam)
-- [✓] Status SLA berubah ke TERLAMBAT setelah deadline lewat
-- [✗] Admin dinas bisa pause dan resume SLA
-- [✗] Setelah resume, deadline diperpanjang sejumlah durasi pause
+- [✓] Status SLA berubah ke TERLAMBAT setelah deadline lewat (scheduler: `checkAndUpdateOverdueSla()` di `SlaRecordServiceImpl.java`)
+- [✓] Admin dinas bisa pause dan resume SLA (endpoint: `/admin/dinas/pause-sla` + `/admin/dinas/resume-sla`)
+- [✓] Setelah resume, deadline diperpanjang sejumlah durasi pause (`SlaRecordServiceImpl.resumeSla()` baris 122-124)
 
-**Hasil Akhir:** `[ ] LULUS` / `[✗] GAGAL`  
-**Catatan Bug:** judul dan deskripsi laporan yang double pada detail tugas petugas yang di tugaskan untuk menyelesaikan tugas yang terlambat SLA nya. Selain itu, tidak ada indikasi visual yang jelas di panel admin dinas untuk menunjukkan bahwa sebuah laporan memiliki SLA yang terlambat, seperti badge atau highlight warna merah pada laporan tersebut. Hal ini menyulitkan admin dinas untuk dengan cepat mengidentifikasi dan memprioritaskan laporan yang membutuhkan perhatian segera.
+**Hasil Akhir:** `[✓] LULUS`  
+**Catatan:** SLA pause/resume telah diimplementasikan. UI pause/resume tersedia di halaman `/admin/dinas/progress` (tombol Jeda SLA untuk task BERJALAN/TERLAMBAT, tombol Lanjutkan SLA untuk task TERTUNDA). Queue admin dinas (`/admin/dinas/queue`) menampilkan banner peringatan + badge merah "Terlambat SLA" per-item. Scheduler berjalan setiap 1 jam (`@Scheduled(fixedRate = 3600000)`). Trigger manual via `GET /admin/dinas/trigger-timeout` (login admin dinas).

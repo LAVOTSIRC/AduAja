@@ -4,7 +4,9 @@ import lombok.extern.slf4j.Slf4j;
 import com.plr.aduaja.dto.CreatePetugasDTO;
 import com.plr.aduaja.model.*;
 import com.plr.aduaja.repository.RegionRepository;
+import com.plr.aduaja.repository.SlaRecordRepository;
 import com.plr.aduaja.repository.TaskEvidenceRepository;
+import com.plr.aduaja.repository.TaskPostponementRepository;
 import com.plr.aduaja.repository.UserProfileRepository;
 import com.plr.aduaja.repository.UserRepository;
 import com.plr.aduaja.service.*;
@@ -66,6 +68,15 @@ public class AdminDinasController {
     @Autowired
     private RegionRepository regionRepository;
 
+    @Autowired
+    private SlaRecordRepository slaRecordRepository;
+
+    @Autowired
+    private TaskPostponementRepository taskPostponementRepository;
+
+    @Autowired
+    private ConfirmationService confirmationService;
+
     @GetMapping("/admin/dinas/dashboard")
     public String adminDinasDashboard(Model model, HttpSession session) {
         // SESSION CHECK — semua halaman admin harus login
@@ -118,7 +129,15 @@ public class AdminDinasController {
                     m.put("judul", d.getReport().getTicketNumber() != null ? d.getReport().getTicketNumber() : "Laporan");
                     m.put("kategori", d.getReport().getCategory() != null ? d.getReport().getCategory().getCategoryName() : "Lainnya");
                     m.put("prioritas", d.getPriority() != null ? d.getPriority() : "Sedang");
-                    m.put("slaStatus", "-");
+                    // SCN-09: Ambil SLA status real dari SlaRecord
+                    String slaStatus = "-";
+                    try {
+                        SlaRecord slaRec = slaRecordRepository.findByReportReportId(d.getReport().getReportId()).orElse(null);
+                        if (slaRec != null && slaRec.getCurrentStatus() != null) {
+                            slaStatus = slaRec.getCurrentStatus() == SlaRecord.SlaStatus.TERLAMBAT ? "Terlambat" : slaRec.getCurrentStatus().name();
+                        }
+                    } catch (Exception ignored) {}
+                    m.put("slaStatus", slaStatus);
                     pendingAssignments.add(m);
                 }
             }
@@ -127,6 +146,11 @@ public class AdminDinasController {
 
         List<Map<String, Object>> petugasList = buildPetugasList(agencyId);
         model.addAttribute("availablePetugas", petugasList.isEmpty() ? new ArrayList<>() : petugasList);
+
+        // Badge: jumlah penundaan menunggu persetujuan (untuk notifikasi di nav)
+        long pendingPostponementCount = taskPostponementRepository
+                .findByApprovalStatus(TaskPostponement.ApprovalStatus.MENUNGGU).size();
+        model.addAttribute("pendingPostponementCount", pendingPostponementCount);
 
         return "admin/dinas/dinas-dashboard";
     }
@@ -199,15 +223,27 @@ public class AdminDinasController {
                 m.put("pelapor", d.getReport() != null && d.getReport().getReporter() != null ? d.getReport().getReporter().getFullName() : "-");
                 m.put("wilayah", d.getReport() != null && d.getReport().getLocationHint() != null ? d.getReport().getLocationHint() : "-");
                 m.put("tanggalDisposisi", d.getDispatchedAt() != null ? d.getDispatchedAt().format(ControllerHelper.DATE_FMT) : "-");
-                m.put("status", "Belum Ditindaklanjuti");
                 m.put("prioritas", d.getPriority() != null ? d.getPriority() : "Sedang");
                 m.put("deadline", d.getDeadline() != null ? d.getDeadline().format(ControllerHelper.DATETIME_FMT) : "-");
                 m.put("sisaWaktu", d.getDeadline() != null ? hitungSisaWaktu(d.getDeadline()) : "-");
+                // SCN-09: Cek SLA record untuk set status yang benar
+                boolean slaLate = false;
+                try {
+                    if (d.getReport() != null) {
+                        SlaRecord slaRec = slaRecordRepository.findByReportReportId(d.getReport().getReportId()).orElse(null);
+                        if (slaRec != null && slaRec.getCurrentStatus() == SlaRecord.SlaStatus.TERLAMBAT) {
+                            slaLate = true;
+                        }
+                    }
+                } catch (Exception ignored) {}
+                m.put("slaLate", slaLate);
+                m.put("status", slaLate ? "Terlambat SLA" : "Belum Ditindaklanjuti");
                 laporanDinas.add(m);
             }
         }
 
-        long terlambatCount = laporanDinas.stream().filter(r -> "Terlambat SLA".equals(r.get("status"))).count();
+        // SCN-09 FIX: count laporan dengan SLA terlambat (berdasarkan flag slaLate, bukan string status hardcoded)
+        long terlambatCount = laporanDinas.stream().filter(r -> Boolean.TRUE.equals(r.get("slaLate"))).count();
         int pageSize = 10;
         int totalCount = laporanDinas.size();
         int totalPages = (int) Math.ceil((double) totalCount / pageSize);
@@ -336,20 +372,28 @@ public class AdminDinasController {
         if (ControllerHelper.requireAnyAdminSession(session) == null) return "redirect:/admin/login";
 
         List<Map<String, Object>> ticketsInProgress = new ArrayList<>();
-        List<FieldTask> realTasks = fieldTaskService.getTasksByStatus(FieldTask.TaskStatus.SEDANG_DIKERJAKAN);
-        if (!realTasks.isEmpty()) {
-            for (FieldTask t : realTasks) {
+
+        // SCN-09/10 FIX: Tampilkan SEDANG_DIKERJAKAN *dan* TERTUNDA agar admin bisa manage SLA
+        List<FieldTask> realTasks = new ArrayList<>();
+        realTasks.addAll(fieldTaskService.getTasksByStatus(FieldTask.TaskStatus.SEDANG_DIKERJAKAN));
+        realTasks.addAll(fieldTaskService.getTasksByStatus(FieldTask.TaskStatus.TERTUNDA));
+
+        for (FieldTask t : realTasks) {
+            try {
                 Map<String, Object> m = new HashMap<>();
                 m.put("id", t.getTaskId());
                 m.put("judul", t.getReport() != null ? (t.getReport().getTicketNumber() != null ? t.getReport().getTicketNumber() : "Laporan") : "Tugas");
                 m.put("kategori", t.getReport() != null && t.getReport().getCategory() != null ? t.getReport().getCategory().getCategoryName() : "Lainnya");
                 String prioritas = "Sedang";
-                Optional<Disposition> disp = dispositionService.getDispositionByReportId(t.getReport().getReportId());
-                if (disp.isPresent() && disp.get().getPriority() != null) {
-                    prioritas = disp.get().getPriority();
+                if (t.getReport() != null) {
+                    Optional<Disposition> disp = dispositionService.getDispositionByReportId(t.getReport().getReportId());
+                    if (disp.isPresent() && disp.get().getPriority() != null) {
+                        prioritas = disp.get().getPriority();
+                    }
                 }
                 m.put("prioritas", prioritas);
                 m.put("pelapor", t.getReport() != null && t.getReport().getReporter() != null ? t.getReport().getReporter().getFullName() : "-");
+                m.put("officerName", t.getOfficer() != null ? t.getOfficer().getFullName() : "-");
                 String deadlineStr = "-";
                 String slaStatus = "-";
                 String slaId = null;
@@ -365,8 +409,17 @@ public class AdminDinasController {
                 m.put("slaStatus", slaStatus);
                 m.put("slaId", slaId != null ? slaId : "");
                 m.put("foto", dummyReportImage());
+                // statusTask: status tugas sebenarnya (SEDANG_DIKERJAKAN atau TERTUNDA)
                 m.put("statusTask", t.getTaskStatus() != null ? t.getTaskStatus().name() : "BARU");
                 m.put("statusLabel", t.getTaskStatus() == FieldTask.TaskStatus.TERTUNDA ? "Tertunda" : "Dalam Penanganan");
+                // postponementReason: ambil alasan dari postponement terakhir (MENUNGGU / DISETUJUI)
+                String postponementReason = null;
+                List<TaskPostponement> postponements = taskPostponementRepository.findByTaskTaskIdOrderByRequestedAtDesc(t.getTaskId());
+                if (!postponements.isEmpty()) {
+                    TaskPostponement latest = postponements.get(0);
+                    postponementReason = latest.getReason();
+                }
+                m.put("postponementReason", postponementReason);
                 List<Map<String, Object>> ph = new ArrayList<>();
                 if (t.getStartedAt() != null) {
                     ph.add(Map.of("tanggal", t.getStartedAt().format(ControllerHelper.DATE_FMT), "petugas",
@@ -375,12 +428,16 @@ public class AdminDinasController {
                 }
                 m.put("progressHistory", ph);
                 ticketsInProgress.add(m);
+            } catch (Exception ex) {
+                log.warn("Gagal mapping task {} ke map: {}", t.getTaskId(), ex.getMessage());
             }
         }
         model.addAttribute("ticketsInProgress", ticketsInProgress);
 
+
+        // SCN-09 FIX: Hapus auto-select fallback — hanya pilih jika ada parameter id yang valid
         Map<String, Object> selected = null;
-        if (id != null) {
+        if (id != null && !id.trim().isEmpty()) {
             String targetId = id.trim();
             for (Map<String, Object> t : ticketsInProgress) {
                 Object tid = t.get("id");
@@ -389,11 +446,14 @@ public class AdminDinasController {
                     break;
                 }
             }
-            if (selected == null && !ticketsInProgress.isEmpty()) selected = ticketsInProgress.get(0);
-        } else if (!ticketsInProgress.isEmpty()) {
-            selected = ticketsInProgress.get(0);
         }
         model.addAttribute("selectedTicket", selected);
+
+        // SCN-10: Tambah daftar penundaan yang menunggu persetujuan ke model
+        List<TaskPostponement> pendingPostponements = taskPostponementRepository
+                .findByApprovalStatus(TaskPostponement.ApprovalStatus.MENUNGGU);
+        model.addAttribute("pendingPostponements", pendingPostponements);
+
         return "admin/dinas/progress-update";
     }
 
@@ -836,6 +896,90 @@ public class AdminDinasController {
     }
 
     // ==========================================
+    // SCN-08: Trigger timeout secara manual (untuk kebutuhan testing)
+    // ==========================================
+
+    @GetMapping("/admin/dinas/trigger-timeout")
+    public String adminDinasTriggerTimeout(
+            HttpSession session,
+            RedirectAttributes redirectAttributes
+    ) {
+        String adminId = ControllerHelper.requireAnyAdminSession(session);
+        if (adminId == null) return "redirect:/admin/login";
+        try {
+            confirmationService.processTimeouts();
+            redirectAttributes.addFlashAttribute("success", "Proses timeout konfirmasi berhasil dijalankan.");
+        } catch (Exception e) {
+            log.error("Gagal trigger timeout: {}", e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("error", "Gagal trigger timeout: " + e.getMessage());
+        }
+        return "redirect:/admin/dinas/dashboard";
+    }
+
+    // ==========================================
+    // SCN-10: Approve / Reject penundaan tugas
+    // ==========================================
+
+    @PostMapping("/admin/dinas/approve-postponement")
+    public String adminDinasApprovePostponement(
+            @RequestParam("postponementId") String postponementId,
+            @RequestParam(value = "action", defaultValue = "approve") String action,
+            HttpSession session,
+            RedirectAttributes redirectAttributes
+    ) {
+        String adminId = ControllerHelper.requireAnyAdminSession(session);
+        if (adminId == null) return "redirect:/admin/login";
+
+        try {
+            TaskPostponement postponement = taskPostponementRepository.findById(postponementId)
+                    .orElseThrow(() -> new RuntimeException("Permintaan penundaan tidak ditemukan"));
+            User adminUser = userRepository.findById(adminId)
+                    .orElseThrow(() -> new RuntimeException("Admin tidak ditemukan"));
+
+            if ("approve".equals(action)) {
+                // 1. Setujui penundaan
+                postponement.setApprovalStatus(TaskPostponement.ApprovalStatus.DISETUJUI);
+                postponement.setApprovedBy(adminUser);
+                taskPostponementRepository.save(postponement);
+
+                // 2. Ubah status tugas menjadi TERTUNDA (tanpa duplikasi TaskPostponement)
+                FieldTask task = postponement.getTask();
+                fieldTaskService.setTaskAsTertunda(task.getTaskId());
+
+                // 3. Pause SLA jika ada
+                FieldTask freshTask = fieldTaskService.getTaskById(task.getTaskId()).orElse(task);
+                if (freshTask.getSlaRecord() != null) {
+                    try {
+                        slaRecordService.pauseSla(
+                                freshTask.getSlaRecord().getSlaId(),
+                                "Penundaan disetujui: " + postponement.getReason(),
+                                adminId);
+                    } catch (Exception slaEx) {
+                        log.warn("Gagal pause SLA saat approve postponement: {}", slaEx.getMessage());
+                    }
+                }
+                // 4. Update report status ke TERTUNDA
+                Report report = task.getReport();
+                if (report != null) {
+                    reportService.updateStatus(report.getReportId(), Report.ReportStatus.TERTUNDA,
+                        "Penundaan disetujui: " + postponement.getReason(), adminId);
+                }
+                redirectAttributes.addFlashAttribute("success", "Penundaan disetujui. SLA dijeda.");
+            } else {
+                // Tolak — status tugas tidak berubah
+                postponement.setApprovalStatus(TaskPostponement.ApprovalStatus.DITOLAK);
+                postponement.setApprovedBy(adminUser);
+                taskPostponementRepository.save(postponement);
+                redirectAttributes.addFlashAttribute("success", "Penundaan ditolak. Tugas tetap berjalan.");
+            }
+        } catch (Exception e) {
+            log.error("Gagal proses penundaan {}: {}", postponementId, e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("error", "Gagal memproses penundaan: " + e.getMessage());
+        }
+        return "redirect:/admin/dinas/progress";
+    }
+
+    // ==========================================
     // ADMIN DINAS — PAUSE / RESUME SLA (FR-JDA)
     // ==========================================
 
@@ -855,10 +999,13 @@ public class AdminDinasController {
             if (task.getSlaRecord() != null) {
                 slaRecordService.pauseSla(task.getSlaRecord().getSlaId(), reason, adminId);
             }
-            task.setTaskStatus(FieldTask.TaskStatus.TERTUNDA);
-            // FIX SCN-09 (4.2): Gunakan postponeTask() untuk benar-benar menyimpan status TERTUNDA ke DB
-            // Sebelumnya getTaskById() tidak melakukan save, sehingga status tidak berubah
-            fieldTaskService.postponeTask(taskId, reason != null ? reason : "Dijeda oleh admin", adminId);
+            fieldTaskService.setTaskAsTertunda(taskId);
+            // Update report status ke TERTUNDA
+            Report report = task.getReport();
+            if (report != null) {
+                reportService.updateStatus(report.getReportId(), Report.ReportStatus.TERTUNDA,
+                    "SLA dijeda: " + (reason != null ? reason : "Jeda oleh admin dinas"), adminId);
+            }
             redirectAttributes.addFlashAttribute("success", "SLA berhasil dijeda");
         } catch (Exception e) {
             log.error("Gagal pause SLA: {}", e.getMessage(), e);
@@ -882,8 +1029,13 @@ public class AdminDinasController {
             if (task.getSlaRecord() != null) {
                 slaRecordService.resumeSla(task.getSlaRecord().getSlaId());
             }
-            task.setTaskStatus(FieldTask.TaskStatus.SEDANG_DIKERJAKAN);
-            fieldTaskService.startTask(taskId, null, null);
+            fieldTaskService.resumeTask(taskId);
+            // Update report status kembali ke SEDANG_BERJALAN
+            Report report = task.getReport();
+            if (report != null) {
+                reportService.updateStatus(report.getReportId(), Report.ReportStatus.SEDANG_BERJALAN,
+                    "SLA dilanjutkan, tugas kembali dikerjakan", adminId);
+            }
             redirectAttributes.addFlashAttribute("success", "SLA berhasil dilanjutkan");
         } catch (Exception e) {
             log.error("Gagal resume SLA: {}", e.getMessage(), e);

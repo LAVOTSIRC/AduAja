@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import com.plr.aduaja.dto.CreateReportDTO;
 import com.plr.aduaja.dto.DisputeDTO;
 import com.plr.aduaja.model.ConfirmationRequest;
+import com.plr.aduaja.model.FieldTask;
 import com.plr.aduaja.model.Report;
 import com.plr.aduaja.model.Report.ReportStatus;
 import com.plr.aduaja.model.ReportCategory;
@@ -19,6 +20,8 @@ import com.plr.aduaja.service.DisputeService;
 import com.plr.aduaja.service.NotificationService;
 import com.plr.aduaja.service.ReportService;
 import com.plr.aduaja.service.SlaRecordService;
+import com.plr.aduaja.service.SlaMonitoringService;
+import com.plr.aduaja.service.FieldTaskService;
 import com.plr.aduaja.service.SupabaseStorageService;
 import com.plr.aduaja.service.UserService;
 import jakarta.servlet.http.HttpSession;
@@ -63,6 +66,12 @@ public class WargaController {
 
     @Autowired
     private SlaRecordService slaRecordService;
+
+    @Autowired
+    private SlaMonitoringService slaMonitoringService;
+
+    @Autowired
+    private FieldTaskService fieldTaskService;
 
     @Autowired
     private SupabaseStorageService supabaseStorageService;
@@ -138,6 +147,8 @@ public class WargaController {
             String colorClass = switch (r.getStatus()) {
                 case MENUNGGU_VERIFIKASI -> "bg-gray-100 text-gray-700";
                 case DITERIMA, DITUGASKAN, SEDANG_BERJALAN -> "bg-yellow-100 text-yellow-700";
+                case TERTUNDA -> "bg-yellow-100 text-yellow-700";
+                case TERLAMBAT -> "bg-red-100 text-red-700";
                 case SELESAI, SELESAI_OTOMATIS -> "bg-green-100 text-green-700";
                 case DITOLAK -> "bg-red-100 text-red-700";
                 default -> "bg-gray-100 text-gray-700";
@@ -256,6 +267,8 @@ public class WargaController {
                 case MENUNGGU_REVISI -> "bg-amber-100 text-amber-700";
                 case DITERIMA -> "bg-blue-100 text-blue-700";
                 case DITUGASKAN, SEDANG_BERJALAN -> "bg-yellow-100 text-yellow-700";
+                case TERTUNDA -> "bg-yellow-100 text-yellow-700";
+                case TERLAMBAT -> "bg-red-100 text-red-700";
                 case SELESAI, SELESAI_OTOMATIS -> "bg-green-100 text-green-700";
                 case DITOLAK -> "bg-red-100 text-red-700";
                 case SENGKETA -> "bg-orange-100 text-orange-700";
@@ -391,6 +404,31 @@ public class WargaController {
         reportMap.put("slaDeadline", slaDeadlineStr != null ? slaDeadlineStr : "-");
         reportMap.put("slaDeadlineIso", slaDeadlineIso); // null jika belum ada SLA
 
+        Map<String, Object> slaInfo = null;
+        try {
+            slaInfo = slaMonitoringService.getReportSlaStatus(report.getReportId());
+        } catch (Exception ex) {
+            log.warn("Gagal ambil SLA status untuk report {}: {}", id, ex.getMessage());
+        }
+        model.addAttribute("slaStatus", slaInfo != null ? slaInfo.get("status") : null);
+        model.addAttribute("slaDeadline", slaInfo != null ? slaInfo.get("deadline") : null);
+        model.addAttribute("slaPausedMinutes", slaInfo != null ? slaInfo.get("pausedMinutes") : null);
+
+        String taskStatus = null;
+        try {
+            List<FieldTask> tasks = fieldTaskService.getTasksByReport(report.getReportId());
+            boolean anyTertunda = tasks.stream()
+                    .anyMatch(t -> t.getTaskStatus() == FieldTask.TaskStatus.TERTUNDA);
+            if (anyTertunda) {
+                taskStatus = "TERTUNDA";
+            } else if (tasks.stream().anyMatch(t -> t.getTaskStatus() == FieldTask.TaskStatus.SEDANG_DIKERJAKAN)) {
+                taskStatus = "SEDANG_DIKERJAKAN";
+            }
+        } catch (Exception ex) {
+            log.warn("Gagal ambil status tugas untuk report {}: {}", id, ex.getMessage());
+        }
+        model.addAttribute("taskStatus", taskStatus);
+
         List<Map<String, Object>> revisionMaps = new ArrayList<>();
         if (report.getRevisions() != null) {
             for (ReportRevision rev : report.getRevisions()) {
@@ -432,6 +470,8 @@ public class WargaController {
             case MENUNGGU_VERIFIKASI -> "bg-gray-100 text-gray-700";
             case MENUNGGU_REVISI -> "bg-amber-100 text-amber-700";
             case DITERIMA, DITUGASKAN, SEDANG_BERJALAN -> "bg-yellow-100 text-yellow-700";
+            case TERTUNDA -> "bg-yellow-100 text-yellow-700";
+            case TERLAMBAT -> "bg-red-100 text-red-700";
             case SELESAI, SELESAI_OTOMATIS -> "bg-green-100 text-green-700";
             case DITOLAK -> "bg-red-100 text-red-700";
             case SENGKETA -> "bg-orange-100 text-orange-700";
@@ -607,6 +647,19 @@ public class WargaController {
     ) {
         String userId = ControllerHelper.requireRole(session, "WARGA");
         if (userId == null) return "redirect:/warga/login";
+        // SCN-08: Blokir pengajuan sengketa jika laporan sudah final (SELESAI atau SELESAI_OTOMATIS)
+        try {
+            Report reportCheck = reportService.findById(reportId).orElse(null);
+            if (reportCheck != null &&
+                    (reportCheck.getStatus() == ReportStatus.SELESAI_OTOMATIS
+                    || reportCheck.getStatus() == ReportStatus.SELESAI)) {
+                redirectAttributes.addFlashAttribute("error",
+                        "Laporan sudah selesai dan tidak dapat disengketakan lagi.");
+                return "redirect:/warga/report-detail?id=" + reportId;
+            }
+        } catch (Exception ex) {
+            log.warn("Gagal cek status laporan saat dispute: {}", ex.getMessage());
+        }
         // Server-side validation
         if (reason == null || reason.trim().length() < 20) {
             redirectAttributes.addFlashAttribute("error", "Alasan sengketa minimal 20 karakter.");

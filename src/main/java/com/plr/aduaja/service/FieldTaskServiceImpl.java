@@ -48,6 +48,9 @@ public class FieldTaskServiceImpl implements FieldTaskService {
     private ReportService reportService;
 
     @Autowired
+    private FieldTaskStatusRevisionRepository fieldTaskStatusRevisionRepository;
+
+    @Autowired
     private MergeRecordService mergeRecordService;
 
     @Autowired
@@ -193,7 +196,11 @@ public class FieldTaskServiceImpl implements FieldTaskService {
         task.setStartedAt(LocalDateTime.now());
         task.setOfficerLatitude(latitude);
         task.setOfficerLongitude(longitude);
-        return fieldTaskRepository.save(task);
+        FieldTask saved = fieldTaskRepository.save(task);
+        addTaskRevision(saved, TaskStatus.BARU.name(), TaskStatus.SEDANG_DIKERJAKAN.name(),
+            "Pekerjaan Dimulai", "Petugas memulai pengerjaan tugas",
+            saved.getOfficer() != null ? saved.getOfficer().getUserId() : "SYSTEM");
+        return saved;
     }
 
     @Override
@@ -208,7 +215,10 @@ public class FieldTaskServiceImpl implements FieldTaskService {
                 .orElseThrow(() -> new RuntimeException("Task not found"));
         task.setTaskStatus(TaskStatus.SELESAI);
         task.setCompletedAt(LocalDateTime.now());
-        fieldTaskRepository.save(task);
+        FieldTask savedTask = fieldTaskRepository.save(task);
+        addTaskRevision(savedTask, TaskStatus.SEDANG_DIKERJAKAN.name(), TaskStatus.SELESAI.name(),
+            "Selesai", "Tugas selesai dikerjakan",
+            savedTask.getOfficer() != null ? savedTask.getOfficer().getUserId() : "SYSTEM");
 
         if (evidencePhotoUrl != null && !evidencePhotoUrl.isBlank()) {
             TaskEvidence evidence = new TaskEvidence();
@@ -298,7 +308,10 @@ public class FieldTaskServiceImpl implements FieldTaskService {
                 .orElseThrow(() -> new RuntimeException("Task not found"));
         User requestedBy = requestedById != null ? userRepository.findById(requestedById).orElse(null) : null;
         task.setTaskStatus(TaskStatus.TERTUNDA);
-        fieldTaskRepository.save(task);
+        FieldTask saved = fieldTaskRepository.save(task);
+        addTaskRevision(saved, TaskStatus.SEDANG_DIKERJAKAN.name(), TaskStatus.TERTUNDA.name(),
+            "Ditunda", reason != null ? reason : "Ditunda oleh admin",
+            requestedById != null ? requestedById : "SYSTEM");
 
         TaskPostponement postponement = new TaskPostponement();
         postponement.setTask(task);
@@ -327,7 +340,43 @@ public class FieldTaskServiceImpl implements FieldTaskService {
         postponement.setRequestedAt(LocalDateTime.now());
         postponement.setEstimatedResumeAt(estimatedResumeAt);
         postponement.setApprovalStatus(TaskPostponement.ApprovalStatus.MENUNGGU);
-        return taskPostponementRepository.save(postponement);
+        TaskPostponement saved = taskPostponementRepository.save(postponement);
+        addTaskRevision(task, task.getTaskStatus().name(), task.getTaskStatus().name(),
+            "Pengajuan Penundaan", "Alasan: " + (reason != null ? reason : "Ditunda oleh petugas"),
+            requestedById != null ? requestedById : "SYSTEM");
+        return saved;
+    }
+
+    @Override
+    public FieldTask resumeTask(String taskId) {
+        FieldTask task = fieldTaskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("Task not found: " + taskId));
+        task.setTaskStatus(TaskStatus.SEDANG_DIKERJAKAN);
+        FieldTask saved = fieldTaskRepository.save(task);
+        addTaskRevision(saved, TaskStatus.TERTUNDA.name(), TaskStatus.SEDANG_DIKERJAKAN.name(),
+            "Dilanjutkan", "Tugas dilanjutkan setelah penundaan", "SYSTEM");
+        return saved;
+    }
+
+    @Override
+    public FieldTask setTaskAsSedangDikerjakan(String taskId) {
+        FieldTask task = fieldTaskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("Task not found: " + taskId));
+        FieldTask saved = fieldTaskRepository.save(task);
+        addTaskRevision(saved, task.getTaskStatus().name(), TaskStatus.SEDANG_DIKERJAKAN.name(),
+            "Dilanjutkan", "Status tugas dikembalikan ke sedang dikerjakan", "SYSTEM");
+        return saved;
+    }
+
+    @Override
+    public FieldTask setTaskAsTertunda(String taskId) {
+        FieldTask task = fieldTaskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("Task not found: " + taskId));
+        task.setTaskStatus(TaskStatus.TERTUNDA);
+        FieldTask saved = fieldTaskRepository.save(task);
+        addTaskRevision(saved, TaskStatus.SEDANG_DIKERJAKAN.name(), TaskStatus.TERTUNDA.name(),
+            "Ditunda", "Tugas ditunda oleh admin", "SYSTEM");
+        return saved;
     }
 
     @Override
@@ -370,6 +419,10 @@ public class FieldTaskServiceImpl implements FieldTaskService {
             log.error("[REASSIGN] VERIFIKASI exception: {}", e.getMessage(), e);
         }
 
+        addTaskRevision(saved, TaskStatus.DITUGASKAN_ULANG.name(), null,
+            "Ditugaskan Ulang", "Tugas ditugaskan ulang ke petugas baru",
+            task.getAssignedBy() != null ? task.getAssignedBy().getUserId() : "SYSTEM");
+
         // Kembalikan status laporan ke DITUGASKAN agar petugas bisa memulai ulang
         log.info("[REASSIGN] Akan update report status ke DITUGASKAN");
         Report report = saved.getReport();
@@ -403,6 +456,28 @@ public class FieldTaskServiceImpl implements FieldTaskService {
     }
 
     @Override
+    public List<FieldTaskStatusRevision> getTaskRevisions(String taskId) {
+        return fieldTaskStatusRevisionRepository.findByTaskTaskIdOrderByChangedAtAsc(taskId);
+    }
+
+    private void addTaskRevision(FieldTask task, String oldStatus, String newStatus,
+                                  String label, String notes, String changedBy) {
+        try {
+            FieldTaskStatusRevision rev = new FieldTaskStatusRevision();
+            rev.setTask(task);
+            rev.setOldStatus(oldStatus);
+            rev.setNewStatus(newStatus);
+            rev.setLabel(label);
+            rev.setNotes(notes);
+            rev.setChangedBy(changedBy != null ? changedBy : "SYSTEM");
+            rev.setChangedAt(LocalDateTime.now());
+            fieldTaskStatusRevisionRepository.save(rev);
+        } catch (Exception e) {
+            log.warn("Gagal catat task revision untuk {}: {}", task.getTaskId(), e.getMessage());
+        }
+    }
+
+    @Override
     public List<TaskEvidence> getEvidencesByTaskAndType(String taskId, TaskEvidence.EvidenceType type) {
         return taskEvidenceRepository.findByTaskTaskIdAndEvidenceType(taskId, type);
     }
@@ -413,7 +488,9 @@ public class FieldTaskServiceImpl implements FieldTaskService {
                 .orElseThrow(() -> new RuntimeException("Task not found"));
         task.setTaskStatus(TaskStatus.SELESAI);
         task.setCompletedAt(LocalDateTime.now());
-        fieldTaskRepository.save(task);
+        FieldTask saved = fieldTaskRepository.save(task);
+        addTaskRevision(saved, null, TaskStatus.SELESAI.name(),
+            "Selesai", "Tugas ditutup oleh admin", "SYSTEM");
 
         Report report = task.getReport();
         if (report != null) {

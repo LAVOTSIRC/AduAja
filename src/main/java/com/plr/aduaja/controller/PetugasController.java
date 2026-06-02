@@ -152,6 +152,7 @@ public class PetugasController {
             @RequestParam(value = "latitude", required = false) java.math.BigDecimal latitude,
             @RequestParam(value = "longitude", required = false) java.math.BigDecimal longitude,
             @RequestParam(value = "estimatedTime", required = false) String estimatedTime,
+            @RequestParam(value = "additionalNotes", required = false) String additionalNotes,
             HttpSession session,
             RedirectAttributes redirectAttributes
     ) {
@@ -176,7 +177,9 @@ public class PetugasController {
                     case "complete" -> fieldTaskService.completeTask(id);
                     case "postpone" -> {
                         // FIX-8: FR-PTG-27 — Ajukan penundaan, TIDAK langsung TERTUNDA
-                        String reason = description != null && !description.isBlank() ? description : "Ditunda oleh petugas";
+                        String catReason = description != null && !description.isBlank() ? description : "Ditunda oleh petugas";
+                        String notes = additionalNotes != null ? additionalNotes.trim() : "";
+                        String reason = notes.isEmpty() ? catReason : catReason + " — " + notes;
                         LocalDateTime estimated = null;
                         if (estimatedTime != null && !estimatedTime.isBlank()) {
                             try { estimated = LocalDateTime.parse(estimatedTime); }
@@ -396,6 +399,10 @@ public class PetugasController {
                     ? lp.getRequestedAt().format(ControllerHelper.DATETIME_FMT) : "-");
                 task.put("postponeStatus", lp.getApprovalStatus() != null ? lp.getApprovalStatus().name() : "MENUNGGU");
             });
+
+            // Riwayat status tugas dari FieldTaskStatusRevision
+            List<FieldTaskStatusRevision> revisions = fieldTaskService.getTaskRevisions(id);
+            task.put("taskRevisions", revisions);
 
             // FIX-1: Gunakan koordinat LAPORAN (lokasi kerusakan) untuk navigasi
             Map<String, Object> locationMap = new HashMap<>();
