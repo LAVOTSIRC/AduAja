@@ -14,24 +14,26 @@
     </th:block>
 
     <div layout:fragment="content" class="min-h-screen bg-gray-50">
-        <header class="bg-white border-b sticky top-0 z-10">
-            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <header class="aduaja-header sticky top-0 z-20 border-b">
+            <div class="px-6 py-5">
                 <div class="flex items-center justify-between">
-                    <div>
-                        <h1 class="text-xl font-bold text-gray-900">
-                            Kelola Petugas
-                        </h1>
-                        <p class="text-sm text-gray-600">
-                            Daftar dan tambah petugas lapangan
-                        </p>
+                    <div class="flex items-center gap-3">
+                        <a
+                            th:href="@{/admin/dinas/dashboard}"
+                            class="aduaja-btn-secondary inline-flex items-center gap-2 text-sm"
+                        >
+                            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                            Kembali ke Dashboard
+                        </a>
+                        <div class="ml-4 pl-4 border-l">
+                            <h1 class="text-2xl font-bold text-gray-900">
+                                Kelola Petugas
+                            </h1>
+                            <p class="text-sm text-gray-600 mt-1">
+                                Daftar dan tambah petugas lapangan
+                            </p>
+                        </div>
                     </div>
-                    <a
-                        th:href="@{/admin/dinas/dashboard}"
-                        class="flex items-center gap-2 border border-gray-300 px-3 py-2 rounded-md text-sm hover:bg-gray-50"
-                    >
-                        <i data-lucide="arrow-left" class="w-4 h-4"></i>
-                        Kembali ke Dashboard
-                    </a>
                 </div>
             </div>
         </header>
