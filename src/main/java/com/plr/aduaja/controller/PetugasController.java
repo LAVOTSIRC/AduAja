@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import com.plr.aduaja.dto.ResetPasswordDTO;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -60,6 +62,12 @@ public class PetugasController {
     private AuditLogRepository auditLogRepository;
 
     @Autowired
+    private OtpService otpService;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
     private SupabaseStorageService supabaseStorageService;
 
     @GetMapping("/petugas/home")
@@ -99,6 +107,93 @@ public class PetugasController {
             return "redirect:/petugas/change-password";
         }
     }
+
+    // ==========================================
+    // GET /petugas/forgot-password
+    // ==========================================
+    @GetMapping("/petugas/forgot-password")
+    public String forgotPasswordPage(Model model) {
+        model.addAttribute("step", "email");
+        return "petugas/forgot-password";
+    }
+
+    // ==========================================
+    // POST /petugas/forgot-password
+    // ==========================================
+    @PostMapping("/petugas/forgot-password")
+    public String forgotPasswordRequest(
+            @RequestParam("email") String email,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Optional<User> userOpt = userService.findByEmail(email.trim());
+            if (userOpt.isEmpty()) {
+                redirectAttributes.addFlashAttribute("success",
+                    "Jika email terdaftar, kode OTP telah dikirim. Masukkan kode OTP di bawah.");
+                return "redirect:/petugas/forgot-password/verify?email=" + email;
+            }
+            otpService.generateOtpForPasswordReset(email.trim());
+            redirectAttributes.addFlashAttribute("success",
+                "Kode OTP telah dikirim. Masukkan kode OTP untuk melanjutkan.");
+            return "redirect:/petugas/forgot-password/verify?email=" + email;
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Gagal mengirim OTP: " + e.getMessage());
+            return "redirect:/petugas/forgot-password";
+        }
+    }
+
+    // ==========================================
+    // GET /petugas/forgot-password/verify
+    // ==========================================
+    @GetMapping("/petugas/forgot-password/verify")
+    public String forgotPasswordVerifyPage(
+            @RequestParam("email") String email,
+            Model model) {
+        model.addAttribute("email", email);
+        model.addAttribute("resetDTO", new ResetPasswordDTO());
+        return "petugas/forgot-password-verify";
+    }
+
+    // ==========================================
+    // POST /petugas/forgot-password/verify
+    // ==========================================
+    @PostMapping("/petugas/forgot-password/verify")
+    public String forgotPasswordVerify(
+            @RequestParam("email") String email,
+            @RequestParam("otpCode") String otpCode,
+            @RequestParam("newPassword") String newPassword,
+            @RequestParam("confirmNewPassword") String confirmNewPassword,
+            RedirectAttributes redirectAttributes) {
+        if (!newPassword.equals(confirmNewPassword)) {
+            redirectAttributes.addFlashAttribute("error", "Password baru dan konfirmasi tidak cocok.");
+            return "redirect:/petugas/forgot-password/verify?email=" + email;
+        }
+        if (newPassword.length() < 8) {
+            redirectAttributes.addFlashAttribute("error", "Password minimal 8 karakter.");
+            return "redirect:/petugas/forgot-password/verify?email=" + email;
+        }
+        try {
+            Optional<User> userOpt = userService.findByEmail(email.trim());
+            if (userOpt.isEmpty()) {
+                redirectAttributes.addFlashAttribute("error", "Email tidak ditemukan.");
+                return "redirect:/petugas/forgot-password";
+            }
+            User user = userOpt.get();
+            boolean valid = otpService.verifyOtp(user.getUserId(), otpCode);
+            if (!valid) {
+                redirectAttributes.addFlashAttribute("error", "Kode OTP tidak valid atau sudah kadaluarsa.");
+                return "redirect:/petugas/forgot-password/verify?email=" + email;
+            }
+            user.setPasswordHash(passwordEncoder.encode(newPassword));
+            userService.updateUser(user);
+            redirectAttributes.addFlashAttribute("success",
+                "Password berhasil direset! Silakan login dengan password baru.");
+            return "redirect:/petugas/login";
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Gagal reset password: " + e.getMessage());
+            return "redirect:/petugas/forgot-password/verify?email=" + email;
+        }
+    }
+
 
     // ==========================================
     // POST /petugas/dashboard — Aksi absensi (check-in/out/break/resume)

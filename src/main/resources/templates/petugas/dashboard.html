@@ -143,7 +143,7 @@
       </div>
     </header>
 
-    <!-- Error Flash Attribute untuk Geofencing Check-In (FR-PTG-08) -->
+    <!-- Error Flash Attribute untuk Geofencing Check-In -->
     <div th:if="${geoError}" class="bg-red-50 border-l-4 border-red-500 p-4 mx-4 sm:mx-auto max-w-7xl mt-4 rounded-md">
       <div class="flex">
         <div class="flex-shrink-0">
@@ -157,7 +157,7 @@
       </div>
     </div>
 
-    <!-- FR-PTG-07: Banner pengingat check-in saat jam kerja -->
+    <!-- Banner pengingat check-in saat jam kerja -->
     <div th:if="${!attendance.checkedIn}" class="bg-orange-50 border-b border-orange-200 px-4 py-3">
       <div class="max-w-7xl mx-auto flex items-center gap-3">
         <svg class="w-5 h-5 text-orange-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -165,20 +165,20 @@
         </svg>
         <div class="flex-1">
           <p class="text-sm font-medium text-orange-800">Pengingat: Anda belum melakukan Check-In hari ini.</p>
-          <p class="text-xs text-orange-700 mt-0.5">Segera check-in agar dapat menerima notifikasi dan penugasan baru (FR-PTG-07).</p>
+          <p class="text-xs text-orange-700 mt-0.5">Segera check-in agar dapat menerima notifikasi dan penugasan baru.</p>
         </div>
         <button type="button" x-on:click="showCheckInModal = true" class="px-3 py-1.5 bg-orange-600 text-white text-xs font-medium rounded hover:bg-orange-700">Check-In Sekarang</button>
       </div>
     </div>
 
-    <!-- FR-PTG-02: Peringatan blokir tugas jika belum check-in -->
+    <!-- Peringatan blokir tugas jika belum check-in -->
     <div th:if="${!attendance.checkedIn}" class="bg-red-50 border border-red-200 rounded-lg mx-4 sm:mx-0 max-w-7xl sm:px-6 lg:px-8 mt-4 p-4">
       <div class="flex items-start gap-3">
         <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
         </svg>
         <div>
-          <p class="text-sm font-semibold text-red-800">Tugas & Notifikasi Diblokir (FR-PTG-02)</p>
+          <p class="text-sm font-semibold text-red-800">Tugas & Notifikasi Diblokir</p>
           <p class="text-sm text-red-700 mt-1">Anda tidak dapat menerima penugasan baru atau notifikasi tugas sebelum melakukan Check-In. Silakan check-in terlebih dahulu.</p>
         </div>
       </div>
@@ -604,7 +604,7 @@
           Konfirmasi Check-In
         </h3>
 
-        <!-- FR-PTG-08: Validasi lokasi GPS check-in -->
+        <!-- Validasi lokasi GPS check-in -->
         <div class="mb-4 p-3 rounded-lg border" :class="gpsStatus === 'valid' ? 'bg-green-50 border-green-200' : gpsStatus === 'detecting' ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'">
           <div class="flex items-center gap-2 mb-2">
             <svg class="w-5 h-5" :class="gpsStatus === 'valid' ? 'text-green-600' : gpsStatus === 'detecting' ? 'text-yellow-600 animate-pulse' : 'text-red-600'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -620,7 +620,7 @@
             </div>
           </template>
           <template x-if="gpsStatus === 'detecting'">
-            <p class="text-xs text-yellow-700">Mohon izinkan akses lokasi pada browser Anda (FR-PTG-08).</p>
+            <p class="text-xs text-yellow-700">Mohon izinkan akses lokasi pada browser Anda.</p>
           </template>
           <template x-if="gpsStatus === 'unavailable' || gpsStatus === 'unsupported'">
             <div>
@@ -653,7 +653,7 @@
         </div>
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
           <p class="text-xs text-blue-800">
-            <strong>Informasi:</strong> Data lokasi GPS dan perangkat akan tersimpan untuk keperluan administrasi, keamanan, dan validasi wilayah kerja dinas (FR-PTG-08).
+            <strong>Informasi:</strong> Data lokasi GPS dan perangkat akan tersimpan untuk keperluan administrasi, keamanan, dan validasi wilayah kerja dinas.
           </p>
         </div>
         <div class="flex space-x-3">

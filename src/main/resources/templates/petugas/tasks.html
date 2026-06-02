@@ -90,7 +90,7 @@
             </a>
             <h2 class="text-xl font-semibold">Daftar Tugas</h2>
           </div>
-          <!-- FR-PTG-31: Indikator status koneksi -->
+          <!-- Indikator status koneksi -->
           <div class="flex items-center gap-4">
             
             <!-- NOTIFIKASI COMPONENT -->
@@ -157,7 +157,7 @@
           </div>
         </div>
         
-        <!-- FR-PTG-13: Indikator auto-refresh -->
+        <!-- Indikator auto-refresh -->
         <div class="flex items-center justify-between text-xs text-blue-200 mb-3">
           <span x-text="'Terakhir diperbarui: ' + lastRefresh"></span>
           <span x-show="isOnline">Auto-refresh: <span x-text="Math.floor(nextRefresh / 60) + ':' + String(nextRefresh % 60).padStart(2, '0')"></span></span>
@@ -188,16 +188,16 @@
       </div>
     </div>
 
-    <!-- FR-PTG-10: Sorting UI & FR-PTG-31: Offline Banner -->
+    <!-- Sorting UI & Offline Banner -->
     <div class="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
       <div class="max-w-4xl mx-auto">
-        <!-- FR-PTG-31: Banner Offline & Antrian Sinkronisasi -->
+        <!-- Banner Offline & Antrian Sinkronisasi -->
         <div x-show="!isOnline" x-cloak class="mb-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-start gap-3">
           <svg class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
           <div class="flex-1">
-            <p class="text-sm font-medium text-yellow-800">Mode Offline Aktif (FR-PTG-31)</p>
+            <p class="text-sm font-medium text-yellow-800">Mode Offline Aktif</p>
             <p class="text-xs text-yellow-700 mt-1">Perubahan yang Anda lakukan akan disimpan secara lokal. Data akan disinkronkan saat koneksi kembali tersedia.</p>
             <template x-if="offlineQueue > 0">
               <div class="mt-2 flex items-center gap-2">
