@@ -42,10 +42,16 @@ public class FieldTaskServiceImpl implements FieldTaskService {
     private ConfirmationRequestRepository confirmationRequestRepository;  // FIX: untuk buat ConfirmationRequest saat task selesai
 
     @Autowired
+    private SlaMonitoringService slaMonitoringService;
+
+    @Autowired
     private UserProfileRepository userProfileRepository;
 
     @Autowired
     private ReportService reportService;
+
+    @Autowired
+    private SupabaseStorageService supabaseStorageService;
 
     @Autowired
     private FieldTaskStatusRevisionRepository fieldTaskStatusRevisionRepository;
@@ -514,6 +520,7 @@ public class FieldTaskServiceImpl implements FieldTaskService {
     }
 
     @Override
+    @Transactional
     public void saveTaskEvidence(String taskId, String photoUrl, TaskEvidence.EvidenceType type) {
         FieldTask task = fieldTaskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task not found"));
@@ -524,13 +531,30 @@ public class FieldTaskServiceImpl implements FieldTaskService {
         String officerName  = task.getOfficer() != null ? task.getOfficer().getFullName() : "Petugas";
         BigDecimal lat = task.getOfficerLatitude();
         BigDecimal lon = task.getOfficerLongitude();
-        String watermarkedPhoto = PhotoWatermarkUtil.addWatermark(
+
+        // Fallback to report coordinates if officer coordinates are not available
+        if (lat == null && task.getReport() != null) {
+            lat = task.getReport().getLatitude();
+            lon = task.getReport().getLongitude();
+        }
+
+        String watermarkedPhotoBase64 = PhotoWatermarkUtil.addWatermark(
                 photoUrl, ticketNumber, officerName, lat, lon, LocalDateTime.now());
+
+        // Upload to Supabase
+        String finalUrl = watermarkedPhotoBase64;
+        try {
+            if (watermarkedPhotoBase64 != null && watermarkedPhotoBase64.startsWith("data:image")) {
+                finalUrl = supabaseStorageService.uploadBase64(watermarkedPhotoBase64, "bukti");
+            }
+        } catch (Exception e) {
+            // If upload fails, save the base64 string directly
+        }
 
         TaskEvidence evidence = new TaskEvidence();
         evidence.setTask(task);
         evidence.setEvidenceType(type);
-        evidence.setPhotoUrl(watermarkedPhoto);
+        evidence.setPhotoUrl(finalUrl);
         evidence.setLatitude(lat);
         evidence.setLongitude(lon);
         evidence.setTakenAt(LocalDateTime.now());
@@ -538,16 +562,33 @@ public class FieldTaskServiceImpl implements FieldTaskService {
     }
 
     @Override
+    @Transactional
     public void saveTaskEvidenceDirect(String taskId, String photoUrl, TaskEvidence.EvidenceType type) {
         FieldTask task = fieldTaskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task not found"));
 
+        BigDecimal lat = task.getOfficerLatitude();
+        BigDecimal lon = task.getOfficerLongitude();
+        if (lat == null && task.getReport() != null) {
+            lat = task.getReport().getLatitude();
+            lon = task.getReport().getLongitude();
+        }
+
+        String finalUrl = photoUrl;
+        try {
+            if (photoUrl != null && photoUrl.startsWith("data:image")) {
+                finalUrl = supabaseStorageService.uploadBase64(photoUrl, "bukti");
+            }
+        } catch (Exception e) {
+            // Ignore
+        }
+
         TaskEvidence evidence = new TaskEvidence();
         evidence.setTask(task);
         evidence.setEvidenceType(type);
-        evidence.setPhotoUrl(photoUrl);
-        evidence.setLatitude(task.getOfficerLatitude());
-        evidence.setLongitude(task.getOfficerLongitude());
+        evidence.setPhotoUrl(finalUrl);
+        evidence.setLatitude(lat);
+        evidence.setLongitude(lon);
         evidence.setTakenAt(LocalDateTime.now());
         taskEvidenceRepository.save(evidence);
     }

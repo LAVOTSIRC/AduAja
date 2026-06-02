@@ -678,16 +678,20 @@ public class PetugasController {
         if (userId == null) return "redirect:/petugas/login";
 
         try {
-            if ("save".equals(action) && photoBeforeData != null && !photoBeforeData.isBlank()) {
+            if ("save".equals(action)) {
+                if (photoBeforeData == null || photoBeforeData.isBlank()) {
+                    return "redirect:/petugas/task-execution?id=" + id + "&error=Data+foto+awal+kosong+atau+terlalu+besar";
+                }
                 // FIX-6: saveTaskEvidence sudah include watermarking di service layer
                 fieldTaskService.saveTaskEvidence(id, photoBeforeData, TaskEvidence.EvidenceType.SEBELUM);
                 return "redirect:/petugas/task-execution?id=" + id + "&step=after";
             } else if ("complete".equals(action)) {
                 try {
-                    if (photoAfterData != null && !photoAfterData.isBlank()) {
-                        // FIX-6: Watermark diterapkan di service layer
-                        fieldTaskService.saveTaskEvidence(id, photoAfterData, TaskEvidence.EvidenceType.SESUDAH);
+                    if (photoAfterData == null || photoAfterData.isBlank()) {
+                        return "redirect:/petugas/task-execution?id=" + id + "&step=after&error=Data+foto+akhir+kosong+atau+terlalu+besar";
                     }
+                    // FIX-6: Watermark diterapkan di service layer
+                    fieldTaskService.saveTaskEvidence(id, photoAfterData, TaskEvidence.EvidenceType.SESUDAH);
                 } catch (Exception ev) {
                     log.error("Gagal simpan evidence {}, membatalkan completeTask: {}", id, ev.getMessage());
                     return "redirect:/petugas/task-execution?id=" + id + "&step=after&error=Gagal+menyimpan+foto";
@@ -697,8 +701,9 @@ public class PetugasController {
             }
         } catch (Exception e) {
             log.error("Gagal proses task execution {}: {}", id, e.getMessage(), e);
+            return "redirect:/petugas/task-execution?id=" + id + "&error=Gagal+menyimpan+data.+Coba+lagi";
         }
-        return "redirect:/petugas/task-execution?id=" + id;
+        return "redirect:/petugas/task-execution?id=" + id + "&error=Aksi+tidak+valid";
     }
 
     // ==========================================

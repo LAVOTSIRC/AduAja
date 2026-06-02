@@ -21,6 +21,7 @@ public class TaskEvidence extends BaseEntity {
     @Column(name = "evidence_type", nullable = false)
     private EvidenceType evidenceType;
 
+    @Lob
     @Column(name = "photo_url", nullable = false, columnDefinition = "TEXT")
     private String photoUrl;
 

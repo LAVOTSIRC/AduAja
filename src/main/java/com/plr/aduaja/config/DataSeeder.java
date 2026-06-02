@@ -7,6 +7,7 @@ import com.plr.aduaja.repository.*;
 import com.plr.aduaja.service.ImageMigrationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -34,10 +35,19 @@ public class DataSeeder implements CommandLineRunner {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     private ReportCategory catJalan, catLampu, catTaman, catKebersihan;
 
     @Override
     public void run(String... args) {
+        try {
+            jdbcTemplate.execute("ALTER TABLE task_evidence ALTER COLUMN photo_url VARCHAR(1000000000)");
+        } catch (Exception e) {
+            System.out.println("Alter table skipped: " + e.getMessage());
+        }
+
         if (userRepository.count() > 0) return;
 
         // ==============================

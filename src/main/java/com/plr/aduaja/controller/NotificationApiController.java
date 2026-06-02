@@ -26,12 +26,12 @@ public class NotificationApiController {
 
     @GetMapping("/user/{userId}/unread")
     public ResponseEntity<List<Notification>> getUnreadNotifications(@PathVariable String userId) {
-        return ResponseEntity.ok(notificationService.getUnreadNotifications(userId));
+        return ResponseEntity.ok(notificationService.getUnreadNotificationsByUser(userId));
     }
 
     @GetMapping("/user/{userId}/unread/count")
     public ResponseEntity<Long> getUnreadCount(@PathVariable String userId) {
-        return ResponseEntity.ok(notificationService.getUnreadCount(userId));
+        return ResponseEntity.ok(notificationService.countUnreadByUser(userId));
     }
 
     @PostMapping
@@ -59,7 +59,7 @@ public class NotificationApiController {
     @PostMapping("/user/{userId}/read-all")
     public ResponseEntity<Void> markAllAsRead(@PathVariable String userId) {
         try {
-            notificationService.markAllAsRead(userId);
+            notificationService.markAllAsReadByUser(userId);
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             log.error("Gagal mark all read {}: {}", userId, e.getMessage(), e);
