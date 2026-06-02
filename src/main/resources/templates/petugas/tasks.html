@@ -16,15 +16,28 @@
 
   <div layout:fragment="content" class="min-h-screen bg-gray-50" x-data="{ 
     activeTab: 'new', 
-    sortBy: 'sla', 
-    lastRefresh: new Date().toLocaleTimeString(), 
-    isOnline: navigator.onLine, 
-    offlineQueue: 0, 
-    nextRefresh: 900,
+    filterCategory: 'all',
+    sortBy: 'sla',
+    searchQuery: '',
     sortCards(containerId) {
       const container = document.getElementById(containerId);
       if (!container) return;
       const cards = Array.from(container.querySelectorAll('[data-sort-sla]'));
+      const q = this.searchQuery.toLowerCase();
+      
+      // First apply filter & search
+      cards.forEach(c => {
+        const textContent = c.textContent.toLowerCase();
+        const matchesCat = this.filterCategory === 'all' || c.dataset.category === this.filterCategory;
+        const matchesQuery = q === '' || textContent.includes(q);
+        if (matchesCat && matchesQuery) {
+          c.style.display = 'block';
+        } else {
+          c.style.display = 'none';
+        }
+      });
+      
+      // Then apply sort
       cards.sort((a, b) => {
         if (this.sortBy === 'sla') {
           return parseFloat(a.dataset.sortSla) - parseFloat(b.dataset.sortSla);
@@ -45,7 +58,9 @@
     setInterval(() => { if (nextRefresh > 0) nextRefresh--; }, 1000);
     window.addEventListener('online', () => isOnline = true);
     window.addEventListener('offline', () => isOnline = false);
-    $watch('sortBy', () => { sortCards('sort-new'); sortCards('sort-pending'); });
+    $watch('sortBy', () => { sortCards('sort-new'); sortCards('sort-progress'); sortCards('sort-pending'); });
+    $watch('filterCategory', () => { sortCards('sort-new'); sortCards('sort-progress'); sortCards('sort-pending'); });
+    $watch('searchQuery', () => { sortCards('sort-new'); sortCards('sort-progress'); sortCards('sort-pending'); });
   ">
     <div class="bg-blue-600 text-white px-4 sm:px-6 py-4 sticky top-0 z-10 shadow-md">
       <div class="max-w-4xl mx-auto">
@@ -148,6 +163,7 @@
           <input
             type="text"
             name="search"
+            x-model="searchQuery"
             placeholder="Cari tugas, lokasi, atau pelapor..."
             class="w-full pl-10 pr-4 py-2.5 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-300"
           />
@@ -189,22 +205,25 @@
         </div>
 
         <div class="flex gap-2 overflow-x-auto">
+          <!-- Filter Kategori -->
           <select
-            x-model="sortBy"
+            x-model="filterCategory"
             class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            name="filterCategory"
           >
             <option value="all">Semua Kategori</option>
             <option value="Kerusakan Jalan/Infrastruktur">Kerusakan Jalan/Infrastruktur</option>
             <option value="Fasilitas Penerangan Jalan">Fasilitas Penerangan Jalan</option>
             <option value="Pemeliharaan Taman/Ruang Publik">Pemeliharaan Taman/Ruang Publik</option>
+            <option value="Infrastruktur Drainase & Banjir">Infrastruktur Drainase & Banjir</option>
             <option value="Penanganan Kebersihan/Sampah">Penanganan Kebersihan/Sampah</option>
+            <option value="Gangguan Ketertiban Umum">Gangguan Ketertiban Umum</option>
+            <option value="Lainnya">Lainnya</option>
           </select>
-          <!-- FR-PTG-10: Sorting Prioritas SLA & Jarak -->
+
+          <!-- Sorting -->
           <select
             x-model="sortBy"
             class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            name="sortBy"
           >
             <option value="sla">Prioritas SLA (Terdekat)</option>
             <option value="distance">Jarak Terdekat</option>
@@ -281,7 +300,7 @@
           th:each="task : ${tasksNew}"
           th:with="priorityLabel=${task['priority'] == 'critical' ? 'Kritis' : task['priority'] == 'high' ? 'Tinggi' : task['priority'] == 'medium' ? 'Sedang' : 'Rendah'}, priorityClass=${task['priority'] == 'critical' ? 'bg-red-100 text-red-800 border-red-200' : task['priority'] == 'high' ? 'bg-orange-100 text-orange-800 border-orange-200' : task['priority'] == 'medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 'bg-green-100 text-green-800 border-green-200'}"
           class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow"
-          th:attr="data-sort-sla=${task['rawSlaRemaining']}, data-sort-distance=${task['rawDistance']}, data-sort-date=${task['reportDate']}"
+          th:attr="data-sort-sla=${task['rawSlaRemaining']}, data-sort-distance=${task['rawDistance']}, data-sort-date=${task['rawReportDate']}, data-category=${task['category']}"
         >
           <a th:href="@{/petugas/task-detail(id=${task['id']})}" class="block">
             <div class="flex items-start justify-between mb-2">
@@ -409,10 +428,12 @@
         >
           <p class="text-gray-500">Tidak ada tugas sedang dikerjakan</p>
         </div>
+        <div id="sort-progress" class="space-y-3">
         <div
           th:each="task : ${tasksInProgress}"
           th:with="priorityLabel=${task['priority'] == 'critical' ? 'Kritis' : task['priority'] == 'high' ? 'Tinggi' : task['priority'] == 'medium' ? 'Sedang' : 'Rendah'}, priorityClass=${task['priority'] == 'critical' ? 'bg-red-100 text-red-800 border-red-200' : task['priority'] == 'high' ? 'bg-orange-100 text-orange-800 border-orange-200' : task['priority'] == 'medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 'bg-green-100 text-green-800 border-green-200'}"
           class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow"
+          th:attr="data-sort-sla=${task['rawSlaRemaining']}, data-sort-distance=${task['rawDistance']}, data-sort-date=${task['rawReportDate']}, data-category=${task['category']}"
         >
           <a th:href="@{/petugas/task-detail(id=${task['id']})}" class="block">
             <div class="flex items-start justify-between mb-2">
@@ -463,6 +484,7 @@
             </div>
           </a>
         </div>
+        </div>
       </section>
 
       <section x-show="activeTab === 'pending'" x-cloak>
@@ -474,7 +496,7 @@
           th:each="task : ${tasksPending}"
           th:with="priorityLabel=${task['priority'] == 'critical' ? 'Kritis' : task['priority'] == 'high' ? 'Tinggi' : task['priority'] == 'medium' ? 'Sedang' : 'Rendah'}, priorityClass=${task['priority'] == 'critical' ? 'bg-red-100 text-red-800 border-red-200' : task['priority'] == 'high' ? 'bg-orange-100 text-orange-800 border-orange-200' : task['priority'] == 'medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 'bg-green-100 text-green-800 border-green-200'}"
           class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow"
-          th:attr="data-sort-sla=${task['rawSlaRemaining']}, data-sort-distance=${task['rawDistance']}, data-sort-date=${task['reportDate']}"
+          th:attr="data-sort-sla=${task['rawSlaRemaining']}, data-sort-distance=${task['rawDistance']}, data-sort-date=${task['rawReportDate']}, data-category=${task['category']}"
         >
           <a th:href="@{/petugas/task-detail(id=${task['id']})}" class="block">
             <div class="flex items-start justify-between mb-2">

@@ -55,6 +55,8 @@ public interface FieldTaskService {
 
     void saveTaskEvidence(String taskId, String photoUrl, TaskEvidence.EvidenceType type);
 
+    void saveTaskEvidenceDirect(String taskId, String photoUrl, TaskEvidence.EvidenceType type);
+
     List<TaskEvidence> getEvidencesByTaskAndType(String taskId, TaskEvidence.EvidenceType type);
 
     FieldTask closeTaskByAdmin(String taskId);

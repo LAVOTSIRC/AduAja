@@ -14,6 +14,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
@@ -57,6 +58,9 @@ public class PetugasController {
 
     @Autowired
     private AuditLogRepository auditLogRepository;
+
+    @Autowired
+    private SupabaseStorageService supabaseStorageService;
 
     @GetMapping("/petugas/home")
     public String petugasHome() {
@@ -108,6 +112,7 @@ public class PetugasController {
             @RequestParam(value = "longitude", required = false) java.math.BigDecimal longitude,
             @RequestParam(value = "deviceInfo", required = false) String deviceInfo,
             HttpSession session,
+            jakarta.servlet.http.HttpServletRequest request,
             RedirectAttributes redirectAttributes
     ) {
         if (session.getAttribute("forceChangePasswordUserId") != null) return "redirect:/petugas/change-password";
@@ -129,8 +134,12 @@ public class PetugasController {
                         }
                     }
 
+                    String ip = request.getHeader("X-Forwarded-For");
+                    if (ip == null || ip.isEmpty()) ip = request.getRemoteAddr();
+                    String finalDeviceInfo = (deviceInfo != null ? deviceInfo : "Unknown") + " | IP: " + ip;
+
                     attendanceService.checkInWithGeofence(
-                            userId, latitude, longitude, deviceInfo,
+                            userId, latitude, longitude, finalDeviceInfo,
                             CHECKIN_RADIUS_KM, centerLat, centerLon);
                 } catch (IllegalStateException geoEx) {
                     log.warn("Geofencing check-in gagal untuk petugas {}: {}", userId, geoEx.getMessage());
@@ -163,8 +172,8 @@ public class PetugasController {
             @RequestParam(value = "latitude", required = false) java.math.BigDecimal latitude,
             @RequestParam(value = "longitude", required = false) java.math.BigDecimal longitude,
             @RequestParam(value = "estimatedTime", required = false) String estimatedTime,
-            @RequestParam(value = "photos", required = false) org.springframework.web.multipart.MultipartFile[] photos,
-            @RequestParam(value = "documents", required = false) org.springframework.web.multipart.MultipartFile[] documents,
+            @RequestParam(value = "photos", required = false) MultipartFile[] photos,
+            @RequestParam(value = "documents", required = false) MultipartFile[] documents,
             HttpSession session,
             RedirectAttributes redirectAttributes
     ) {
@@ -206,8 +215,35 @@ public class PetugasController {
                     }
                     case "reportback" -> {
                         log.warn("Lapor balik (invalid) untuk tugas {} oleh {}: {}", id, userId, description);
-                        if (photos != null) log.info("Menerima {} foto pendukung lapor balik", photos.length);
-                        if (documents != null) log.info("Menerima {} dokumen pendukung lapor balik", documents.length);
+                        
+                        if (photos != null && photos.length > 0) {
+                            log.info("Menerima {} foto pendukung lapor balik", photos.length);
+                            for (MultipartFile photo : photos) {
+                                if (!photo.isEmpty()) {
+                                    try {
+                                        String url = supabaseStorageService.upload(photo, "bukti");
+                                        fieldTaskService.saveTaskEvidenceDirect(id, url, TaskEvidence.EvidenceType.LAPOR_BALIK);
+                                    } catch (Exception e) {
+                                        log.error("Gagal upload foto lapor balik: {}", e.getMessage());
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if (documents != null && documents.length > 0) {
+                            log.info("Menerima {} dokumen pendukung lapor balik", documents.length);
+                            for (MultipartFile document : documents) {
+                                if (!document.isEmpty()) {
+                                    try {
+                                        String url = supabaseStorageService.upload(document, "bukti");
+                                        fieldTaskService.saveTaskEvidenceDirect(id, url, TaskEvidence.EvidenceType.LAPOR_BALIK);
+                                    } catch (Exception e) {
+                                        log.error("Gagal upload dokumen lapor balik: {}", e.getMessage());
+                                    }
+                                }
+                            }
+                        }
+                        
                         fieldTaskService.requestPostpone(id,
                             "Laporan invalid: " + (description != null ? description : "Tidak ada alasan"),
                             userId, null);
@@ -594,6 +630,8 @@ public class PetugasController {
                 ? formatDuration(Duration.between(t.getStartedAt(), t.getCompletedAt())) : "-");
             m.put("completedAt", t.getCompletedAt() != null
                 ? t.getCompletedAt().format(ControllerHelper.DATE_FMT) : "-");
+            m.put("rawCompletedAt", t.getCompletedAt() != null
+                ? t.getCompletedAt().atZone(java.time.ZoneId.systemDefault()).toEpochSecond() * 1000 : 0L);
             // FIX: Count evidence dari DB
             List<TaskEvidence> beforeEvs = fieldTaskService.getEvidencesByTaskAndType(
                 t.getTaskId(), TaskEvidence.EvidenceType.SEBELUM);
@@ -735,8 +773,8 @@ public class PetugasController {
         } else if (period.equals("month")) {
             progressTitle = "Tugas per Minggu (30 Hari Terakhir)";
             for (int w = 4; w >= 1; w--) {
-                LocalDate start = now.minusWeeks(w);
-                LocalDate end = start.plusDays(6);
+                LocalDate end = now.minusDays((w - 1) * 7L);
+                LocalDate start = end.minusDays(6);
                 int weekTasks = (int) completed.stream()
                     .filter(t -> t.getCompletedAt() != null
                         && !t.getCompletedAt().toLocalDate().isBefore(start)
@@ -783,6 +821,12 @@ public class PetugasController {
                 List<Map<String, Object>> recordList = realRecords.stream().map(r -> {
                     Map<String, Object> di = new HashMap<>();
                     String userAgent = r.getDeviceInfo() != null ? r.getDeviceInfo() : "Unknown";
+                    String ip = "-";
+                    if (userAgent.contains("| IP: ")) {
+                        String[] parts = userAgent.split("\\| IP: ");
+                        userAgent = parts[0].trim();
+                        if (parts.length > 1) ip = parts[1].trim();
+                    }
                     di.put("browser", userAgent);
                     
                     String os = "Unknown";
@@ -793,7 +837,7 @@ public class PetugasController {
                     else if (userAgent.contains("iPhone") || userAgent.contains("iPad")) os = "iOS";
                     
                     di.put("os", os);
-                    di.put("ip", "-");
+                    di.put("ip", ip);
                     String dateFmt = r.getCheckInAt() != null ? r.getCheckInAt().format(ControllerHelper.DATE_FMT) : "-";
                     String ciTime = r.getCheckInAt() != null ? r.getCheckInAt().format(ControllerHelper.TIME_FMT) : "-";
                     String coTime = r.getCheckOutAt() != null ? r.getCheckOutAt().format(ControllerHelper.TIME_FMT) : null;
@@ -860,6 +904,8 @@ public class PetugasController {
             ? task.getReport().getReporter().getPhoneNumber() : "-");
         m.put("reportDate", task.getReport() != null && task.getReport().getSubmittedAt() != null
             ? task.getReport().getSubmittedAt().format(ControllerHelper.DATE_FMT) : "-");
+        m.put("rawReportDate", task.getReport() != null && task.getReport().getSubmittedAt() != null
+            ? task.getReport().getSubmittedAt().atZone(java.time.ZoneId.systemDefault()).toEpochSecond() : 0L);
         // FR-PTG-17: flag koreksi koordinat agar UI modal bisa tampilkan status 1x
         m.put("coordinateCorrected", task.getReport() != null && task.getReport().isCoordinateCorrected());
 

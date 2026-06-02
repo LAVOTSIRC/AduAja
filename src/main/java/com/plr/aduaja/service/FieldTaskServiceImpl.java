@@ -43,6 +43,9 @@ public class FieldTaskServiceImpl implements FieldTaskService {
     @Autowired
     private UserProfileRepository userProfileRepository;
 
+    @Autowired
+    private NotificationService notificationService;
+
     private static final Logger log = LoggerFactory.getLogger(FieldTaskServiceImpl.class);
 
     @Override
@@ -121,6 +124,15 @@ public class FieldTaskServiceImpl implements FieldTaskService {
             }
         } catch (Exception e) {
             log.warn("FR-PRS-03: Gagal validasi wilayah: {}", e.getMessage());
+        }
+
+        try {
+            notificationService.createNotification(officerId, 
+                "Tugas Baru: " + report.getTicketNumber(), 
+                "Anda mendapat penugasan baru dari admin dinas. Silakan periksa daftar tugas Anda.",
+                "NEW_TASK", saved.getTaskId());
+        } catch (Exception e) {
+            log.warn("Gagal membuat notifikasi tugas baru: {}", e.getMessage());
         }
 
         return saved;
@@ -308,6 +320,21 @@ public class FieldTaskServiceImpl implements FieldTaskService {
         evidence.setPhotoUrl(watermarkedPhoto);
         evidence.setLatitude(lat);
         evidence.setLongitude(lon);
+        evidence.setTakenAt(LocalDateTime.now());
+        taskEvidenceRepository.save(evidence);
+    }
+
+    @Override
+    public void saveTaskEvidenceDirect(String taskId, String photoUrl, TaskEvidence.EvidenceType type) {
+        FieldTask task = fieldTaskRepository.findById(taskId)
+                .orElseThrow(() -> new RuntimeException("Task not found"));
+
+        TaskEvidence evidence = new TaskEvidence();
+        evidence.setTask(task);
+        evidence.setEvidenceType(type);
+        evidence.setPhotoUrl(photoUrl);
+        evidence.setLatitude(task.getOfficerLatitude());
+        evidence.setLongitude(task.getOfficerLongitude());
         evidence.setTakenAt(LocalDateTime.now());
         taskEvidenceRepository.save(evidence);
     }

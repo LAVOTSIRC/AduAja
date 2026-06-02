@@ -652,7 +652,7 @@
             <input type="hidden" name="checkIn" value="true" />
             <input type="hidden" name="latitude" x-bind:value="gpsValid ? gpsCoords.split(',')[0] : ''" />
             <input type="hidden" name="longitude" x-bind:value="gpsValid ? gpsCoords.split(',')[1] : ''" />
-            <input type="hidden" name="deviceInfo" value="AduAja Web" />
+            <input type="hidden" name="deviceInfo" x-bind:value="navigator.userAgent" />
             <button
               class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               type="submit"
