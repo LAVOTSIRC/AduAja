@@ -554,6 +554,14 @@ public class AdminPusatController {
                 redirectUrl = "redirect:/admin/validation";
             }
 
+            // Cegah tolak/revisi pada parent ticket yang memiliki child aktif
+            if ((newStatus == ReportStatus.DITOLAK || newStatus == ReportStatus.MENUNGGU_REVISI)
+                && targetReport.isPresent()
+                && reportRepository.countByParentReportReportId(ticketId) > 0) {
+                redirectAttributes.addFlashAttribute("error", "Laporan ini memiliki child ticket yang digabungkan. Tidak dapat ditolak atau direvisi. Setujui laporan untuk melanjutkan proses.");
+                return "redirect:/admin/validation";
+            }
+
             // FIX SCN-03 (3.3): Simpan note/alasan sebagai rejectionReason agar warga bisa lihat catatan admin
             Report r;
             if (newStatus == ReportStatus.DITOLAK || newStatus == ReportStatus.MENUNGGU_REVISI) {

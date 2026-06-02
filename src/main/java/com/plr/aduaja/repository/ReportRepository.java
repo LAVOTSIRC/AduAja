@@ -58,6 +58,10 @@ public interface ReportRepository extends JpaRepository<Report, String> {
 
     List<Report> findByParentReportIsNull();
 
+    List<Report> findByParentReportReportId(String parentReportId);
+
+    long countByParentReportReportId(String parentReportId);
+
     List<Report> findByRegionRegionId(String regionId);
 
     List<Report> findByStatusAndRegionRegionIdOrderBySubmittedAtDesc(Report.ReportStatus status, String regionId);

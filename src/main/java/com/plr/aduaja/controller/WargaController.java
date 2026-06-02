@@ -111,6 +111,7 @@ public class WargaController {
         model.addAttribute("user", userMap);
         model.addAttribute("categories", reportCategoryRepository.findByIsActiveTrue());
         model.addAttribute("userProfile", user.getUserProfile());
+        model.addAttribute("regions", regionRepository.findAll());
 
         List<Report> dbReports = reportService.getReportsByWarga(userId);
         long total = dbReports.size();
@@ -837,6 +838,7 @@ public class WargaController {
             @RequestParam(value = "locationMode", defaultValue = "RANDOM") String locationMode,
             @RequestParam(value = "customLat", required = false) String customLat,
             @RequestParam(value = "customLng", required = false) String customLng,
+            @RequestParam(value = "regionId", required = false) String regionId,
             HttpSession session,
             RedirectAttributes redirectAttributes) {
         if (!devMode) {
@@ -868,8 +870,15 @@ public class WargaController {
                     && user.getUserProfile().getDomisiliLongitude() != null) {
                 fixedLat = user.getUserProfile().getDomisiliLatitude().toPlainString();
                 fixedLng = user.getUserProfile().getDomisiliLongitude().toPlainString();
-                fixedKota = "Lokasi Saya";
-                fixedKecamatan = "Lokasi Saya";
+                Region domRegion = user.getUserProfile().getDomisiliRegion();
+                if (domRegion != null) {
+                    fixedKota = domRegion.getParentRegion() != null
+                        ? domRegion.getParentRegion().getRegionName() : domRegion.getRegionName();
+                    fixedKecamatan = domRegion.getRegionName();
+                } else {
+                    fixedKota = "Lokasi Saya";
+                    fixedKecamatan = "Lokasi Saya";
+                }
             } else {
                 redirectAttributes.addFlashAttribute("warning",
                     "Profil belum memiliki koordinat domisili. Gunakan mode lokasi lain.");
@@ -893,6 +902,19 @@ public class WargaController {
             fixedKecamatan = "Kustom";
         }
 
+        // Tentukan regionId: prioritas dari form, fallback dari nama kecamatan/kota
+        String effectiveRegionId = regionId;
+        if (effectiveRegionId == null || effectiveRegionId.isBlank()) {
+            if (fixedKecamatan != null) {
+                Region r = findRegion(regions, fixedKecamatan);
+                if (r != null) effectiveRegionId = r.getRegionId();
+            }
+            if (effectiveRegionId == null && fixedKota != null) {
+                Region r = findRegion(regions, fixedKota);
+                if (r != null) effectiveRegionId = r.getRegionId();
+            }
+        }
+
         int generated = 0;
         int max = Math.min(count, 20);
         Random rand = new Random();
@@ -907,25 +929,29 @@ public class WargaController {
                     lat = lokasi[3]; lng = lokasi[4]; kota = lokasi[0]; kecamatan = lokasi[2];
                 }
 
-                Region kecamatanRegion = findRegion(regions, kecamatan);
-                Region kotaRegion = findRegion(regions, kota);
                 String desc = DESKRIPSI[rand.nextInt(DESKRIPSI.length)];
 
-                // Pilih kategori
                 String selectedCategoryId = categoryId;
                 if (selectedCategoryId == null || selectedCategoryId.isBlank()) {
                     selectedCategoryId = categories.get(rand.nextInt(categories.size())).getCategoryId();
                 }
 
+                // Untuk mode RANDOM (tanpa lokasi tetap), cari region per laporan
+                String finalRegionId = effectiveRegionId;
+                if (finalRegionId == null || finalRegionId.isBlank()) {
+                    Region r = findRegion(regions, kecamatan);
+                    if (r == null) r = findRegion(regions, kota);
+                    if (r != null) finalRegionId = r.getRegionId();
+                }
+
                 CreateReportDTO dto = new CreateReportDTO();
                 dto.setDescription(desc);
-                dto.setLocationHint(kota + ", " + kecamatan);
+                dto.setLocationHint((kota != null ? kota + ", " : "") + (kecamatan != null ? kecamatan : ""));
                 dto.setLatitude(new BigDecimal(lat));
                 dto.setLongitude(new BigDecimal(lng));
                 dto.setPhotoBase64(PLACEHOLDER_PHOTO);
                 dto.setCategoryId(selectedCategoryId);
-                dto.setRegionId(kecamatanRegion != null ? kecamatanRegion.getRegionId() :
-                                (kotaRegion != null ? kotaRegion.getRegionId() : null));
+                dto.setRegionId(finalRegionId);
                 dto.setPhotoTakenAt(LocalDateTime.now().minusDays(rand.nextInt(7))
                     .minusHours(rand.nextInt(24)).toString());
 

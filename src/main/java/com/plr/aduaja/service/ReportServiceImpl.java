@@ -159,6 +159,12 @@ public class ReportServiceImpl implements ReportService {  // ← POLYMORPHISM
             throw new IllegalStateException("Laporan yang sudah digabungkan tidak dapat diubah statusnya secara langsung.");
         }
 
+        // Cegah tolak/revisi pada parent yang memiliki child aktif (query langsung ke DB)
+        if ((newStatus == Report.ReportStatus.DITOLAK || newStatus == Report.ReportStatus.MENUNGGU_REVISI)
+            && reportRepository.countByParentReportReportId(reportId) > 0) {
+            throw new IllegalStateException("Laporan ini memiliki child ticket yang digabungkan. Tidak dapat ditolak atau direvisi.");
+        }
+
         Report.ReportStatus oldStatus = report.getStatus();
 
         if (notes != null) {
@@ -187,6 +193,12 @@ public class ReportServiceImpl implements ReportService {  // ← POLYMORPHISM
         // Cegah perubahan status langsung pada laporan yang sudah digabungkan
         if (report.getStatus() == Report.ReportStatus.TERGABUNG) {
             throw new IllegalStateException("Laporan yang sudah digabungkan tidak dapat diubah statusnya secara langsung.");
+        }
+
+        // Cegah tolak/revisi pada parent yang memiliki child aktif (query langsung ke DB)
+        if ((newStatus == Report.ReportStatus.DITOLAK || newStatus == Report.ReportStatus.MENUNGGU_REVISI)
+            && reportRepository.countByParentReportReportId(reportId) > 0) {
+            throw new IllegalStateException("Laporan ini memiliki child ticket yang digabungkan. Tidak dapat ditolak atau direvisi.");
         }
 
         Report.ReportStatus oldStatus = report.getStatus();

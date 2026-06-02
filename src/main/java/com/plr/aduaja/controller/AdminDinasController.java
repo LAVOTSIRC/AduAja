@@ -509,9 +509,10 @@ public class AdminDinasController {
         if (agencyId != null) {
             realDisputes = realDisputes.stream()
                 .filter(d -> d.getReport() != null
-                    && d.getReport().getDisposition() != null
-                    && d.getReport().getDisposition().getTargetAgency() != null
-                    && agencyId.equals(d.getReport().getDisposition().getTargetAgency().getAgencyId()))
+                    && dispositionService.getDispositionByReportId(d.getReport().getReportId())
+                        .map(disp -> disp.getTargetAgency() != null
+                            && agencyId.equals(disp.getTargetAgency().getAgencyId()))
+                        .orElse(false))
                 .collect(Collectors.toList());
         }
 

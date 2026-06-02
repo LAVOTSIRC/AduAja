@@ -69,9 +69,14 @@ public class DisputeServiceImpl implements DisputeService {
             throw new IllegalStateException("Sengketa hanya dapat diajukan saat laporan berstatus 'Menunggu Konfirmasi Warga'.");
         }
 
-        // FR-RSL-11: Maksimal 1 sengketa per tiket
+        // FR-RSL-11: Maksimal 1 sengketa per tiket (cek langsung & via parent untuk merge group)
         if (disputeRecordRepository.findByReportReportId(dto.getReportId()).isPresent()) {
             throw new IllegalStateException("Sengketa untuk laporan ini sudah pernah diajukan. Maksimal 1 kali pengajuan sengketa per tiket.");
+        }
+        Report mergeParent = findMergeParent(report);
+        if (mergeParent != null && !mergeParent.getReportId().equals(dto.getReportId())
+                && disputeRecordRepository.findByReportReportId(mergeParent.getReportId()).isPresent()) {
+            throw new IllegalStateException("Sengketa untuk grup laporan ini sudah pernah diajukan. Maksimal 1 kali pengajuan sengketa per grup.");
         }
 
         // Jika ada ConfirmationRequest yang belum dikunci, tandai sebagai TOLAK dan kunci
@@ -85,7 +90,8 @@ public class DisputeServiceImpl implements DisputeService {
         });
 
         DisputeRecord dispute = new DisputeRecord();
-        dispute.setReport(report);
+        // Untuk merge group, tautkan DisputeRecord ke PARENT agar terlihat di admin dinas (parent punya disposisi)
+        dispute.setReport(mergeParent != null ? mergeParent : report);
         dispute.setFiledBy(filedBy);
         dispute.setReasonText(dto.getReason());
         dispute.setEvidencePhotoUrl(dto.getEvidencePhotoUrl() != null ? dto.getEvidencePhotoUrl() : "");
@@ -93,8 +99,6 @@ public class DisputeServiceImpl implements DisputeService {
 
         Report.ReportStatus oldStatus = report.getStatus();
 
-        // FR-ADM-17: Cek apakah report ini bagian dari merge group
-        Report mergeParent = findMergeParent(report);
         if (mergeParent != null) {
             // Merge group: sengketa pada child → parent jadi DALAM_EVALUASI_SENGKETA
             Report.ReportStatus mergeParentOldStatus = mergeParent.getStatus();
@@ -162,9 +166,20 @@ public class DisputeServiceImpl implements DisputeService {
 
     @Override  // ← POLYMORPHISM: Override dari interface (OVERLOAD — 1 param String)
     public List<DisputeRecord> getDisputes(String reportId) {
-        return disputeRecordRepository.findByReportReportId(reportId)
-                .map(List::of)
-                .orElse(List.of());
+        Optional<DisputeRecord> direct = disputeRecordRepository.findByReportReportId(reportId);
+        if (direct.isPresent()) {
+            return direct.map(List::of).orElse(List.of());
+        }
+        // Cek apakah report ini child dari merge group → cari sengketa di parent
+        Report report = reportRepository.findById(reportId).orElse(null);
+        if (report != null && report.getParentReport() != null) {
+            Optional<MergeRecord> activeMerge = mergeRecordService.getActiveMergeByChild(reportId);
+            if (activeMerge.isPresent()) {
+                return disputeRecordRepository.findByReportReportId(activeMerge.get().getParentReport().getReportId())
+                        .map(List::of).orElse(List.of());
+            }
+        }
+        return List.of();
     }
 
     @Override  // ← POLYMORPHISM: Override dari interface (OVERLOAD — 1 param ResolutionType)

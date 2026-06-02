@@ -43,6 +43,13 @@ public class ValidationDecisionServiceImpl implements ValidationDecisionService 
             throw new IllegalStateException("Laporan yang sudah digabungkan tidak dapat divalidasi secara langsung.");
         }
 
+        // Cegah tolak/revisi pada parent ticket yang memiliki child aktif
+        if ((decision == Decision.DITOLAK || decision == Decision.DIREVISI)
+            && !report.getChildMergeRecords().isEmpty()
+            && report.getChildMergeRecords().stream().anyMatch(mr -> Boolean.TRUE.equals(mr.getIsActive()))) {
+            throw new IllegalStateException("Laporan ini memiliki child ticket yang digabungkan. Tidak dapat ditolak atau direvisi.");
+        }
+
         User admin = userRepository.findById(adminId)
                 .orElseThrow(() -> new RuntimeException("Admin tidak ditemukan: " + adminId));
 
