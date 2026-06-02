@@ -99,11 +99,7 @@ public class DisputeServiceImpl implements DisputeService {
 
         Report.ReportStatus oldStatus = report.getStatus();
 
-<<<<<<< HEAD
-=======
-        // Cek apakah report ini bagian dari merge group
-        Report mergeParent = findMergeParent(report);
->>>>>>> 9fb9f5e0f421a0d2866040239880837e22a14480
+
         if (mergeParent != null) {
             // Merge group: sengketa pada child → parent jadi DALAM_EVALUASI_SENGKETA
             Report.ReportStatus mergeParentOldStatus = mergeParent.getStatus();
