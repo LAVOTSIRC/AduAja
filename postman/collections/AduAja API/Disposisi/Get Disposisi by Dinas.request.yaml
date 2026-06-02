@@ -1,0 +1,8 @@
+$kind: http-request
+name: Get Disposisi by Dinas
+method: GET
+url: '{{baseUrl}}/disposisi/dinas/:dinasId'
+order: 4000
+pathVariables:
+  - key: dinasId
+    value: '1'

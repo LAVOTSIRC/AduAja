@@ -1,0 +1,8 @@
+$kind: http-request
+name: Get Ticket Materials
+method: GET
+url: '{{baseUrl}}/tickets/:ticketId/materials'
+order: 9000
+pathVariables:
+  - key: ticketId
+    value: '1'

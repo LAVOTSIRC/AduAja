@@ -29,13 +29,14 @@
       startDesc: '', 
       startDescError: '', 
       correctedLat: 0, 
-      correctedLng: 0 
+      correctedLng: 0,
+      imageViewerUrl: ''
     }" x-init="
       setInterval(() => { if (slaRemaining > 0) slaRemaining--; }, 1000);
       window.addEventListener('geolocation-update', (e) => distanceToTask = e.detail.distance);
     "
   >
-    <!-- FR-PTG-18: Peringatan radius lokasi tugas > 5 km -->
+    <!-- Peringatan radius lokasi tugas > 5 km -->
     <div x-show="distanceToTask > 5" x-cloak class="bg-red-50 border-b border-red-200 px-4 py-3">
       <div class="max-w-4xl mx-auto flex items-center gap-3">
         <svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -43,20 +44,20 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
         <div class="flex-1">
-          <p class="text-sm font-semibold text-red-800">Peringatan Jarak (FR-PTG-18)</p>
+          <p class="text-sm font-semibold text-red-800">Peringatan Jarak</p>
           <p class="text-xs text-red-700 mt-0.5">Tugas ini berada di luar radius dinas 5 km (<span class="font-bold" x-text="distanceToTask.toFixed(1) + ' km'"></span>). Pastikan kendaraan siap.</p>
         </div>
       </div>
     </div>
 
-    <!-- FR-PTG-28: Pengingat SLA 10 menit terakhir -->
+    <!-- Pengingat SLA 10 menit terakhir -->
     <div x-show="slaRemaining <= 600 && slaRemaining > 0" x-cloak class="bg-orange-50 border-b border-orange-200 px-4 py-3">
       <div class="max-w-4xl mx-auto flex items-center gap-3">
         <svg class="w-5 h-5 text-orange-500 flex-shrink-0 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <div class="flex-1">
-          <p class="text-sm font-semibold text-orange-800">SLA Hampir Berakhir! (FR-PTG-28)</p>
+          <p class="text-sm font-semibold text-orange-800">SLA Hampir Berakhir!</p>
           <p class="text-xs text-orange-700 mt-0.5">Sisa waktu: <span class="font-bold" x-text="Math.floor(slaRemaining / 60) + ' menit ' + (slaRemaining % 60) + ' detik'"></span>. Segera selesaikan atau eskalasi.</p>
         </div>
       </div>
@@ -74,6 +75,20 @@
             <h2 class="text-xl font-semibold">Detail Tugas</h2>
             <p class="text-sm text-blue-100" th:text="${task['id']}">TGS001</p>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error Flash Attribute untuk Task Error (Gagal Mulai) -->
+    <div th:if="${taskError}" class="bg-red-50 border-l-4 border-red-500 p-4 mx-4 sm:mx-auto max-w-4xl mt-4 rounded-md">
+      <div class="flex">
+        <div class="flex-shrink-0">
+          <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+          </svg>
+        </div>
+        <div class="ml-3">
+          <p class="text-sm text-red-700" th:text="${taskError}"></p>
         </div>
       </div>
     </div>
@@ -108,6 +123,22 @@
         </div>
       </div>
 
+      <!-- Foto Laporan Warga -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4" th:if="${task['photoBase64'] != null}">
+        <h3 class="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+          <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          Bukti Laporan Kerusakan
+        </h3>
+        <div class="w-full h-48 bg-gray-100 rounded-lg overflow-hidden border border-gray-200 cursor-pointer group" 
+             x-on:click="imageViewerUrl = $el.querySelector('img').src">
+          <img th:src="${task['photoBase64'].startsWith('http') ? task['photoBase64'] : 'data:image/jpeg;base64,' + task['photoBase64']}" 
+               alt="Foto Laporan" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+        </div>
+        <p class="text-xs text-gray-500 mt-2 text-center">Ketuk gambar untuk memperbesar</p>
+      </div>
+
       <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
         <h3 class="font-semibold text-gray-900 mb-3 flex items-center gap-2">
           <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -122,9 +153,9 @@
             <span class="text-gray-600">Koordinat:</span>
             <span class="font-mono text-gray-900" th:text="|${task['location']['latitude']}, ${task['location']['longitude']}|"></span>
           </div>
-          <div class="flex items-center justify-between text-sm" th:if="${task['distanceToTask'] != null}">
+          <div class="flex items-center justify-between text-sm">
             <span class="text-gray-600">Jarak dari Anda:</span>
-            <span class="font-semibold text-blue-600" th:text="${task['distanceToTask']}">0 km</span>
+            <span class="font-semibold text-blue-600" x-text="distanceToTask !== null && distanceToTask !== undefined ? distanceToTask.toFixed(2) + ' km' : '-'">-</span>
           </div>
           <div class="flex gap-2">
             <a
@@ -135,7 +166,7 @@
             >
               Buka di Google Maps
             </a>
-            <!-- FR-PTG-17: Form koreksi koordinat -->
+            <!-- Form koreksi koordinat -->
             <button type="button" x-on:click="showCoordModal = true" class="flex-1 bg-blue-50 text-blue-600 border border-blue-200 py-2.5 rounded-lg font-medium hover:bg-blue-100 transition-colors text-sm">
               Koreksi Koordinat
             </button>
@@ -143,28 +174,54 @@
         </div>
       </div>
 
-      <!-- FR-PTG-17: Modal Koreksi Koordinat -->
+      <!-- Modal Koreksi Koordinat -->
       <div x-show="showCoordModal" x-cloak class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
           <div class="flex items-center justify-between p-4 border-b">
-            <h2 class="font-semibold text-lg text-gray-900">Koreksi Koordinat (FR-PTG-17)</h2>
+            <h2 class="font-semibold text-lg text-gray-900">Koreksi Koordinat</h2>
             <button type="button" x-on:click="showCoordModal = false" class="p-2 hover:bg-gray-100 rounded-lg">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
-          <form class="p-4 space-y-4">
-            <p class="text-xs text-gray-500">Gunakan fitur ini jika lokasi tugas tidak akurat. Koordinat baru akan dikirim ke admin untuk verifikasi.</p>
+
+          <!-- Sudah pernah dikoreksi -->
+          <div th:if="${task['coordinateCorrected']}" class="p-4">
+            <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+              <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div>
+                <p class="font-semibold text-amber-800">Koreksi Sudah Dilakukan</p>
+                <p class="text-sm text-amber-700 mt-1">Koreksi koordinat hanya diperbolehkan <strong>1 kali</strong> per laporan. Koreksi untuk laporan ini sudah pernah dilakukan sebelumnya.</p>
+              </div>
+            </div>
+            <button type="button" x-on:click="showCoordModal = false" class="mt-4 w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">Tutup</button>
+          </div>
+
+          <!-- Belum dikoreksi, tampilkan form -->
+          <form th:unless="${task['coordinateCorrected']}" th:action="@{/petugas/coordinate-correction}" method="post" class="p-4 space-y-4">
+            <input type="hidden" name="taskId" th:value="${task['id']}" />
+            <p class="text-xs text-gray-500">Gunakan fitur ini jika lokasi tugas tidak akurat. Koordinat baru akan langsung diperbarui pada laporan. <strong>Hanya boleh dilakukan 1 kali.</strong></p>
             <div>
-              <label class="block text-sm font-medium text-gray-900 mb-2">Latitude</label>
-              <input type="number" step="any" x-model="correctedLat" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="-6.200000" />
+              <button type="button" x-on:click="if(navigator.geolocation) { navigator.geolocation.getCurrentPosition(pos => { correctedLat = pos.coords.latitude; correctedLng = pos.coords.longitude; }, err => alert('Gagal mendapatkan lokasi: ' + err.message)); } else { alert('Geolocation tidak didukung browser ini'); }" class="w-full flex items-center justify-center gap-2 bg-blue-50 text-blue-600 border border-blue-200 py-2 rounded-lg font-medium hover:bg-blue-100 transition-colors text-sm mb-3">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                Gunakan Lokasi Saat Ini
+              </button>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-900 mb-2">Longitude</label>
-              <input type="number" step="any" x-model="correctedLng" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="106.816666" />
+              <label class="block text-sm font-medium text-gray-900 mb-2">Latitude <span class="text-red-500">*</span></label>
+              <input type="number" step="any" name="correctedLat" x-model="correctedLat" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="-6.200000" required />
             </div>
-            <button type="button" x-on:click="showCoordModal = false; alert('Koordinat berhasil dikirim untuk diverifikasi admin.')" class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Kirim Koreksi</button>
+            <div>
+              <label class="block text-sm font-medium text-gray-900 mb-2">Longitude <span class="text-red-500">*</span></label>
+              <input type="number" step="any" name="correctedLng" x-model="correctedLng" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="106.816666" required />
+            </div>
+            <div class="flex gap-2">
+              <button type="button" x-on:click="showCoordModal = false" class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">Batal</button>
+              <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">Kirim Koreksi</button>
+            </div>
           </form>
         </div>
       </div>
@@ -199,30 +256,30 @@
         </div>
       </div>
 
-      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4" th:if="${task['status'] == 'in_progress' or task['status'] == 'pending'}">
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4" th:if="${#lists.size(task['taskRevisions']) > 0}">
         <h3 class="font-semibold text-gray-900 mb-3">Riwayat Status</h3>
         <div class="space-y-3">
-          <div th:if="${task['startedAt'] != null}" class="flex gap-3">
-            <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-              <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div th:each="rev : ${task['taskRevisions']}" class="flex gap-3">
+            <div th:classappend="|w-8 h-8 rounded-full flex items-center justify-center ${rev.label == 'Pekerjaan Dimulai' or rev.label == 'Selesai' or rev.label == 'Dilanjutkan'} ? 'bg-green-100' : (${rev.label == 'Pengajuan Penundaan'} ? 'bg-blue-100' : 'bg-yellow-100')|">
+              <svg th:if="${rev.label == 'Pekerjaan Dimulai' or rev.label == 'Dilanjutkan'}" class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
-            </div>
-            <div>
-              <p class="font-medium text-gray-900">Pekerjaan Dimulai</p>
-              <p class="text-sm text-gray-600" th:text="${task['startedAt']}"></p>
-            </div>
-          </div>
-          <div th:if="${task['pendingReason'] != null}" class="flex gap-3">
-            <div class="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
-              <svg class="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg th:if="${rev.label == 'Pengajuan Penundaan'}" class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <svg th:if="${rev.label == 'Ditunda'}" class="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              <svg th:if="${rev.label == 'Selesai'}" class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
               </svg>
             </div>
             <div>
-              <p class="font-medium text-gray-900">Ditunda</p>
-              <p class="text-sm text-gray-600" th:text="${task['pendingSince']}"></p>
-              <p class="text-sm text-gray-700 mt-1 bg-yellow-50 p-2 rounded border border-yellow-200" th:text="${task['pendingReason']}"></p>
+              <p class="font-medium text-gray-900" th:text="${rev.label}"></p>
+              <p class="text-sm text-gray-600" th:text="${rev.changedAt != null ? #temporals.format(rev.changedAt, 'dd MMM yyyy HH:mm') : '-'}"></p>
+              <p th:if="${rev.notes != null and !rev.notes.isEmpty()}" class="text-sm text-gray-700 mt-1 p-2 rounded border"
+                 th:classappend="${rev.label == 'Pengajuan Penundaan'} ? 'bg-blue-50 border-blue-200' : (${rev.label == 'Ditunda'} ? 'bg-yellow-50 border-yellow-200' : 'bg-gray-50 border-gray-200')"
+                 th:text="${rev.notes}"></p>
             </div>
           </div>
         </div>
@@ -274,7 +331,7 @@
         </a>
       </div>
 
-      <!-- FR-PTG-02: Blokir akses jika belum check-in -->
+      <!-- Blokir akses jika belum check-in -->
       <div class="sticky bottom-4" th:if="${!attendance.checkedIn and task['status'] == 'new'}">
         <div class="w-full bg-gray-400 text-gray-200 py-4 rounded-lg font-semibold shadow-lg block text-center cursor-not-allowed">
           Check-In untuk Memulai Tugas
@@ -292,7 +349,7 @@
             <p class="text-sm text-blue-800"><span class="font-semibold">Deadline SLA:</span> <span th:text="${task['slaStatusText']}"></span></p>
           </div>
         </div>
-        <!-- FR-PTG-19: Validasi deskripsi minimal 25 karakter -->
+        <!-- Validasi deskripsi minimal 25 karakter -->
         <div class="mb-4">
           <label class="block text-sm font-medium text-gray-900 mb-1">Deskripsi Awal Pengerjaan <span class="text-red-500">*</span></label>
           <textarea x-model="startDesc" rows="3" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500" placeholder="Jelaskan kondisi awal atau rencana kerja minimal 25 karakter..."></textarea>
@@ -300,10 +357,10 @@
         </div>
         <div class="flex gap-3">
           <button type="button" x-on:click="showStartModal = false" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50">Batal</button>
-          <form th:action="@{/petugas/task-action}" method="post" class="flex-1">
+          <form id="startTaskForm" th:action="@{/petugas/task-action}" method="post" class="flex-1">
             <input type="hidden" name="id" th:value="${task['id']}" />
             <input type="hidden" name="action" value="start" />
-            <input type="hidden" name="description" th:value="startDesc" />
+            <input type="hidden" name="description" x-bind:value="startDesc" />
             <button type="submit" class="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed" :disabled="startDesc.length < 25">Ya, Mulai</button>
           </form>
         </div>
@@ -342,7 +399,7 @@
         </div>
         <form th:action="@{/petugas/task-action}" method="post" class="p-4 space-y-4">
           <input type="hidden" name="id" th:value="${task['id']}" />
-          <input type="hidden" name="action" value="pending" />
+          <input type="hidden" name="action" value="postpone" />
           <div>
             <label class="block text-sm font-medium text-gray-900 mb-2">Alasan Penundaan <span class="text-red-500">*</span></label>
             <select name="description" class="w-full px-3 py-2 border border-gray-300 rounded-lg" required>
@@ -382,7 +439,7 @@
             </svg>
           </button>
         </div>
-        <form th:action="@{/petugas/task-action}" method="post" class="p-4 space-y-4">
+        <form th:action="@{/petugas/task-action}" method="post" enctype="multipart/form-data" class="p-4 space-y-4">
           <input type="hidden" name="id" th:value="${task['id']}" />
           <input type="hidden" name="action" value="reportback" />
           <div>
@@ -487,5 +544,63 @@
         </form>
       </div>
     </div>
+
+    <!-- Image Viewer Modal -->
+    <div x-show="imageViewerUrl" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4" x-transition.opacity>
+      <button @click="imageViewerUrl = ''" class="absolute top-4 right-4 text-white hover:text-gray-300 p-2">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+      <img :src="imageViewerUrl" class="max-w-full max-h-[90vh] object-contain rounded-lg" @click.outside="imageViewerUrl = ''" />
+    </div>
   </div>
+
+  <th:block layout:fragment="extraScripts">
+    <script th:inline="javascript">
+      // Ambil koordinat tugas dari Thymeleaf
+      const taskLat = /*[[${task['location'] != null && task['location'] instanceof T(java.util.Map) ? task['location']['latitude'] : 0}]]*/ 0;
+      const taskLng = /*[[${task['location'] != null && task['location'] instanceof T(java.util.Map) ? task['location']['longitude'] : 0}]]*/ 0;
+
+      function calculateDistance(lat1, lon1, lat2, lon2) {
+        if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
+        const R = 6371; // Radius bumi dalam kilometer
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+          Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+      }
+
+      // Ambil lokasi GPS saat ini dan dispatch event
+      if (navigator.geolocation && taskLat && taskLng) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const userLat = pos.coords.latitude;
+            const userLng = pos.coords.longitude;
+            const dist = calculateDistance(userLat, userLng, parseFloat(taskLat), parseFloat(taskLng));
+            
+            // Dispatch event dengan jarak terbaru
+            window.dispatchEvent(new CustomEvent('geolocation-update', { 
+              detail: { distance: dist, userLat: userLat, userLng: userLng } 
+            }));
+
+            // Jika ada form start-task, set hidden input untuk koordinat
+            const startForm = document.getElementById('startTaskForm');
+            if (startForm) {
+              if (!document.getElementById('startLat')) {
+                const inputLat = document.createElement('input'); inputLat.type = 'hidden'; inputLat.id = 'startLat'; inputLat.name = 'latitude'; startForm.appendChild(inputLat);
+                const inputLng = document.createElement('input'); inputLng.type = 'hidden'; inputLng.id = 'startLng'; inputLng.name = 'longitude'; startForm.appendChild(inputLng);
+              }
+              document.getElementById('startLat').value = userLat;
+              document.getElementById('startLng').value = userLng;
+            }
+          },
+          (err) => { console.warn("GPS gagal:", err); }
+        );
+      }
+    </script>
+  </th:block>
 </html>

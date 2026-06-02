@@ -1,0 +1,12 @@
+$kind: http-request
+name: Create Ticket
+method: POST
+url: '{{baseUrl}}/tickets'
+order: 10000
+queryParams:
+  - key: reportId
+    value: ''
+  - key: petugasId
+    value: ''
+  - key: assignedById
+    value: ''

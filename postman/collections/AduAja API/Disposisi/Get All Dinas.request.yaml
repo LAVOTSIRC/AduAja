@@ -1,0 +1,5 @@
+$kind: http-request
+name: Get All Dinas
+method: GET
+url: '{{baseUrl}}/disposisi/dinas'
+order: 5000

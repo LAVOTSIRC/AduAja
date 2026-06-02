@@ -1,0 +1,23 @@
+$kind: http-request
+name: Create Report
+method: POST
+url: '{{baseUrl}}/reports'
+order: 8000
+queryParams:
+  - key: userId
+    value: ''
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "title": "Jalan Berlubang di Jl. Sudirman",
+      "description": "Lubang besar diameter 50cm",
+      "category": "Infrastruktur Jalan",
+      "location": "Jl. Sudirman, Medan Kota",
+      "latitude": "3.5891",
+      "longitude": "98.6738",
+      "landmark": "Dekat Indomaret"
+    }

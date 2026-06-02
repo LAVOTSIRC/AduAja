@@ -1,0 +1,5 @@
+$kind: http-request
+name: Get Reports Ready for Disposisi
+method: GET
+url: '{{baseUrl}}/reports/disposisi-ready'
+order: 3000

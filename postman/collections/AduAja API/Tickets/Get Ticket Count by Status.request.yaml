@@ -1,0 +1,5 @@
+$kind: http-request
+name: Get Ticket Count by Status
+method: GET
+url: '{{baseUrl}}/tickets/count'
+order: 2000

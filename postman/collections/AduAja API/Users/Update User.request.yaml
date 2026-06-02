@@ -1,0 +1,19 @@
+$kind: http-request
+name: Update User
+method: PUT
+url: '{{baseUrl}}/users/:id'
+order: 7000
+pathVariables:
+  - key: id
+    value: '1'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "fullName": "John Doe Updated",
+      "email": "john.updated@example.com",
+      "phoneNumber": "08123456789"
+    }

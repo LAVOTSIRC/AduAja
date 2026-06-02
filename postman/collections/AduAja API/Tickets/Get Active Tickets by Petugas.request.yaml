@@ -1,0 +1,8 @@
+$kind: http-request
+name: Get Active Tickets by Petugas
+method: GET
+url: '{{baseUrl}}/tickets/petugas/:petugasId/active'
+order: 7000
+pathVariables:
+  - key: petugasId
+    value: '1'

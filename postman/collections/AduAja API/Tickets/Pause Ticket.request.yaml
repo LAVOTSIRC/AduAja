@@ -1,0 +1,11 @@
+$kind: http-request
+name: Pause Ticket
+method: POST
+url: '{{baseUrl}}/tickets/:id/pause'
+order: 14000
+pathVariables:
+  - key: id
+    value: '1'
+queryParams:
+  - key: reason
+    value: ''

@@ -1,0 +1,11 @@
+$kind: http-request
+name: Confirm Report Completion
+method: POST
+url: '{{baseUrl}}/reports/:id/confirm'
+order: 10000
+pathVariables:
+  - key: id
+    value: '1'
+queryParams:
+  - key: confirmedBy
+    value: ''

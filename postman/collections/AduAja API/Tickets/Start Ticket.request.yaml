@@ -1,0 +1,11 @@
+$kind: http-request
+name: Start Ticket
+method: POST
+url: '{{baseUrl}}/tickets/:id/start'
+order: 11000
+pathVariables:
+  - key: id
+    value: '1'
+queryParams:
+  - key: petugasId
+    value: ''

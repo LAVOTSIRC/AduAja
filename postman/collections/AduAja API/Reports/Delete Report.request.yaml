@@ -1,0 +1,8 @@
+$kind: http-request
+name: Delete Report
+method: DELETE
+url: '{{baseUrl}}/reports/:id'
+order: 14000
+pathVariables:
+  - key: id
+    value: '1'

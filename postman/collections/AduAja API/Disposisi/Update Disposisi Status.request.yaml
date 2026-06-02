@@ -1,0 +1,11 @@
+$kind: http-request
+name: Update Disposisi Status
+method: PATCH
+url: '{{baseUrl}}/disposisi/:id/status'
+order: 8000
+pathVariables:
+  - key: id
+    value: '1'
+queryParams:
+  - key: status
+    value: ''

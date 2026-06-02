@@ -1,0 +1,8 @@
+$kind: http-request
+name: Get Reports by Status
+method: GET
+url: '{{baseUrl}}/reports/status/:status'
+order: 6000
+pathVariables:
+  - key: status
+    value: MENUNGGU

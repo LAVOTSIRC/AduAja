@@ -1,0 +1,15 @@
+$kind: http-request
+name: Validate Report
+method: POST
+url: '{{baseUrl}}/reports/:id/validate'
+order: 9000
+pathVariables:
+  - key: id
+    value: '1'
+queryParams:
+  - key: approved
+    value: 'true'
+  - key: rejectionReason
+    value: ''
+  - key: validatedBy
+    value: ''

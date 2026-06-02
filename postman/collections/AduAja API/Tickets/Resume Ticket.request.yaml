@@ -1,0 +1,8 @@
+$kind: http-request
+name: Resume Ticket
+method: POST
+url: '{{baseUrl}}/tickets/:id/resume'
+order: 15000
+pathVariables:
+  - key: id
+    value: '1'

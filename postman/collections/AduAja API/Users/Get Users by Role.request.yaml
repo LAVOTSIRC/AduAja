@@ -1,0 +1,8 @@
+$kind: http-request
+name: Get Users by Role
+method: GET
+url: '{{baseUrl}}/users/role/:role'
+order: 4000
+pathVariables:
+  - key: role
+    value: WARGA
