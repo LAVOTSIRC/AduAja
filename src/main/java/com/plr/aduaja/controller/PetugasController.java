@@ -14,7 +14,10 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import com.plr.aduaja.dto.ResetPasswordDTO;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -58,6 +61,15 @@ public class PetugasController {
     @Autowired
     private AuditLogRepository auditLogRepository;
 
+    @Autowired
+    private OtpService otpService;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private SupabaseStorageService supabaseStorageService;
+
     @GetMapping("/petugas/home")
     public String petugasHome() {
         return "redirect:/petugas/dashboard";
@@ -97,6 +109,93 @@ public class PetugasController {
     }
 
     // ==========================================
+    // GET /petugas/forgot-password
+    // ==========================================
+    @GetMapping("/petugas/forgot-password")
+    public String forgotPasswordPage(Model model) {
+        model.addAttribute("step", "email");
+        return "petugas/forgot-password";
+    }
+
+    // ==========================================
+    // POST /petugas/forgot-password
+    // ==========================================
+    @PostMapping("/petugas/forgot-password")
+    public String forgotPasswordRequest(
+            @RequestParam("email") String email,
+            RedirectAttributes redirectAttributes) {
+        try {
+            Optional<User> userOpt = userService.findByEmail(email.trim());
+            if (userOpt.isEmpty()) {
+                redirectAttributes.addFlashAttribute("success",
+                    "Jika email terdaftar, kode OTP telah dikirim. Masukkan kode OTP di bawah.");
+                return "redirect:/petugas/forgot-password/verify?email=" + email;
+            }
+            otpService.generateOtpForPasswordReset(email.trim());
+            redirectAttributes.addFlashAttribute("success",
+                "Kode OTP telah dikirim. Masukkan kode OTP untuk melanjutkan.");
+            return "redirect:/petugas/forgot-password/verify?email=" + email;
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Gagal mengirim OTP: " + e.getMessage());
+            return "redirect:/petugas/forgot-password";
+        }
+    }
+
+    // ==========================================
+    // GET /petugas/forgot-password/verify
+    // ==========================================
+    @GetMapping("/petugas/forgot-password/verify")
+    public String forgotPasswordVerifyPage(
+            @RequestParam("email") String email,
+            Model model) {
+        model.addAttribute("email", email);
+        model.addAttribute("resetDTO", new ResetPasswordDTO());
+        return "petugas/forgot-password-verify";
+    }
+
+    // ==========================================
+    // POST /petugas/forgot-password/verify
+    // ==========================================
+    @PostMapping("/petugas/forgot-password/verify")
+    public String forgotPasswordVerify(
+            @RequestParam("email") String email,
+            @RequestParam("otpCode") String otpCode,
+            @RequestParam("newPassword") String newPassword,
+            @RequestParam("confirmNewPassword") String confirmNewPassword,
+            RedirectAttributes redirectAttributes) {
+        if (!newPassword.equals(confirmNewPassword)) {
+            redirectAttributes.addFlashAttribute("error", "Password baru dan konfirmasi tidak cocok.");
+            return "redirect:/petugas/forgot-password/verify?email=" + email;
+        }
+        if (newPassword.length() < 8) {
+            redirectAttributes.addFlashAttribute("error", "Password minimal 8 karakter.");
+            return "redirect:/petugas/forgot-password/verify?email=" + email;
+        }
+        try {
+            Optional<User> userOpt = userService.findByEmail(email.trim());
+            if (userOpt.isEmpty()) {
+                redirectAttributes.addFlashAttribute("error", "Email tidak ditemukan.");
+                return "redirect:/petugas/forgot-password";
+            }
+            User user = userOpt.get();
+            boolean valid = otpService.verifyOtp(user.getUserId(), otpCode);
+            if (!valid) {
+                redirectAttributes.addFlashAttribute("error", "Kode OTP tidak valid atau sudah kadaluarsa.");
+                return "redirect:/petugas/forgot-password/verify?email=" + email;
+            }
+            user.setPasswordHash(passwordEncoder.encode(newPassword));
+            userService.updateUser(user);
+            redirectAttributes.addFlashAttribute("success",
+                "Password berhasil direset! Silakan login dengan password baru.");
+            return "redirect:/petugas/login";
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Gagal reset password: " + e.getMessage());
+            return "redirect:/petugas/forgot-password/verify?email=" + email;
+        }
+    }
+
+
+    // ==========================================
     // POST /petugas/dashboard — Aksi absensi (check-in/out/break/resume)
     // ==========================================
     @PostMapping("/petugas/dashboard")
@@ -108,6 +207,7 @@ public class PetugasController {
             @RequestParam(value = "longitude", required = false) java.math.BigDecimal longitude,
             @RequestParam(value = "deviceInfo", required = false) String deviceInfo,
             HttpSession session,
+            jakarta.servlet.http.HttpServletRequest request,
             RedirectAttributes redirectAttributes
     ) {
         if (session.getAttribute("forceChangePasswordUserId") != null) return "redirect:/petugas/change-password";
@@ -118,9 +218,24 @@ public class PetugasController {
             if (checkIn != null && checkIn) {
                 // FIX-4: FR-PTG-08 — Validasi geofencing di backend sebelum check-in
                 try {
+                    double centerLat = DINAS_CENTER_LAT;
+                    double centerLon = DINAS_CENTER_LON;
+                    User officer = userService.findById(userId).orElse(null);
+                    if (officer != null && officer.getAgency() != null) {
+                        Agency agency = officer.getAgency();
+                        if (agency.getLatitude() != null && agency.getLongitude() != null) {
+                            centerLat = agency.getLatitude().doubleValue();
+                            centerLon = agency.getLongitude().doubleValue();
+                        }
+                    }
+
+                    String ip = request.getHeader("X-Forwarded-For");
+                    if (ip == null || ip.isEmpty()) ip = request.getRemoteAddr();
+                    String finalDeviceInfo = (deviceInfo != null ? deviceInfo : "Unknown") + " | IP: " + ip;
+
                     attendanceService.checkInWithGeofence(
-                            userId, latitude, longitude, deviceInfo,
-                            CHECKIN_RADIUS_KM, DINAS_CENTER_LAT, DINAS_CENTER_LON);
+                            userId, latitude, longitude, finalDeviceInfo,
+                            CHECKIN_RADIUS_KM, centerLat, centerLon);
                 } catch (IllegalStateException geoEx) {
                     log.warn("Geofencing check-in gagal untuk petugas {}: {}", userId, geoEx.getMessage());
                     redirectAttributes.addFlashAttribute("geoError", geoEx.getMessage());
@@ -152,6 +267,8 @@ public class PetugasController {
             @RequestParam(value = "latitude", required = false) java.math.BigDecimal latitude,
             @RequestParam(value = "longitude", required = false) java.math.BigDecimal longitude,
             @RequestParam(value = "estimatedTime", required = false) String estimatedTime,
+            @RequestParam(value = "photos", required = false) MultipartFile[] photos,
+            @RequestParam(value = "documents", required = false) MultipartFile[] documents,
             @RequestParam(value = "additionalNotes", required = false) String additionalNotes,
             HttpSession session,
             RedirectAttributes redirectAttributes
@@ -196,6 +313,35 @@ public class PetugasController {
                     }
                     case "reportback" -> {
                         log.warn("Lapor balik (invalid) untuk tugas {} oleh {}: {}", id, userId, description);
+                        
+                        if (photos != null && photos.length > 0) {
+                            log.info("Menerima {} foto pendukung lapor balik", photos.length);
+                            for (MultipartFile photo : photos) {
+                                if (!photo.isEmpty()) {
+                                    try {
+                                        String url = supabaseStorageService.upload(photo, "bukti");
+                                        fieldTaskService.saveTaskEvidenceDirect(id, url, TaskEvidence.EvidenceType.LAPOR_BALIK);
+                                    } catch (Exception e) {
+                                        log.error("Gagal upload foto lapor balik: {}", e.getMessage());
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if (documents != null && documents.length > 0) {
+                            log.info("Menerima {} dokumen pendukung lapor balik", documents.length);
+                            for (MultipartFile document : documents) {
+                                if (!document.isEmpty()) {
+                                    try {
+                                        String url = supabaseStorageService.upload(document, "bukti");
+                                        fieldTaskService.saveTaskEvidenceDirect(id, url, TaskEvidence.EvidenceType.LAPOR_BALIK);
+                                    } catch (Exception e) {
+                                        log.error("Gagal upload dokumen lapor balik: {}", e.getMessage());
+                                    }
+                                }
+                            }
+                        }
+                        
                         fieldTaskService.requestPostpone(id,
                             "Laporan invalid: " + (description != null ? description : "Tidak ada alasan"),
                             userId, null);
@@ -290,6 +436,8 @@ public class PetugasController {
                 : shift.getShiftStatus() == OfficerAttendance.ShiftStatus.ISTIRAHAT ? "Istirahat" : "Selesai Shift");
             attendance.put("checkInTime", shift.getCheckInAt() != null
                 ? shift.getCheckInAt().format(ControllerHelper.TIME_FMT) : "-");
+            attendance.put("rawCheckInAt", shift.getCheckInAt() != null
+                ? shift.getCheckInAt().atZone(java.time.ZoneId.systemDefault()).toEpochSecond() * 1000 : null);
             attendance.put("workDuration", shift.getCheckInAt() != null
                 ? formatDuration(Duration.between(shift.getCheckInAt(), LocalDateTime.now())) : "00:00:00");
             attendance.put("location", shift.getCheckInLatitude() != null
@@ -350,14 +498,14 @@ public class PetugasController {
 
         // FIX-8: FR-PTG-10 — Algoritma Sorting Cerdas (SLA + GPS Proximity)
         java.util.Comparator<Map<String, Object>> scoreComparator = (m1, m2) -> {
-            long sla1 = (Long) m1.getOrDefault("rawSlaRemaining", 999L);
-            double dist1 = (Double) m1.getOrDefault("rawDistance", 999.0);
-            int prio1 = (Integer) m1.getOrDefault("rawPriorityScore", 2);
+            long sla1 = ((Number) m1.getOrDefault("rawSlaRemaining", 999L)).longValue();
+            double dist1 = ((Number) m1.getOrDefault("rawDistance", 999.0)).doubleValue();
+            int prio1 = ((Number) m1.getOrDefault("rawPriorityScore", 2)).intValue();
             double score1 = (sla1 * 10) + (dist1 * 2) + (prio1 * 50);
 
-            long sla2 = (Long) m2.getOrDefault("rawSlaRemaining", 999L);
-            double dist2 = (Double) m2.getOrDefault("rawDistance", 999.0);
-            int prio2 = (Integer) m2.getOrDefault("rawPriorityScore", 2);
+            long sla2 = ((Number) m2.getOrDefault("rawSlaRemaining", 999L)).longValue();
+            double dist2 = ((Number) m2.getOrDefault("rawDistance", 999.0)).doubleValue();
+            int prio2 = ((Number) m2.getOrDefault("rawPriorityScore", 2)).intValue();
             double score2 = (sla2 * 10) + (dist2 * 2) + (prio2 * 50);
 
             return Double.compare(score1, score2);
@@ -541,7 +689,8 @@ public class PetugasController {
                         fieldTaskService.saveTaskEvidence(id, photoAfterData, TaskEvidence.EvidenceType.SESUDAH);
                     }
                 } catch (Exception ev) {
-                    log.error("Gagal simpan evidence {}, lanjut complete: {}", id, ev.getMessage());
+                    log.error("Gagal simpan evidence {}, membatalkan completeTask: {}", id, ev.getMessage());
+                    return "redirect:/petugas/task-execution?id=" + id + "&step=after&error=Gagal+menyimpan+foto";
                 }
                 fieldTaskService.completeTask(id);
                 return "redirect:/petugas/dashboard";
@@ -594,6 +743,8 @@ public class PetugasController {
                 ? formatDuration(Duration.between(t.getStartedAt(), t.getCompletedAt())) : "-");
             m.put("completedAt", t.getCompletedAt() != null
                 ? t.getCompletedAt().format(ControllerHelper.DATE_FMT) : "-");
+            m.put("rawCompletedAt", t.getCompletedAt() != null
+                ? t.getCompletedAt().atZone(java.time.ZoneId.systemDefault()).toEpochSecond() * 1000 : 0L);
             // FIX: Count evidence dari DB
             List<TaskEvidence> beforeEvs = fieldTaskService.getEvidencesByTaskAndType(
                 t.getTaskId(), TaskEvidence.EvidenceType.SEBELUM);
@@ -735,8 +886,8 @@ public class PetugasController {
         } else if (period.equals("month")) {
             progressTitle = "Tugas per Minggu (30 Hari Terakhir)";
             for (int w = 4; w >= 1; w--) {
-                LocalDate start = now.minusWeeks(w);
-                LocalDate end = start.plusDays(6);
+                LocalDate end = now.minusDays((w - 1) * 7L);
+                LocalDate start = end.minusDays(6);
                 int weekTasks = (int) completed.stream()
                     .filter(t -> t.getCompletedAt() != null
                         && !t.getCompletedAt().toLocalDate().isBefore(start)
@@ -782,9 +933,24 @@ public class PetugasController {
                 long lateCount = 0;
                 List<Map<String, Object>> recordList = realRecords.stream().map(r -> {
                     Map<String, Object> di = new HashMap<>();
-                    di.put("browser", r.getDeviceInfo() != null ? r.getDeviceInfo() : "Unknown");
-                    di.put("os", "Android");
-                    di.put("ip", "-");
+                    String userAgent = r.getDeviceInfo() != null ? r.getDeviceInfo() : "Unknown";
+                    String ip = "-";
+                    if (userAgent.contains("| IP: ")) {
+                        String[] parts = userAgent.split("\\| IP: ");
+                        userAgent = parts[0].trim();
+                        if (parts.length > 1) ip = parts[1].trim();
+                    }
+                    di.put("browser", userAgent);
+                    
+                    String os = "Unknown";
+                    if (userAgent.contains("Windows")) os = "Windows";
+                    else if (userAgent.contains("Mac")) os = "MacOS";
+                    else if (userAgent.contains("Linux")) os = "Linux";
+                    else if (userAgent.contains("Android")) os = "Android";
+                    else if (userAgent.contains("iPhone") || userAgent.contains("iPad")) os = "iOS";
+                    
+                    di.put("os", os);
+                    di.put("ip", ip);
                     String dateFmt = r.getCheckInAt() != null ? r.getCheckInAt().format(ControllerHelper.DATE_FMT) : "-";
                     String ciTime = r.getCheckInAt() != null ? r.getCheckInAt().format(ControllerHelper.TIME_FMT) : "-";
                     String coTime = r.getCheckOutAt() != null ? r.getCheckOutAt().format(ControllerHelper.TIME_FMT) : null;
@@ -851,8 +1017,12 @@ public class PetugasController {
             ? task.getReport().getReporter().getPhoneNumber() : "-");
         m.put("reportDate", task.getReport() != null && task.getReport().getSubmittedAt() != null
             ? task.getReport().getSubmittedAt().format(ControllerHelper.DATE_FMT) : "-");
+        m.put("rawReportDate", task.getReport() != null && task.getReport().getSubmittedAt() != null
+            ? task.getReport().getSubmittedAt().atZone(java.time.ZoneId.systemDefault()).toEpochSecond() : 0L);
         // FR-PTG-17: flag koreksi koordinat agar UI modal bisa tampilkan status 1x
         m.put("coordinateCorrected", task.getReport() != null && task.getReport().isCoordinateCorrected());
+        // Laporan Warga Evidence
+        m.put("photoBase64", task.getReport() != null ? task.getReport().getPhotoBase64() : null);
 
         // Calculate distance
         if (userLat != null && userLng != null && task.getReport() != null &&
